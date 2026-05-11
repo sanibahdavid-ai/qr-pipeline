@@ -145,6 +145,9 @@ export default function Home() {
   const [copied, setCopied] = useState<string | null>(null);
   const [overrides, setOverrides] = useState<Partial<Record<Section, string>>>({});
   const [adjusting, setAdjusting] = useState<Section | null>(null);
+  const [transcriptText, setTranscriptText] = useState("");
+  const [copiedTranscript, setCopiedTranscript] = useState(false);
+  const [copiedAll, setCopiedAll] = useState(false);
 
   // ── Voice settings ──────────────────────────────────────────────────────────
   const [voiceSettings, setVoiceSettings] = useState<VoiceSettings>({
@@ -239,6 +242,9 @@ export default function Home() {
     setCopied(null);
     setOverrides({});
     setAdjusting(null);
+    setTranscriptText("");
+    setCopiedTranscript(false);
+    setCopiedAll(false);
   }
 
   async function handleExtract() {
@@ -261,6 +267,7 @@ export default function Home() {
     }
 
     setVideoTitle(data.title);
+    setTranscriptText(data.text);
     await handleRewrite(data.text, data.title);
   }
 
@@ -413,6 +420,16 @@ export default function Home() {
     await navigator.clipboard.writeText(text);
     setCopied(key);
     setTimeout(() => setCopied(null), 2000);
+  }
+
+  async function copyAllQR() {
+    const parts = SECTIONS.map((section) => {
+      const content = getContent(section) ?? "";
+      return `=== ${section} ===\n${content}`;
+    });
+    await navigator.clipboard.writeText(parts.join("\n\n"));
+    setCopiedAll(true);
+    setTimeout(() => setCopiedAll(false), 1500);
   }
 
   // ── Render ───────────────────────────────────────────────────────────────────
@@ -568,6 +585,30 @@ export default function Home() {
         {step === "done" && (
           <div className="space-y-6">
 
+            {/* Transcript original */}
+            {transcriptText && (
+              <div className="bg-neutral-900 border border-neutral-800 rounded-lg overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-2.5 border-b border-neutral-800">
+                  <span className="text-xs font-mono font-bold text-neutral-400 tracking-widest">
+                    TRANSCRIPT ORIGINAL
+                  </span>
+                  <button
+                    onClick={async () => {
+                      await navigator.clipboard.writeText(transcriptText);
+                      setCopiedTranscript(true);
+                      setTimeout(() => setCopiedTranscript(false), 1500);
+                    }}
+                    className="text-xs text-neutral-500 hover:text-neutral-200 transition-colors"
+                  >
+                    {copiedTranscript ? "Copié !" : "📋 Copier"}
+                  </button>
+                </div>
+                <p className="px-4 py-3 text-sm text-neutral-400 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
+                  {transcriptText}
+                </p>
+              </div>
+            )}
+
             {/* Voice controls */}
             <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-3">
@@ -713,6 +754,16 @@ export default function Home() {
                 </div>
               );
             })}
+
+            {/* Copy all QR */}
+            <div className="flex justify-end">
+              <button
+                onClick={copyAllQR}
+                className="flex items-center gap-1.5 text-xs text-neutral-500 hover:text-neutral-200 transition-colors border border-neutral-800 hover:border-neutral-600 rounded-md px-3 py-1.5"
+              >
+                {copiedAll ? "Copié !" : "📋 Tout copier (QR)"}
+              </button>
+            </div>
 
             {/* 7 sections */}
             {SECTIONS.map((section) => {
