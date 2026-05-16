@@ -89,6 +89,13 @@ function wordStats(text: string): { words: number; duration: string } {
   return { words, duration };
 }
 
+function cleanContent(raw: string): string {
+  return raw
+    .replace(/\n*SECTION\s+\d+\s*$/i, "")
+    .replace(/\n*Prêt pour le prochain script\s*!?\s*$/i, "")
+    .trim();
+}
+
 function parseQR(text: string): Partial<Record<Section, string>> {
   const positions: Array<{ section: Section; index: number }> = [];
   for (const section of SECTIONS) {
@@ -102,7 +109,7 @@ function parseQR(text: string): Partial<Record<Section, string>> {
     const { section, index } = positions[i];
     const start = index + section.length;
     const end = i + 1 < positions.length ? positions[i + 1].index : text.length;
-    const content = text.slice(start, end).trim();
+    const content = cleanContent(text.slice(start, end).trim());
     if (content) result[section] = content;
   }
   return result;
@@ -174,7 +181,9 @@ export default function Home() {
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
 
   // ── Edge TTS settings ─────────────────────────────────────────────────────
-  const [edgeVoice, setEdgeVoice] = useState("fr-FR-HenriNeural");
+  const [edgeVoiceFr, setEdgeVoiceFr] = useState("fr-FR-HenriNeural");
+  const [edgeVoiceEn, setEdgeVoiceEn] = useState("en-US-GuyNeural");
+  const [edgeVoiceDe, setEdgeVoiceDe] = useState("de-DE-KillianNeural");
   const [edgeRate, setEdgeRate] = useState(0);
 
   // ── History ───────────────────────────────────────────────────────────────
@@ -412,9 +421,7 @@ export default function Home() {
     setAudio((a) => ({ ...a, [language]: { status: "error", label: "Timeout (30 min)" } }));
   }
 
-  async function handleEdgeTTS() {
-    const voice = edgeVoice;
-    const lang = voice.startsWith("fr") ? "FR" : voice.startsWith("en") ? "EN" : "DE";
+  async function handleEdgeTTSLang(lang: "FR" | "EN" | "DE", voice: string) {
     const sectionKey = `SCRIPT ${lang}` as Section;
     const text = getContent(sectionKey);
     if (!text) return;
@@ -422,7 +429,7 @@ export default function Home() {
     const filename = `${sanitizeTitle(videoTitle)}_${lang}_edge.mp3`;
     const rateStr = edgeRate >= 0 ? `+${edgeRate}%` : `${edgeRate}%`;
 
-    setAudio((a) => ({ ...a, [`EDGE_${lang}`]: { status: "loading", label: "Génération Edge TTS..." } }));
+    setAudio((a) => ({ ...a, [`EDGE_${lang}`]: { status: "loading", label: "Génération..." } }));
 
     try {
       const res = await fetch("/api/tts-edge", {
@@ -441,6 +448,14 @@ export default function Home() {
     } catch (err) {
       setAudio((a) => ({ ...a, [`EDGE_${lang}`]: { status: "error", label: String(err) } }));
     }
+  }
+
+  async function handleEdgeTTSAll() {
+    await Promise.all([
+      handleEdgeTTSLang("FR", edgeVoiceFr),
+      handleEdgeTTSLang("EN", edgeVoiceEn),
+      handleEdgeTTSLang("DE", edgeVoiceDe),
+    ]);
   }
 
   async function handleAdjust(section: Section, targetDuration: AdjustDuration) {
@@ -480,7 +495,7 @@ export default function Home() {
   }
 
   async function copySection(key: string, text: string) {
-    await navigator.clipboard.writeText(text);
+    await navigator.clipboard.writeText(`${key}\n\n${text}`);
     setCopied(key);
     setTimeout(() => setCopied(null), 2000);
   }
@@ -870,25 +885,46 @@ export default function Home() {
                 <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-4 space-y-4">
                   <span className="text-xs font-mono font-bold text-neutral-400 tracking-widest">EDGE TTS — Microsoft Neural</span>
 
-                  {/* Voice selector grouped by language */}
-                  <div className="space-y-1">
-                    <span className="text-xs text-neutral-500 font-mono">Voix</span>
-                    <select
-                      value={edgeVoice}
-                      onChange={(e) => setEdgeVoice(e.target.value)}
-                      className="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:border-neutral-500"
-                    >
-                      {(Object.keys(EDGE_TTS_VOICES) as EdgeLang[]).map((lang) => (
-                        <optgroup key={lang} label={EDGE_LANG_LABELS[lang]}>
-                          {EDGE_TTS_VOICES[lang].map((v) => (
+                  {/* Per-language voice rows */}
+                  {(
+                    [
+                      { lang: "FR" as const, voice: edgeVoiceFr, setVoice: setEdgeVoiceFr, voices: EDGE_TTS_VOICES.fr },
+                      { lang: "EN" as const, voice: edgeVoiceEn, setVoice: setEdgeVoiceEn, voices: EDGE_TTS_VOICES.en },
+                      { lang: "DE" as const, voice: edgeVoiceDe, setVoice: setEdgeVoiceDe, voices: EDGE_TTS_VOICES.de },
+                    ] as const
+                  ).map(({ lang, voice, setVoice, voices }) => {
+                    const state = audio[`EDGE_${lang}`];
+                    const busy = state?.status === "loading";
+                    return (
+                      <div key={lang} className="flex items-center gap-2">
+                        <span className="text-xs text-neutral-500 font-mono w-6 shrink-0">{lang}</span>
+                        <select
+                          value={voice}
+                          onChange={(e) => setVoice(e.target.value)}
+                          className="flex-1 bg-neutral-800 border border-neutral-700 rounded-lg px-2 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-neutral-500"
+                        >
+                          {voices.map((v) => (
                             <option key={v.id} value={v.id}>{v.label}</option>
                           ))}
-                        </optgroup>
-                      ))}
-                    </select>
-                  </div>
+                        </select>
+                        <button
+                          onClick={() => handleEdgeTTSLang(lang, voice)}
+                          disabled={busy}
+                          className={`shrink-0 px-3 py-1.5 text-xs rounded-lg font-semibold transition-colors disabled:opacity-50 ${
+                            state?.status === "error"
+                              ? "bg-red-900/60 hover:bg-red-900 text-red-300"
+                              : state?.status === "done"
+                              ? "bg-green-900/60 hover:bg-green-900 text-green-300"
+                              : "bg-neutral-700 hover:bg-neutral-600 text-neutral-100"
+                          }`}
+                        >
+                          {busy ? state.label : state?.status === "done" ? "Regénérer" : state?.status === "error" ? "Erreur" : "Générer"}
+                        </button>
+                      </div>
+                    );
+                  })}
 
-                  {/* Rate slider */}
+                  {/* Shared rate slider */}
                   <Slider
                     label="Vitesse"
                     value={edgeRate}
@@ -897,23 +933,17 @@ export default function Home() {
                     onChange={(v) => setEdgeRate(v)}
                   />
 
-                  {/* Generate button */}
+                  {/* Generate all 3 button */}
                   <button
-                    onClick={handleEdgeTTS}
-                    disabled={(() => {
-                      const lang = edgeVoice.startsWith("fr") ? "FR" : edgeVoice.startsWith("en") ? "EN" : "DE";
-                      return audio[`EDGE_${lang}`]?.status === "loading";
-                    })()}
+                    onClick={handleEdgeTTSAll}
+                    disabled={
+                      audio["EDGE_FR"]?.status === "loading" ||
+                      audio["EDGE_EN"]?.status === "loading" ||
+                      audio["EDGE_DE"]?.status === "loading"
+                    }
                     className="w-full py-2 bg-neutral-700 hover:bg-neutral-600 text-sm text-neutral-100 font-semibold rounded-lg disabled:opacity-50 transition-colors"
                   >
-                    {(() => {
-                      const lang = edgeVoice.startsWith("fr") ? "FR" : edgeVoice.startsWith("en") ? "EN" : "DE";
-                      const state = audio[`EDGE_${lang}`];
-                      if (state?.status === "loading") return state.label;
-                      if (state?.status === "done") return `Générer audio (SCRIPT ${lang})`;
-                      if (state?.status === "error") return `Erreur — réessayer (SCRIPT ${lang})`;
-                      return `Générer audio (SCRIPT ${lang})`;
-                    })()}
+                    Générer les 3 langues
                   </button>
                 </div>
               )}
