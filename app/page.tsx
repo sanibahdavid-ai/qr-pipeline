@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { EDGE_TTS_VOICES } from "../lib/edge-tts-voices";
 
-const APP_VERSION = "1.8";
+const APP_VERSION = "2.0";
 
 const SECTIONS = [
   "SCRIPT FR",
@@ -15,8 +16,9 @@ const SECTIONS = [
 ] as const;
 
 type Section = (typeof SECTIONS)[number];
-type Provider = "ai33-minimax" | "ai33-elevenlabs" | "elevenlabs";
-type Step = "idle" | "extracting" | "rewriting" | "done";
+type Provider = "ai33-minimax" | "ai33-elevenlabs" | "elevenlabs" | "edge-tts";
+type Step = "idle" | "extracting" | "transcript" | "rewriting" | "done";
+type DurationSelection = "15s" | "30s" | "60s" | "custom" | "original";
 type AudioState = {
   status: "loading" | "done" | "error";
   label: string;
@@ -25,9 +27,9 @@ type AudioState = {
 };
 
 type VoiceSettings = {
-  speed: number;   // 0.5 – 2.0
-  pitch: number;   // -12 – 12
-  volume: number;  // 0.0 – 2.0
+  speed: number;
+  pitch: number;
+  volume: number;
 };
 
 type HistoryEntry = {
@@ -40,17 +42,29 @@ type HistoryEntry = {
 };
 
 const SCRIPT_SECTIONS: Section[] = ["SCRIPT FR", "SCRIPT EN", "SCRIPT DE"];
-const DURATION_OPTIONS = ["10s", "15s", "30s", "45s", "1min", "1min30", "2min"] as const;
-type DurationOption = (typeof DURATION_OPTIONS)[number];
+const ADJUST_DURATIONS = ["10s", "15s", "30s", "45s", "1min", "1min30", "2min"] as const;
+type AdjustDuration = (typeof ADJUST_DURATIONS)[number];
 
 const PROVIDERS_UI: { id: Provider; label: string; group: string }[] = [
   { id: "ai33-minimax",    label: "Minimax",    group: "AI33pro" },
   { id: "ai33-elevenlabs", label: "ElevenLabs", group: "AI33pro" },
   { id: "elevenlabs",      label: "ElevenLabs", group: "Direct"  },
+  { id: "edge-tts",        label: "Edge TTS",   group: "Gratuit" },
 ];
+
+type EdgeLang = keyof typeof EDGE_TTS_VOICES;
+const EDGE_LANG_LABELS: Record<EdgeLang, string> = { fr: "Français", en: "English", de: "Deutsch" };
 
 const HISTORY_KEY = "qr_pipeline_history";
 const MAX_HISTORY = 50;
+
+const DURATION_PILLS: { value: DurationSelection; label: string }[] = [
+  { value: "15s",      label: "15s" },
+  { value: "30s",      label: "30s" },
+  { value: "60s",      label: "60s" },
+  { value: "original", label: "Durée originale" },
+  { value: "custom",   label: "Personnalisé" },
+];
 
 function sanitizeTitle(title: string): string {
   return title
@@ -102,7 +116,7 @@ function formatDate(iso: string): string {
   });
 }
 
-// ── Slider Component ─────────────────────────────────────────────────────────
+// ── Slider Component ──────────────────────────────────────────────────────────
 function Slider({
   label, value, min, max, step, format, onChange,
 }: {
@@ -148,8 +162,10 @@ export default function Home() {
   const [transcriptText, setTranscriptText] = useState("");
   const [copiedTranscript, setCopiedTranscript] = useState(false);
   const [copiedAll, setCopiedAll] = useState(false);
+  const [selectedDuration, setSelectedDuration] = useState<DurationSelection>("original");
+  const [customSeconds, setCustomSeconds] = useState(30);
 
-  // ── Voice settings ──────────────────────────────────────────────────────────
+  // ── Voice settings ────────────────────────────────────────────────────────
   const [voiceSettings, setVoiceSettings] = useState<VoiceSettings>({
     speed: 1.0,
     pitch: 0,
@@ -157,12 +173,15 @@ export default function Home() {
   });
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
 
-  // ── History ─────────────────────────────────────────────────────────────────
+  // ── Edge TTS settings ─────────────────────────────────────────────────────
+  const [edgeVoice, setEdgeVoice] = useState("fr-FR-HenriNeural");
+  const [edgeRate, setEdgeRate] = useState(0);
+
+  // ── History ───────────────────────────────────────────────────────────────
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const historyPanelRef = useRef<HTMLDivElement>(null);
 
-  // Load history from localStorage on mount
   useEffect(() => {
     try {
       const raw = localStorage.getItem(HISTORY_KEY);
@@ -170,7 +189,6 @@ export default function Home() {
     } catch {}
   }, []);
 
-  // Close history panel on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (historyPanelRef.current && !historyPanelRef.current.contains(e.target as Node)) {
@@ -223,7 +241,7 @@ export default function Home() {
     try { localStorage.removeItem(HISTORY_KEY); } catch {}
   }
 
-  // ────────────────────────────────────────────────────────────────────────────
+  // ──────────────────────────────────────────────────────────────────────────
 
   const sections = step === "done" ? parseQR(qrText) : {};
   const isLoading = step === "extracting" || step === "rewriting";
@@ -245,6 +263,8 @@ export default function Home() {
     setTranscriptText("");
     setCopiedTranscript(false);
     setCopiedAll(false);
+    setSelectedDuration("original");
+    setCustomSeconds(30);
   }
 
   async function handleExtract() {
@@ -268,21 +288,36 @@ export default function Home() {
 
     setVideoTitle(data.title);
     setTranscriptText(data.text);
-    await handleRewrite(data.text, data.title);
+    setStep("transcript");
   }
 
-  async function handleRewrite(text: string, title?: string) {
+  function computeTargetSeconds(): number | "original" {
+    if (selectedDuration === "original") return "original";
+    if (selectedDuration === "custom") return Math.min(180, Math.max(5, customSeconds));
+    if (selectedDuration === "15s") return 15;
+    if (selectedDuration === "30s") return 30;
+    if (selectedDuration === "60s") return 60;
+    return "original";
+  }
+
+  async function handleGenerateQR() {
+    if (!transcriptText) return;
+    setError("");
+    await handleRewrite(transcriptText, videoTitle, computeTargetSeconds());
+  }
+
+  async function handleRewrite(text: string, title?: string, targetSeconds: number | "original" = "original") {
     setStep("rewriting");
 
     const res = await fetch("/api/rewrite", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, targetSeconds }),
     });
 
     if (!res.ok || !res.body) {
-      setError("Erreur réécriture QR");
-      setStep("idle");
+      setError("Erreur réécriture");
+      setStep("transcript");
       return;
     }
 
@@ -297,7 +332,6 @@ export default function Home() {
     }
     setStep("done");
 
-    // Save to history
     const finalTitle = title ?? videoTitle;
     if (finalTitle) saveToHistory(finalTitle, url, accumulated);
   }
@@ -310,7 +344,6 @@ export default function Home() {
     const filename = `${sanitizeTitle(videoTitle)}_${language}.mp3`;
     setAudio((a) => ({ ...a, [language]: { status: "loading", label: "Envoi..." } }));
 
-    // ── ElevenLabs direct ──────────────────────────────────────────────────────
     if (provider === "elevenlabs") {
       try {
         const res = await fetch("/api/tts/elevenlabs", {
@@ -332,7 +365,6 @@ export default function Home() {
       return;
     }
 
-    // ── AI33pro ────────────────────────────────────────────────────────────────
     const res = await fetch("/api/tts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -380,7 +412,38 @@ export default function Home() {
     setAudio((a) => ({ ...a, [language]: { status: "error", label: "Timeout (30 min)" } }));
   }
 
-  async function handleAdjust(section: Section, targetDuration: DurationOption) {
+  async function handleEdgeTTS() {
+    const voice = edgeVoice;
+    const lang = voice.startsWith("fr") ? "FR" : voice.startsWith("en") ? "EN" : "DE";
+    const sectionKey = `SCRIPT ${lang}` as Section;
+    const text = getContent(sectionKey);
+    if (!text) return;
+
+    const filename = `${sanitizeTitle(videoTitle)}_${lang}_edge.mp3`;
+    const rateStr = edgeRate >= 0 ? `+${edgeRate}%` : `${edgeRate}%`;
+
+    setAudio((a) => ({ ...a, [`EDGE_${lang}`]: { status: "loading", label: "Génération Edge TTS..." } }));
+
+    try {
+      const res = await fetch("/api/tts-edge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, voice, rate: rateStr }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        setAudio((a) => ({ ...a, [`EDGE_${lang}`]: { status: "error", label: err.error ?? "Erreur Edge TTS" } }));
+        return;
+      }
+      const blob = await res.blob();
+      const audioUrl = URL.createObjectURL(blob);
+      setAudio((s) => ({ ...s, [`EDGE_${lang}`]: { status: "done", label: "Prêt", audioUrl, filename } }));
+    } catch (err) {
+      setAudio((a) => ({ ...a, [`EDGE_${lang}`]: { status: "error", label: String(err) } }));
+    }
+  }
+
+  async function handleAdjust(section: Section, targetDuration: AdjustDuration) {
     const text = getContent(section);
     if (!text || adjusting) return;
 
@@ -432,23 +495,24 @@ export default function Home() {
     setTimeout(() => setCopiedAll(false), 1500);
   }
 
-  // ── Render ───────────────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-100 px-4 py-10">
       <div className="max-w-2xl mx-auto space-y-8">
 
         {/* Header */}
-        <div className="flex items-start justify-between">
-          <div>
+        <div className="flex items-start">
+          <div className="flex-1" />
+          <div className="text-center">
             <h1 className="text-3xl font-mono font-bold tracking-tighter text-neutral-100">
-              qr_pipeline
+              DAV PIPELINE
               <span className="text-neutral-600 font-normal text-base ml-2">v{APP_VERSION}</span>
             </h1>
             <p className="text-neutral-400 text-xs font-mono tracking-widest uppercase mt-1">
-              Quad Remix
+              Made by Dav
             </p>
           </div>
-          <div className="flex items-center gap-3 mt-1">
+          <div className="flex-1 flex justify-end items-start gap-3">
             {/* History button */}
             <div className="relative" ref={historyPanelRef}>
               <button
@@ -517,7 +581,7 @@ export default function Home() {
               )}
             </div>
 
-            {step === "done" && (
+            {(step === "transcript" || step === "done") && (
               <button
                 onClick={reset}
                 className="text-xs text-neutral-500 hover:text-neutral-200 transition-colors"
@@ -536,7 +600,31 @@ export default function Home() {
           </p>
         )}
 
-        {/* URL input */}
+        {/* Transcript — visible from "transcript" step onwards */}
+        {transcriptText && step !== "idle" && step !== "extracting" && (
+          <div className="bg-neutral-900 border border-neutral-800 rounded-lg overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-neutral-800">
+              <span className="text-xs font-mono font-bold text-neutral-400 tracking-widest">
+                📜 TRANSCRIPT ORIGINAL
+              </span>
+              <button
+                onClick={async () => {
+                  await navigator.clipboard.writeText(transcriptText);
+                  setCopiedTranscript(true);
+                  setTimeout(() => setCopiedTranscript(false), 1500);
+                }}
+                className="text-xs text-neutral-500 hover:text-neutral-200 transition-colors"
+              >
+                {copiedTranscript ? "Copié !" : "📋 Copier"}
+              </button>
+            </div>
+            <p className="px-4 py-3 text-sm text-neutral-400 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
+              {transcriptText}
+            </p>
+          </div>
+        )}
+
+        {/* Step: idle — URL input */}
         {step === "idle" && (
           <div className="space-y-2">
             <div className="flex gap-2">
@@ -553,27 +641,79 @@ export default function Home() {
                 disabled={!url}
                 className="px-5 py-2.5 bg-white text-black text-sm font-semibold rounded-lg disabled:opacity-40 hover:bg-neutral-200 transition-colors whitespace-nowrap"
               >
-                Lancer
+                Extraire le transcript
               </button>
             </div>
             {error && <p className="text-red-400 text-sm">{error}</p>}
           </div>
         )}
 
-        {/* Loading spinner */}
-        {(step === "extracting" || (step === "rewriting" && !qrText)) && (
+        {/* Step: extracting — spinner */}
+        {step === "extracting" && (
           <div className="flex items-center gap-3 text-sm text-neutral-400">
             <span className="w-4 h-4 border-2 border-neutral-600 border-t-neutral-300 rounded-full animate-spin" />
-            {step === "extracting" ? "Extraction du transcript..." : "Démarrage de la réécriture..."}
+            Extraction du transcript...
           </div>
         )}
 
-        {/* Streaming preview */}
+        {/* Step: transcript — duration selector + generate */}
+        {step === "transcript" && (
+          <div className="space-y-5">
+            <div className="space-y-3">
+              <p className="text-xs font-mono text-neutral-500 tracking-widest uppercase">Durée cible</p>
+              <div className="flex flex-wrap gap-2">
+                {DURATION_PILLS.map(({ value, label }) => (
+                  <button
+                    key={value}
+                    onClick={() => setSelectedDuration(value)}
+                    className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+                      selectedDuration === value
+                        ? "bg-white text-black border-white font-semibold"
+                        : "border-neutral-700 text-neutral-400 hover:text-neutral-200 hover:border-neutral-500"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {selectedDuration === "custom" && (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={5}
+                    max={180}
+                    value={customSeconds}
+                    onChange={(e) =>
+                      setCustomSeconds(Math.min(180, Math.max(5, parseInt(e.target.value) || 5)))
+                    }
+                    className="w-24 bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-1.5 text-sm text-neutral-200 focus:outline-none focus:border-neutral-600"
+                  />
+                  <span className="text-xs text-neutral-500">secondes</span>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={handleGenerateQR}
+              className="w-full py-3 bg-white text-black text-sm font-semibold rounded-lg hover:bg-neutral-200 transition-colors"
+            >
+              Générer le QR
+            </button>
+            {error && <p className="text-red-400 text-sm">{error}</p>}
+          </div>
+        )}
+
+        {/* Step: rewriting — spinner then streaming */}
+        {step === "rewriting" && !qrText && (
+          <div className="flex items-center gap-3 text-sm text-neutral-400">
+            <span className="w-4 h-4 border-2 border-neutral-600 border-t-neutral-300 rounded-full animate-spin" />
+            Réécriture en cours...
+          </div>
+        )}
         {step === "rewriting" && qrText && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-4">
             <div className="flex items-center gap-2 mb-3">
               <span className="w-3 h-3 border-2 border-neutral-600 border-t-neutral-300 rounded-full animate-spin" />
-              <span className="text-xs text-neutral-500 font-mono">Réécriture QR en cours...</span>
+              <span className="text-xs text-neutral-500 font-mono">Réécriture en cours...</span>
             </div>
             <p className="text-sm text-neutral-300 whitespace-pre-wrap leading-relaxed line-clamp-8">
               {qrText}
@@ -581,33 +721,9 @@ export default function Home() {
           </div>
         )}
 
-        {/* Done */}
+        {/* Step: done */}
         {step === "done" && (
           <div className="space-y-6">
-
-            {/* Transcript original */}
-            {transcriptText && (
-              <div className="bg-neutral-900 border border-neutral-800 rounded-lg overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-2.5 border-b border-neutral-800">
-                  <span className="text-xs font-mono font-bold text-neutral-400 tracking-widest">
-                    TRANSCRIPT ORIGINAL
-                  </span>
-                  <button
-                    onClick={async () => {
-                      await navigator.clipboard.writeText(transcriptText);
-                      setCopiedTranscript(true);
-                      setTimeout(() => setCopiedTranscript(false), 1500);
-                    }}
-                    className="text-xs text-neutral-500 hover:text-neutral-200 transition-colors"
-                  >
-                    {copiedTranscript ? "Copié !" : "📋 Copier"}
-                  </button>
-                </div>
-                <p className="px-4 py-3 text-sm text-neutral-400 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
-                  {transcriptText}
-                </p>
-              </div>
-            )}
 
             {/* Voice controls */}
             <div className="space-y-3">
@@ -637,6 +753,25 @@ export default function Home() {
                     <span className="text-neutral-600 font-mono text-[10px] px-2 leading-none">Direct</span>
                     <div className="flex gap-1">
                       {PROVIDERS_UI.filter((p) => p.group === "Direct").map((p) => (
+                        <button
+                          key={p.id}
+                          onClick={() => setProvider(p.id)}
+                          className={`px-3 py-1.5 rounded-md transition-colors ${
+                            provider === p.id
+                              ? "bg-white text-black font-semibold"
+                              : "text-neutral-400 hover:text-neutral-200"
+                          }`}
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="w-px bg-neutral-800 mx-1 self-stretch" />
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-neutral-600 font-mono text-[10px] px-2 leading-none">Gratuit</span>
+                    <div className="flex gap-1">
+                      {PROVIDERS_UI.filter((p) => p.group === "Gratuit").map((p) => (
                         <button
                           key={p.id}
                           onClick={() => setProvider(p.id)}
@@ -729,6 +864,59 @@ export default function Home() {
                   />
                 </div>
               )}
+
+              {/* Edge TTS panel */}
+              {provider === "edge-tts" && (
+                <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-4 space-y-4">
+                  <span className="text-xs font-mono font-bold text-neutral-400 tracking-widest">EDGE TTS — Microsoft Neural</span>
+
+                  {/* Voice selector grouped by language */}
+                  <div className="space-y-1">
+                    <span className="text-xs text-neutral-500 font-mono">Voix</span>
+                    <select
+                      value={edgeVoice}
+                      onChange={(e) => setEdgeVoice(e.target.value)}
+                      className="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:border-neutral-500"
+                    >
+                      {(Object.keys(EDGE_TTS_VOICES) as EdgeLang[]).map((lang) => (
+                        <optgroup key={lang} label={EDGE_LANG_LABELS[lang]}>
+                          {EDGE_TTS_VOICES[lang].map((v) => (
+                            <option key={v.id} value={v.id}>{v.label}</option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Rate slider */}
+                  <Slider
+                    label="Vitesse"
+                    value={edgeRate}
+                    min={-50} max={200} step={10}
+                    format={(v) => (v >= 0 ? `+${v}%` : `${v}%`)}
+                    onChange={(v) => setEdgeRate(v)}
+                  />
+
+                  {/* Generate button */}
+                  <button
+                    onClick={handleEdgeTTS}
+                    disabled={(() => {
+                      const lang = edgeVoice.startsWith("fr") ? "FR" : edgeVoice.startsWith("en") ? "EN" : "DE";
+                      return audio[`EDGE_${lang}`]?.status === "loading";
+                    })()}
+                    className="w-full py-2 bg-neutral-700 hover:bg-neutral-600 text-sm text-neutral-100 font-semibold rounded-lg disabled:opacity-50 transition-colors"
+                  >
+                    {(() => {
+                      const lang = edgeVoice.startsWith("fr") ? "FR" : edgeVoice.startsWith("en") ? "EN" : "DE";
+                      const state = audio[`EDGE_${lang}`];
+                      if (state?.status === "loading") return state.label;
+                      if (state?.status === "done") return `Générer audio (SCRIPT ${lang})`;
+                      if (state?.status === "error") return `Erreur — réessayer (SCRIPT ${lang})`;
+                      return `Générer audio (SCRIPT ${lang})`;
+                    })()}
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Audio players */}
@@ -740,6 +928,30 @@ export default function Home() {
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-mono font-bold text-neutral-400 tracking-widest">
                       VOIX {lang}
+                    </span>
+                    <span className="text-xs text-neutral-600 truncate max-w-xs">{state.filename}</span>
+                  </div>
+                  <audio controls src={state.audioUrl} className="w-full h-10" />
+                  <a
+                    href={state.audioUrl}
+                    download={state.filename}
+                    className="inline-block text-xs text-neutral-400 hover:text-neutral-100 border border-neutral-700 hover:border-neutral-500 rounded px-3 py-1.5 transition-colors"
+                  >
+                    Télécharger {state.filename}
+                  </a>
+                </div>
+              );
+            })}
+
+            {/* Edge TTS audio players */}
+            {(["FR", "EN", "DE"] as const).map((lang) => {
+              const state = audio[`EDGE_${lang}`];
+              if (state?.status !== "done" || !state.audioUrl) return null;
+              return (
+                <div key={`EDGE_${lang}`} className="bg-neutral-900 border border-neutral-800 rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-mono font-bold text-neutral-400 tracking-widest">
+                      EDGE TTS — {lang}
                     </span>
                     <span className="text-xs text-neutral-600 truncate max-w-xs">{state.filename}</span>
                   </div>
@@ -819,7 +1031,7 @@ export default function Home() {
                         {stats.words} mots — {stats.duration}
                       </span>
                       <div className="flex gap-1 ml-auto flex-wrap">
-                        {DURATION_OPTIONS.map((d) => (
+                        {ADJUST_DURATIONS.map((d) => (
                           <button
                             key={d}
                             onClick={() => handleAdjust(section, d)}
@@ -843,8 +1055,9 @@ export default function Home() {
         )}
       </div>
 
-      <p className="text-center text-neutral-700 text-xs font-mono mt-16 pb-6">
-        made by DAV
+      {/* Footer */}
+      <p className="text-center text-neutral-600 text-xs font-mono mt-16 pb-6 opacity-60">
+        DAV Pipeline · made by Dav · 2026
       </p>
     </main>
   );
