@@ -11,10 +11,18 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.40.0",
     "@elevenlabs/elevenlabs-js": "^2.45.0",
+    "@fontsource-variable/jetbrains-mono": "^5.2.8",
+    "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
     "edge-tts-universal": "^1.4.0",
+    "geist": "^1.7.0",
+    "lucide-react": "^1.16.0",
     "next": "^16.2.4",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-hotkeys-hook": "^5.3.2",
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
