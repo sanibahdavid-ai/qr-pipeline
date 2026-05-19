@@ -1,5 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
+type Platform = "youtube" | "tiktok" | "instagram";
+
+function detectPlatform(url: string): Platform | null {
+  if (/youtube\.com|youtu\.be/.test(url)) return "youtube";
+  if (/tiktok\.com/.test(url)) return "tiktok";
+  if (/instagram\.com/.test(url)) return "instagram";
+  return null;
+}
+
 function extractVideoId(url: string): string | null {
   const match = url.match(
     /(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
@@ -25,7 +34,65 @@ type SupadataResponse = {
   lang?: string;
   availableLangs?: string[];
   jobId?: string;
+  status?: string;
+  result?: { content?: string };
 };
+
+async function supadataCall(url: string, mode: "native" | "generate" | "auto", apiKey: string) {
+  const params = new URLSearchParams({ url, text: "true", mode });
+  return fetch(`https://api.supadata.ai/v1/transcript?${params}`, {
+    headers: { "x-api-key": apiKey },
+  });
+}
+
+async function pollJob(jobId: string, apiKey: string): Promise<{ content: string; lang?: string } | null> {
+  for (let i = 0; i < 30; i++) {
+    await new Promise((r) => setTimeout(r, 1000));
+    const res = await fetch(`https://api.supadata.ai/v1/transcript/${jobId}`, {
+      headers: { "x-api-key": apiKey },
+    });
+    if (!res.ok) continue;
+    const data = (await res.json()) as SupadataResponse;
+    if (data.status === "completed" && data.result?.content) {
+      return { content: data.result.content };
+    }
+    if (data.status === "failed") return null;
+  }
+  return null;
+}
+
+async function fetchTranscriptContent(url: string, apiKey: string): Promise<{ content: string; lang?: string }> {
+  // Try native captions first (1 credit), fallback to AI generation (2 credits/min)
+  let res = await supadataCall(url, "native", apiKey);
+  console.log("[transcript] native status:", res.status);
+
+  // 206 = no native captions available
+  if (res.status === 206 || res.status === 404) {
+    console.log("[transcript] no native captions, trying AI generation");
+    res = await supadataCall(url, "generate", apiKey);
+    console.log("[transcript] generate status:", res.status);
+  }
+
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => "");
+    console.error("[transcript] Supadata error:", res.status, errBody.slice(0, 200));
+    throw new Error("Transcript indisponible pour cette vidéo.");
+  }
+
+  const data = (await res.json()) as SupadataResponse;
+
+  // Async job (HTTP 202)
+  if (data.jobId) {
+    console.log("[transcript] async job started:", data.jobId);
+    const result = await pollJob(data.jobId, apiKey);
+    if (!result) throw new Error("Traitement trop long. Réessaie dans quelques minutes.");
+    return result;
+  }
+
+  const content = data.content?.trim();
+  if (!content) throw new Error("Transcript vide pour cette vidéo.");
+  return { content, lang: data.lang };
+}
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
@@ -35,94 +102,41 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "URL manquante" }, { status: 400 });
   }
 
-  const videoId = extractVideoId(body.url);
-  console.log("[transcript] videoId:", videoId);
-  if (!videoId) {
-    return NextResponse.json({ error: "URL YouTube invalide" }, { status: 400 });
+  const platform = detectPlatform(body.url);
+  console.log("[transcript] platform:", platform);
+
+  if (!platform) {
+    return NextResponse.json(
+      { error: "URL non supportée. Colle un lien YouTube, TikTok ou Instagram." },
+      { status: 400 }
+    );
   }
 
   const apiKey = process.env.SUPADATA_API_KEY;
   if (!apiKey) {
     console.error("[transcript] SUPADATA_API_KEY missing");
-    return NextResponse.json(
-      { error: "Configuration serveur manquante" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Configuration serveur manquante" }, { status: 500 });
   }
 
   try {
-    const params = new URLSearchParams({
-      url: `https://www.youtube.com/watch?v=${videoId}`,
-      text: "true",
-      mode: "auto",
-    });
+    const { content, lang } = await fetchTranscriptContent(body.url, apiKey);
 
-    const res = await fetch(`https://api.supadata.ai/v1/transcript?${params}`, {
-      headers: { "x-api-key": apiKey },
-    });
-
-    console.log("[transcript] Supadata status:", res.status);
-
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => "");
-      console.error("[transcript] Supadata error:", res.status, errBody.slice(0, 200));
-      return NextResponse.json(
-        { error: "Transcript indisponible pour cette vidéo." },
-        { status: 422 }
-      );
+    // Fetch title for YouTube only (oEmbed doesn't support TikTok/Instagram)
+    let title = "";
+    if (platform === "youtube") {
+      const videoId = extractVideoId(body.url);
+      if (videoId) title = await fetchVideoTitle(videoId);
+    }
+    if (!title) {
+      // Generic title fallback
+      title = platform === "tiktok" ? "Vidéo TikTok" : platform === "instagram" ? "Vidéo Instagram" : "Vidéo YouTube";
     }
 
-    const data = (await res.json()) as SupadataResponse;
-
-    // Cas asynchrone (vidéos longues / fallback IA)
-    if (data.jobId) {
-      console.log("[transcript] async job started:", data.jobId);
-      for (let i = 0; i < 25; i++) {
-        await new Promise((r) => setTimeout(r, 1000));
-        const jobRes = await fetch(
-          `https://api.supadata.ai/v1/transcript/${data.jobId}`,
-          { headers: { "x-api-key": apiKey } }
-        );
-        if (!jobRes.ok) continue;
-        const jobData = (await jobRes.json()) as {
-          status: string;
-          result?: { content?: string };
-        };
-        if (jobData.status === "completed" && jobData.result?.content) {
-          const text = jobData.result.content.trim();
-          const title = await fetchVideoTitle(videoId);
-          console.log("[transcript] async OK, chars:", text.length);
-          return NextResponse.json({ text, videoId, title });
-        }
-        if (jobData.status === "failed") {
-          console.error("[transcript] async job failed");
-          break;
-        }
-      }
-      return NextResponse.json(
-        { error: "Traitement trop long. Réessaie dans quelques minutes." },
-        { status: 504 }
-      );
-    }
-
-    const text = data.content?.trim();
-    if (!text) {
-      console.error("[transcript] empty content from Supadata");
-      return NextResponse.json(
-        { error: "Transcript vide pour cette vidéo." },
-        { status: 422 }
-      );
-    }
-
-    const title = await fetchVideoTitle(videoId);
-    console.log("[transcript] success, title:", title, "chars:", text.length);
-    return NextResponse.json({ text, videoId, title });
+    console.log("[transcript] success, title:", title, "chars:", content.length, "lang:", lang);
+    return NextResponse.json({ text: content, title, platform, lang });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error("[transcript] Supadata fetch failed:", msg);
-    return NextResponse.json(
-      { error: "Erreur lors de la récupération du transcript." },
-      { status: 500 }
-    );
+    console.error("[transcript] error:", msg);
+    return NextResponse.json({ error: msg }, { status: 422 });
   }
 }
