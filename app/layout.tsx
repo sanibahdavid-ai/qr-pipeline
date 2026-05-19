@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "QR Pipeline",
-  description: "YouTube → Transcript → QR Script → Voice",
+  title: "DAV Pipeline",
+  description: "Made by Dav",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DAV Pipeline v2.1 — Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0A0A0A;
+    --surface: #141414;
+    --surface-hover: #1C1C1C;
+    --border: #262626;
+    --border-strong: #404040;
+    --text: #F5F5F5;
+    --text-muted: #A3A3A3;
+    --text-dim: #525252;
+    --accent: #FAFAFA;
+    --accent-fg: #0A0A0A;
+    --success: #22C55E;
+    --warning: #F59E0B;
+    --danger: #EF4444;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --sans: 'Inter', ui-sans-serif, system-ui;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  /* ===== HEADER ===== */
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(10, 10, 10, 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+  }
+  .header-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .logo {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .logo .version {
+    color: var(--text-muted);
+    font-weight: 400;
+    font-size: 11px;
+    padding: 2px 6px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+  }
+  .header-actions { display: flex; gap: 8px; align-items: center; }
+
+  /* ===== BUTTONS ===== */
+  .btn {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 8px 14px;
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: none;
+  }
+  .btn:hover { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  .btn-ghost { border-color: transparent; color: var(--text-muted); }
+  .btn-ghost:hover { background: var(--surface-hover); color: var(--text); border-color: var(--border); }
+  .btn-primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  .btn-primary:hover { background: transparent; color: var(--text); }
+  .btn-sm { padding: 6px 10px; font-size: 11px; }
+  .kbd {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 2px 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-muted);
+  }
+  .badge {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 6px;
+  }
+
+  /* ===== MAIN ===== */
+  main {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 32px 24px 80px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  /* ===== URL INPUT ===== */
+  .url-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .url-input {
+    width: 100%;
+    height: 52px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0 80px 0 18px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 14px;
+    outline: none;
+  }
+  .url-input:focus { border-color: var(--border-strong); }
+  .url-input::placeholder { color: var(--text-dim); }
+  .url-platform {
+    position: absolute;
+    right: 60px;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border-strong);
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+  .url-submit {
+    position: absolute;
+    right: 8px;
+    width: 36px;
+    height: 36px;
+    background: var(--accent);
+    color: var(--accent-fg);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+  }
+  .url-submit:hover { background: var(--text); }
+
+  /* ===== CARDS ===== */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .card-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .card-label-left { display: flex; align-items: center; gap: 10px; }
+  .meta { color: var(--text-dim); font-weight: 400; }
+
+  /* ===== TRANSCRIPT ===== */
+  .transcript-body {
+    color: var(--text-muted);
+    line-height: 1.7;
+    font-size: 14px;
+  }
+
+  /* ===== GENERATION PANEL ===== */
+  .gen-panel-section {
+    margin-bottom: 16px;
+  }
+  .gen-panel-section-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+    display: block;
+  }
+  .tab-group {
+    display: inline-flex;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px;
+    gap: 2px;
+  }
+  .tab-item {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    color: var(--text-muted);
+    border: none;
+    background: transparent;
+  }
+  .tab-item.active {
+    background: var(--accent);
+    color: var(--accent-fg);
+    font-weight: 500;
+  }
+  .tab-item:hover:not(.active) { color: var(--text); }
+
+  .toggle-group {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  .toggle-item {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+  .toggle-item.active {
+    background: var(--accent);
+    color: var(--accent-fg);
+    border-color: var(--accent);
+  }
+  .toggle-item:hover:not(.active) { color: var(--text); border-color: var(--border-strong); }
+
+  .gen-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 16px -20px;
+  }
+
+  /* ===== LANGUAGE ROW ===== */
+  .lang-row {
+    display: grid;
+    grid-template-columns: 36px 1fr 200px 120px 90px;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+  }
+  .lang-row + .lang-row { border-top: 1px solid var(--border); }
+  .lang-badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 0;
+    border-radius: 4px;
+    text-align: center;
+  }
+  .voice-select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .voice-select:hover { border-color: var(--border-strong); }
+  .speed-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .speed-track {
+    flex: 1;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    position: relative;
+  }
+  .speed-thumb {
+    position: absolute;
+    top: 50%;
+    width: 12px;
+    height: 12px;
+    background: var(--text);
+    transform: translate(-50%, -50%);
+    cursor: grab;
+  }
+  .lang-generate {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 7px 12px;
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .lang-generate:hover { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  .lang-status {
+    font-family: var(--mono);
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-muted);
+  }
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+  .dot-idle { background: var(--text-dim); }
+  .dot-loading {
+    background: var(--warning);
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  .dot-ready { background: var(--success); }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* ===== PANEL FOOTER ===== */
+  .panel-footer {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+
+  /* ===== SCRIPTS GRID ===== */
+  .scripts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 16px;
+  }
+  .script-card { padding: 18px; }
+  .script-card .card-label { margin-bottom: 14px; }
+  .script-text {
+    font-size: 13.5px;
+    line-height: 1.7;
+    color: var(--text);
+    margin-bottom: 16px;
+    max-height: 200px;
+    overflow: hidden;
+    position: relative;
+  }
+  .script-text::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 40px;
+    background: linear-gradient(transparent, var(--surface));
+  }
+  .audio-player {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+  .play-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--accent-fg);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+  .audio-progress {
+    flex: 1;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    position: relative;
+  }
+  .audio-progress::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 40%;
+    background: var(--text);
+    border-radius: 2px;
+  }
+  .audio-time {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  /* ===== FLOATING ACTION ===== */
+  .fab {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    padding: 8px;
+    display: flex;
+    gap: 4px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+  }
+  .fab .btn { border-radius: 999px; }
+
+  /* ===== NOTES ===== */
+  .mock-note {
+    position: fixed;
+    top: 24px;
+    left: 24px;
+    max-width: 280px;
+    background: var(--surface);
+    border: 1px solid var(--warning);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 12px;
+    color: var(--text-muted);
+    z-index: 100;
+  }
+  .mock-note strong { color: var(--warning); font-family: var(--mono); display: block; margin-bottom: 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; }
+
+  /* responsive */
+  @media (max-width: 768px) {
+    .lang-row {
+      grid-template-columns: 36px 1fr;
+      grid-template-areas:
+        "badge voice"
+        "speed speed"
+        "gen status";
+      row-gap: 10px;
+    }
+    .lang-badge { grid-area: badge; }
+    .voice-select { grid-area: voice; }
+    .speed-wrap { grid-area: speed; }
+    .lang-generate { grid-area: gen; }
+    .lang-status { grid-area: status; }
+  }
+</style>
+</head>
+<body>
+
+<div class="mock-note">
+  <strong>● Mockup interactif</strong>
+  Layout proposé pour DAV Pipeline v2.1. Pas connecté aux APIs — uniquement pour valider l'esthétique et la structure. Survolez les boutons pour voir le comportement brutalist (invert sur hover).
+</div>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-inner">
+    <div class="logo">
+      DAV PIPELINE <span class="version">v2.1</span>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-ghost btn-sm">
+        <span class="kbd">⌘K</span>
+      </button>
+      <button class="btn btn-sm">
+        Historique <span class="badge">4</span>
+      </button>
+      <button class="btn btn-ghost btn-sm">Réinitialiser</button>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- URL INPUT -->
+  <div class="url-wrap">
+    <input class="url-input" value="https://www.tiktok.com/@user/video/7384729384729384" />
+    <div class="url-platform">TT</div>
+    <button class="url-submit">→</button>
+  </div>
+
+  <!-- TRANSCRIPT -->
+  <div class="card">
+    <div class="card-label">
+      <div class="card-label-left">
+        ▸ Transcript original
+        <span class="meta">· 247 mots · EN</span>
+      </div>
+      <button class="btn btn-ghost btn-sm">⎘ Copier</button>
+    </div>
+    <div class="transcript-body">
+      Look how Michael Jackson used to fool us just by hooking his shoe into a nut in the floor and leaning forward, but still not falling. This was a patented technique he developed for the Smooth Criminal music video and tour, allowing dancers to achieve that iconic anti-gravity lean...
+    </div>
+  </div>
+
+  <!-- GENERATION PANEL -->
+  <div class="card">
+    <div class="card-label">
+      <div class="card-label-left">▸ Génération</div>
+      <span class="meta" style="font-family: var(--mono); font-size: 10px;">3 langues · FR EN DE</span>
+    </div>
+
+    <!-- Provider -->
+    <div class="gen-panel-section">
+      <span class="gen-panel-section-label">Provider</span>
+      <div class="tab-group">
+        <button class="tab-item active">Minimax</button>
+        <button class="tab-item">ElevenLabs</button>
+        <button class="tab-item">EL Direct</button>
+        <button class="tab-item">Edge TTS</button>
+      </div>
+    </div>
+
+    <!-- Duration -->
+    <div class="gen-panel-section">
+      <span class="gen-panel-section-label">Durée cible</span>
+      <div class="toggle-group">
+        <button class="toggle-item">10s</button>
+        <button class="toggle-item">15s</button>
+        <button class="toggle-item">30s</button>
+        <button class="toggle-item active">45s</button>
+        <button class="toggle-item">1min</button>
+        <button class="toggle-item">1m30</button>
+        <button class="toggle-item">2min</button>
+      </div>
+    </div>
+
+    <div class="gen-divider"></div>
+
+    <!-- Language rows -->
+    <div>
+      <div class="lang-row">
+        <div class="lang-badge">FR</div>
+        <select class="voice-select">
+          <option>Henri (Homme)</option>
+          <option>Léa (Femme)</option>
+        </select>
+        <div class="speed-wrap">
+          <div class="speed-track"><div class="speed-thumb" style="left: 50%"></div></div>
+          <span>+0%</span>
+        </div>
+        <button class="lang-generate">▶ Générer</button>
+        <div class="lang-status"><span class="status-dot dot-ready"></span>ready</div>
+      </div>
+
+      <div class="lang-row">
+        <div class="lang-badge">EN</div>
+        <select class="voice-select">
+          <option>Guy (Male)</option>
+          <option>Aria (Female)</option>
+        </select>
+        <div class="speed-wrap">
+          <div class="speed-track"><div class="speed-thumb" style="left: 55%"></div></div>
+          <span>+5%</span>
+        </div>
+        <button class="lang-generate">▶ Régénérer</button>
+        <div class="lang-status"><span class="status-dot dot-loading"></span>loading</div>
+      </div>
+
+      <div class="lang-row">
+        <div class="lang-badge">DE</div>
+        <select class="voice-select">
+          <option>Killian (Mann)</option>
+          <option>Katja (Frau)</option>
+        </select>
+        <div class="speed-wrap">
+          <div class="speed-track"><div class="speed-thumb" style="left: 45%"></div></div>
+          <span>-5%</span>
+        </div>
+        <button class="lang-generate">▶ Générer</button>
+        <div class="lang-status"><span class="status-dot dot-idle"></span>idle</div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="panel-footer">
+      <button class="btn btn-primary">▶ Générer les 3 langues</button>
+      <button class="btn btn-ghost">⎘ Tout copier (QR)</button>
+    </div>
+  </div>
+
+  <!-- SCRIPTS GRID -->
+  <div class="scripts-grid">
+
+    <div class="card script-card">
+      <div class="card-label">
+        <div class="card-label-left">
+          ▸ Script FR
+          <span class="meta">· 110w · 51s</span>
+        </div>
+        <div style="display: flex; gap: 4px;">
+          <button class="btn btn-ghost btn-sm">⎘</button>
+          <button class="btn btn-ghost btn-sm">↻</button>
+        </div>
+      </div>
+      <div class="script-text">
+        Regardez comment Michael Jackson nous trompait tous. Il se penchait en avant, bien au-delà de ce que le corps humain peut faire naturellement, et pourtant il ne tombait pas. Voilà ce qui se passe : ses chaussures étaient en réalité fixées à un crochet caché dans le sol. Sans ce dispositif, le mouvement est tout simplement impossible.
+      </div>
+      <div class="audio-player">
+        <button class="play-btn">▶</button>
+        <div class="audio-progress"></div>
+        <span class="audio-time">0:21 / 0:51</span>
+      </div>
+    </div>
+
+    <div class="card script-card">
+      <div class="card-label">
+        <div class="card-label-left">
+          ▸ Script EN
+          <span class="meta">· 98w · 47s</span>
+        </div>
+        <div style="display: flex; gap: 4px;">
+          <button class="btn btn-ghost btn-sm">⎘</button>
+          <button class="btn btn-ghost btn-sm">↻</button>
+        </div>
+      </div>
+      <div class="script-text">
+        Look at how Michael Jackson used to fool everyone. He would lean forward way beyond what the human body can do naturally, yet he never fell. Here's what actually happened: his shoes were locked into a hidden hook on the floor. Without this device, the move is simply impossible to pull off.
+      </div>
+      <div class="audio-player">
+        <button class="play-btn">▶</button>
+        <div class="audio-progress"></div>
+        <span class="audio-time">0:00 / 0:47</span>
+      </div>
+    </div>
+
+    <div class="card script-card">
+      <div class="card-label">
+        <div class="card-label-left">
+          ▸ Script DE
+          <span class="meta">· 124w · 58s</span>
+        </div>
+        <div style="display: flex; gap: 4px;">
+          <button class="btn btn-ghost btn-sm">⎘</button>
+          <button class="btn btn-ghost btn-sm">↻</button>
+        </div>
+      </div>
+      <div class="script-text">
+        Schauen Sie, wie Michael Jackson uns alle täuschte. Er beugte sich nach vorne, weit über das hinaus, was der menschliche Körper natürlich kann, und doch fiel er nicht. Hier ist, was wirklich passiert ist: Seine Schuhe waren in einem versteckten Haken im Boden eingerastet.
+      </div>
+      <div class="audio-player">
+        <button class="play-btn">▶</button>
+        <div class="audio-progress"></div>
+        <span class="audio-time">0:00 / 0:58</span>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- FLOATING ACTION -->
+<div class="fab">
+  <button class="btn btn-sm btn-ghost">⎘ QR</button>
+  <button class="btn btn-sm btn-ghost">⌘K</button>
+</div>
+
+</body>
+</html>

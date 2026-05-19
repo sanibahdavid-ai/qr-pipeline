@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef } from "react";
 import { EDGE_TTS_VOICES } from "../lib/edge-tts-voices";
+import { GOOGLE_TTS_VOICES } from "../lib/google-tts-voices";
 
-const APP_VERSION = "2.0";
+const APP_VERSION = "2.1";
 
 const SECTIONS = [
   "SCRIPT FR",
@@ -16,7 +17,7 @@ const SECTIONS = [
 ] as const;
 
 type Section = (typeof SECTIONS)[number];
-type Provider = "ai33-minimax" | "ai33-elevenlabs" | "elevenlabs" | "edge-tts";
+type Provider = "ai33-minimax" | "ai33-elevenlabs" | "elevenlabs" | "edge-tts" | "google-tts";
 type Step = "idle" | "extracting" | "transcript" | "rewriting" | "done";
 type DurationSelection = "15s" | "30s" | "60s" | "custom" | "original";
 type AudioState = {
@@ -46,10 +47,11 @@ const ADJUST_DURATIONS = ["10s", "15s", "30s", "45s", "1min", "1min30", "2min"] 
 type AdjustDuration = (typeof ADJUST_DURATIONS)[number];
 
 const PROVIDERS_UI: { id: Provider; label: string; group: string }[] = [
-  { id: "ai33-minimax",    label: "Minimax",    group: "AI33pro" },
-  { id: "ai33-elevenlabs", label: "ElevenLabs", group: "AI33pro" },
-  { id: "elevenlabs",      label: "ElevenLabs", group: "Direct"  },
-  { id: "edge-tts",        label: "Edge TTS",   group: "Gratuit" },
+  { id: "ai33-minimax",    label: "Minimax",      group: "AI33pro" },
+  { id: "ai33-elevenlabs", label: "ElevenLabs",   group: "AI33pro" },
+  { id: "elevenlabs",      label: "ElevenLabs",   group: "Direct"  },
+  { id: "edge-tts",        label: "Edge TTS",     group: "Gratuit" },
+  { id: "google-tts",      label: "Google Cloud", group: "Gratuit" },
 ];
 
 type EdgeLang = keyof typeof EDGE_TTS_VOICES;
@@ -185,6 +187,12 @@ export default function Home() {
   const [edgeVoiceEn, setEdgeVoiceEn] = useState("en-US-GuyNeural");
   const [edgeVoiceDe, setEdgeVoiceDe] = useState("de-DE-KillianNeural");
   const [edgeRate, setEdgeRate] = useState(0);
+
+  // ── Google Cloud TTS settings ─────────────────────────────────────────────
+  const [googleVoiceFr, setGoogleVoiceFr] = useState("fr-FR-Neural2-B");
+  const [googleVoiceEn, setGoogleVoiceEn] = useState("en-US-Neural2-D");
+  const [googleVoiceDe, setGoogleVoiceDe] = useState("de-DE-Neural2-B");
+  const [googleRate, setGoogleRate] = useState(1.0);
 
   // ── History ───────────────────────────────────────────────────────────────
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -455,6 +463,41 @@ export default function Home() {
       handleEdgeTTSLang("FR", edgeVoiceFr),
       handleEdgeTTSLang("EN", edgeVoiceEn),
       handleEdgeTTSLang("DE", edgeVoiceDe),
+    ]);
+  }
+
+  async function handleGoogleTTSLang(lang: "FR" | "EN" | "DE", voice: string, langCode: string) {
+    const sectionKey = `SCRIPT ${lang}` as Section;
+    const text = getContent(sectionKey);
+    if (!text) return;
+
+    const filename = `${sanitizeTitle(videoTitle)}_${lang}_google.mp3`;
+    setAudio((a) => ({ ...a, [`GTTS_${lang}`]: { status: "loading", label: "Génération..." } }));
+
+    try {
+      const res = await fetch("/api/tts/google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, voice, languageCode: langCode, speakingRate: googleRate }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        setAudio((a) => ({ ...a, [`GTTS_${lang}`]: { status: "error", label: err.error ?? "Erreur Google TTS" } }));
+        return;
+      }
+      const blob = await res.blob();
+      const audioUrl = URL.createObjectURL(blob);
+      setAudio((s) => ({ ...s, [`GTTS_${lang}`]: { status: "done", label: "Prêt", audioUrl, filename } }));
+    } catch (err) {
+      setAudio((a) => ({ ...a, [`GTTS_${lang}`]: { status: "error", label: String(err) } }));
+    }
+  }
+
+  async function handleGoogleTTSAll() {
+    await Promise.all([
+      handleGoogleTTSLang("FR", googleVoiceFr, GOOGLE_TTS_VOICES.fr.langCode),
+      handleGoogleTTSLang("EN", googleVoiceEn, GOOGLE_TTS_VOICES.en.langCode),
+      handleGoogleTTSLang("DE", googleVoiceDe, GOOGLE_TTS_VOICES.de.langCode),
     ]);
   }
 
@@ -880,6 +923,74 @@ export default function Home() {
                 </div>
               )}
 
+              {/* Google Cloud TTS panel */}
+              {provider === "google-tts" && (
+                <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-mono font-bold text-neutral-400 tracking-widest">GOOGLE CLOUD TTS — Neural2</span>
+                    <span className="text-[10px] text-neutral-600 font-mono">★ = Neural2 · 1M car/mois gratuit</span>
+                  </div>
+
+                  {(
+                    [
+                      { lang: "FR" as const, voice: googleVoiceFr, setVoice: setGoogleVoiceFr, langCode: GOOGLE_TTS_VOICES.fr.langCode, voices: GOOGLE_TTS_VOICES.fr.voices },
+                      { lang: "EN" as const, voice: googleVoiceEn, setVoice: setGoogleVoiceEn, langCode: GOOGLE_TTS_VOICES.en.langCode, voices: GOOGLE_TTS_VOICES.en.voices },
+                      { lang: "DE" as const, voice: googleVoiceDe, setVoice: setGoogleVoiceDe, langCode: GOOGLE_TTS_VOICES.de.langCode, voices: GOOGLE_TTS_VOICES.de.voices },
+                    ] as const
+                  ).map(({ lang, voice, setVoice, langCode, voices }) => {
+                    const state = audio[`GTTS_${lang}`];
+                    const busy = state?.status === "loading";
+                    return (
+                      <div key={lang} className="flex items-center gap-2">
+                        <span className="text-xs text-neutral-500 font-mono w-6 shrink-0">{lang}</span>
+                        <select
+                          value={voice}
+                          onChange={(e) => setVoice(e.target.value)}
+                          className="flex-1 bg-neutral-800 border border-neutral-700 rounded-lg px-2 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-neutral-500"
+                        >
+                          {voices.map((v) => (
+                            <option key={v.id} value={v.id}>{v.label}</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => handleGoogleTTSLang(lang, voice, langCode)}
+                          disabled={busy}
+                          className={`shrink-0 px-3 py-1.5 text-xs rounded-lg font-semibold transition-colors disabled:opacity-50 ${
+                            state?.status === "error"
+                              ? "bg-red-900/60 hover:bg-red-900 text-red-300"
+                              : state?.status === "done"
+                              ? "bg-green-900/60 hover:bg-green-900 text-green-300"
+                              : "bg-neutral-700 hover:bg-neutral-600 text-neutral-100"
+                          }`}
+                        >
+                          {busy ? state.label : state?.status === "done" ? "Regénérer" : state?.status === "error" ? "Erreur" : "Générer"}
+                        </button>
+                      </div>
+                    );
+                  })}
+
+                  <Slider
+                    label="Vitesse"
+                    value={googleRate}
+                    min={0.5} max={2.0} step={0.1}
+                    format={(v) => `×${v.toFixed(1)}`}
+                    onChange={(v) => setGoogleRate(v)}
+                  />
+
+                  <button
+                    onClick={handleGoogleTTSAll}
+                    disabled={
+                      audio["GTTS_FR"]?.status === "loading" ||
+                      audio["GTTS_EN"]?.status === "loading" ||
+                      audio["GTTS_DE"]?.status === "loading"
+                    }
+                    className="w-full py-2 bg-neutral-700 hover:bg-neutral-600 text-sm text-neutral-100 font-semibold rounded-lg disabled:opacity-50 transition-colors"
+                  >
+                    Générer les 3 langues
+                  </button>
+                </div>
+              )}
+
               {/* Edge TTS panel */}
               {provider === "edge-tts" && (
                 <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-4 space-y-4">
@@ -982,6 +1093,30 @@ export default function Home() {
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-mono font-bold text-neutral-400 tracking-widest">
                       EDGE TTS — {lang}
+                    </span>
+                    <span className="text-xs text-neutral-600 truncate max-w-xs">{state.filename}</span>
+                  </div>
+                  <audio controls src={state.audioUrl} className="w-full h-10" />
+                  <a
+                    href={state.audioUrl}
+                    download={state.filename}
+                    className="inline-block text-xs text-neutral-400 hover:text-neutral-100 border border-neutral-700 hover:border-neutral-500 rounded px-3 py-1.5 transition-colors"
+                  >
+                    Télécharger {state.filename}
+                  </a>
+                </div>
+              );
+            })}
+
+            {/* Google Cloud TTS audio players */}
+            {(["FR", "EN", "DE"] as const).map((lang) => {
+              const state = audio[`GTTS_${lang}`];
+              if (state?.status !== "done" || !state.audioUrl) return null;
+              return (
+                <div key={`GTTS_${lang}`} className="bg-neutral-900 border border-neutral-800 rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-mono font-bold text-neutral-400 tracking-widest">
+                      GOOGLE TTS — {lang}
                     </span>
                     <span className="text-xs text-neutral-600 truncate max-w-xs">{state.filename}</span>
                   </div>

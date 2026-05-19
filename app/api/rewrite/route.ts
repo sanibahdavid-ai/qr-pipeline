@@ -58,7 +58,7 @@ Maximum 4 hashtags par section. Le titre et les hashtags ensemble ne doivent jam
 Aucune mise en forme spéciale : pas de gras, pas d'italique, pas de tirets dans les scripts. Débuter directement sans introduction ni commentaire. Terminer chaque réponse par : Prêt pour le prochain script !
 
 7. LONGUEUR DES RÉÉCRITURES — DURÉE AUDIO
-Le nombre de mots cible et la tolérance autorisée pour chaque version (FR, EN, DE) sont fournis dans le user prompt et doivent être respectés strictement. Cette cible reflète la durée du transcript original. Plafond absolu : 140 mots par version, jamais dépassé, même si la cible suggère plus. L'allemand en particulier ne doit jamais dépasser 140 mots car les mots composés y sont plus longs à l'oral. Si le script source est déjà très court (moins de 30 mots), ne pas le comprimer davantage au risque d'en perdre le sens.`;
+Le nombre de mots cible et la tolérance autorisée pour chaque version (FR, EN, DE) sont fournis dans le user prompt et doivent être respectés strictement. Plafond absolu : 140 mots par version, jamais dépassé, même si la cible suggère plus. L'allemand en particulier ne doit jamais dépasser 140 mots car les mots composés y sont plus longs à l'oral. Si le script source est déjà très court (moins de 30 mots), ne pas le comprimer davantage au risque d'en perdre le sens.`;
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
@@ -70,13 +70,27 @@ export async function POST(req: NextRequest) {
   }
 
   const transcript: string = body.text;
+  const targetSeconds: number | "original" = body.targetSeconds ?? "original";
+
   const wordCount = transcript.trim().split(/\s+/).filter(Boolean).length;
-  const durationSec = Math.floor((wordCount / 130) * 60);
-  const targetMin = Math.min(Math.round(wordCount * 0.9), 140);
-  const targetMax = Math.min(Math.round(wordCount * 1.1), 140);
+
+  let targetWords: number;
+  let durationSec: number;
+
+  if (targetSeconds === "original") {
+    targetWords = wordCount;
+    durationSec = Math.floor((wordCount / 130) * 60);
+  } else {
+    targetWords = Math.round((targetSeconds * 130) / 60);
+    durationSec = targetSeconds;
+  }
+
+  const targetMin = Math.min(Math.round(targetWords * 0.9), 140);
+  const targetMax = Math.min(Math.round(targetWords * 1.1), 140);
 
   const durationInstruction =
-    `[INSTRUCTION DURÉE] Le transcript original fait ${wordCount} mots, soit environ ${durationSec} secondes à 130 mots/min. ` +
+    `[INSTRUCTION DURÉE] Le transcript original fait ${wordCount} mots. ` +
+    `Durée cible : ${durationSec} secondes à 130 mots/min. ` +
     `Chaque réécriture (SCRIPT FR, SCRIPT EN, SCRIPT DE) doit faire entre ${targetMin} et ${targetMax} mots, plafonné à 140. ` +
     `Respecte cette fourchette strictement.\n\n`;
 
