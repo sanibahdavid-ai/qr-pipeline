@@ -68,17 +68,17 @@ export function GenerationPanel({
 
   return (
     <div
-      className="border border-[#262626] bg-[#141414] overflow-hidden"
+      className="border border-[#44423D] bg-[#2F2F2C] overflow-hidden"
       style={{ borderRadius: "8px" }}
     >
       {/* Provider selector */}
-      <div className="px-4 pt-4 pb-3 border-b border-[#262626]">
+      <div className="px-4 pt-4 pb-3 border-b border-[#44423D]">
         <div className="flex items-stretch gap-1 flex-wrap">
           {groups.map((group, gi) => (
             <div key={group} className="flex items-center gap-1">
-              {gi > 0 && <div className="w-px h-5 bg-[#262626] mx-1" />}
+              {gi > 0 && <div className="w-px h-5 bg-[#44423D] mx-1" />}
               <div className="flex flex-col gap-0.5">
-                <span className="text-[9px] font-mono text-[#525252] uppercase tracking-widest px-1">{group}</span>
+                <span className="text-[9px] font-mono text-[#7D7A72] uppercase tracking-widest px-1">{group}</span>
                 <div className="flex gap-1">
                   {PROVIDERS_UI.filter((p) => p.group === group).map((p) => (
                     <button
@@ -86,8 +86,8 @@ export function GenerationPanel({
                       onClick={() => onProviderChange(p.id)}
                       className={`px-2.5 py-1 text-[11px] font-mono font-medium transition-none ${
                         provider === p.id
-                          ? "bg-[#F5F5F5] text-[#0A0A0A]"
-                          : "text-[#A3A3A3] hover:text-[#F5F5F5] hover:bg-[#1C1C1C]"
+                          ? "bg-[#D97757] text-[#FFFFFF]"
+                          : "text-[#B0ADA3] hover:text-[#F0EEE6] hover:bg-[#3A3A36]"
                       }`}
                       style={{ borderRadius: "4px" }}
                     >
@@ -102,17 +102,17 @@ export function GenerationPanel({
       </div>
 
       {/* Duration selector */}
-      <div className="px-4 py-3 border-b border-[#262626]">
+      <div className="px-4 py-3 border-b border-[#44423D]">
         <div className="flex items-center gap-1 flex-wrap">
-          <span className="text-[9px] font-mono text-[#525252] uppercase tracking-widest mr-2">Durée</span>
+          <span className="text-[9px] font-mono text-[#7D7A72] uppercase tracking-widest mr-2">Durée</span>
           {([...DURATION_OPTIONS, "original"] as const).map((d) => (
             <button
               key={d}
               onClick={() => onDurationChange(d as DurationOption | "original")}
               className={`px-2.5 py-0.5 text-[11px] font-mono border transition-none ${
                 targetDuration === d
-                  ? "bg-[#F5F5F5] text-[#0A0A0A] border-[#F5F5F5]"
-                  : "bg-transparent border-[#262626] text-[#A3A3A3] hover:border-[#404040] hover:text-[#F5F5F5]"
+                  ? "bg-[#D97757] text-[#FFFFFF] border-[#D97757]"
+                  : "bg-transparent border-[#44423D] text-[#B0ADA3] hover:border-[#5C5851] hover:text-[#F0EEE6]"
               }`}
               style={{ borderRadius: "4px" }}
             >
@@ -123,7 +123,7 @@ export function GenerationPanel({
       </div>
 
       {/* Language rows */}
-      <div className="px-4 py-2 divide-y divide-[#262626]">
+      <div className="px-4 py-2 divide-y divide-[#44423D]">
         {LANGS.map((lang) => (
           <LanguageRow
             key={lang}
@@ -136,11 +136,11 @@ export function GenerationPanel({
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-3 border-t border-[#262626] flex items-center justify-between gap-3">
+      <div className="px-4 py-3 border-t border-[#44423D] flex items-center justify-between gap-3">
         <button
           onClick={onGenerateAll}
           disabled={disabled || anyLoading}
-          className="flex-1 py-2 text-[11px] font-mono font-semibold border border-[#F5F5F5] bg-[#F5F5F5] text-[#0A0A0A] hover:bg-transparent hover:text-[#F5F5F5] disabled:opacity-40 transition-none"
+          className="flex-1 py-2 text-[11px] font-mono font-semibold border border-[#D97757] bg-[#D97757] text-[#FFFFFF] hover:bg-[#C56646] hover:border-[#C56646] disabled:opacity-40 transition-none"
           style={{ borderRadius: "4px" }}
         >
           Générer les 3 langues
@@ -148,7 +148,7 @@ export function GenerationPanel({
         <button
           onClick={handleCopyAll}
           disabled={disabled}
-          className="flex items-center gap-1.5 px-3 py-2 text-[11px] font-mono border border-[#262626] text-[#A3A3A3] hover:border-[#404040] hover:text-[#F5F5F5] disabled:opacity-40 transition-none"
+          className="flex items-center gap-1.5 px-3 py-2 text-[11px] font-mono border border-[#44423D] text-[#B0ADA3] hover:border-[#5C5851] hover:text-[#F0EEE6] disabled:opacity-40 transition-none"
           style={{ borderRadius: "4px" }}
         >
           {copiedAll ? <Check size={11} /> : <Copy size={11} />}

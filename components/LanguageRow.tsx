@@ -29,8 +29,8 @@ type Props = {
 };
 
 function StatusDot({ state }: { state?: AudioState }) {
-  if (!state) return <span className="w-2 h-2 rounded-full border border-[#404040] inline-block" title="idle" />;
-  if (state.status === "loading") return <Loader2 size={12} className="text-[#A3A3A3] animate-spin" />;
+  if (!state) return <span className="w-2 h-2 rounded-full border border-[#5C5851] inline-block" title="idle" />;
+  if (state.status === "loading") return <Loader2 size={12} className="text-[#B0ADA3] animate-spin" />;
   if (state.status === "done") return <span className="w-2 h-2 rounded-full bg-[#22C55E] inline-block" title="ready" />;
   return <span className="w-2 h-2 rounded-full bg-[#EF4444] inline-block" title="error" />;
 }
@@ -60,19 +60,19 @@ function MiniAudioPlayer({ audioUrl, filename }: { audioUrl: string; filename?: 
       />
       <button
         onClick={toggle}
-        className="shrink-0 w-6 h-6 flex items-center justify-center border border-[#404040] hover:bg-[#F5F5F5] hover:text-[#0A0A0A] hover:border-[#F5F5F5] transition-none"
+        className="shrink-0 w-6 h-6 flex items-center justify-center border border-[#5C5851] hover:bg-[#D97757] hover:text-[#FFFFFF] hover:border-[#D97757] transition-none"
         style={{ borderRadius: "2px" }}
       >
         {playing ? <Pause size={10} /> : <Play size={10} />}
       </button>
-      <div className="flex-1 h-0.5 bg-[#262626] relative overflow-hidden" style={{ borderRadius: "1px" }}>
-        <div className="h-full bg-[#F5F5F5] transition-none" style={{ width: `${progress}%` }} />
+      <div className="flex-1 h-0.5 bg-[#44423D] relative overflow-hidden" style={{ borderRadius: "1px" }}>
+        <div className="h-full bg-[#D97757] transition-none" style={{ width: `${progress}%` }} />
       </div>
       {filename && (
         <a
           href={audioUrl}
           download={filename}
-          className="text-[10px] text-[#525252] hover:text-[#F5F5F5] font-mono transition-none shrink-0"
+          className="text-[10px] text-[#7D7A72] hover:text-[#F0EEE6] font-mono transition-none shrink-0"
           title="Télécharger"
         >
           ↓
@@ -112,7 +112,7 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
   return (
     <div className="flex items-center gap-2 py-1.5">
       {/* Lang badge */}
-      <span className="text-[11px] font-mono font-semibold text-[#A3A3A3] w-6 shrink-0 uppercase tracking-wider">
+      <span className="text-[11px] font-mono font-semibold text-[#B0ADA3] w-6 shrink-0 uppercase tracking-wider">
         {lang}
       </span>
 
@@ -121,7 +121,7 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
         <select
           value={config.voice}
           onChange={(e) => update({ voice: e.target.value })}
-          className="flex-1 min-w-0 bg-[#141414] border border-[#262626] text-[11px] font-mono text-[#F5F5F5] px-2 py-1 focus:outline-none focus:border-[#404040] cursor-pointer"
+          className="flex-1 min-w-0 bg-[#2F2F2C] border border-[#44423D] text-[11px] font-mono text-[#F0EEE6] px-2 py-1 focus:outline-none focus:border-[#5C5851] cursor-pointer"
           style={{ borderRadius: "4px" }}
         >
           {voices.map((v) => (
@@ -129,7 +129,7 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
           ))}
         </select>
       ) : (
-        <span className="flex-1 min-w-0 text-[11px] font-mono text-[#525252] px-2 py-1 border border-[#262626] truncate" style={{ borderRadius: "4px" }}>
+        <span className="flex-1 min-w-0 text-[11px] font-mono text-[#7D7A72] px-2 py-1 border border-[#44423D] truncate" style={{ borderRadius: "4px" }}>
           {provider === "ai33-minimax" ? "Minimax Speech-2.6" : "ElevenLabs Multilingual v2"}
         </span>
       )}
@@ -143,10 +143,10 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
           step={isEdge ? 5 : 0.05}
           value={config.speed}
           onChange={(e) => update({ speed: parseFloat(e.target.value) })}
-          className="flex-1 h-0.5 bg-[#262626] cursor-pointer"
-          style={{ accentColor: "#F5F5F5" }}
+          className="flex-1 h-0.5 bg-[#44423D] cursor-pointer"
+          style={{ accentColor: "#D97757" }}
         />
-        <span className="text-[10px] font-mono text-[#525252] w-9 text-right shrink-0">
+        <span className="text-[10px] font-mono text-[#7D7A72] w-9 text-right shrink-0">
           {isEdge
             ? `${config.speed >= 0 ? "+" : ""}${config.speed}%`
             : `×${config.speed.toFixed(2)}`}
@@ -159,7 +159,7 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
           <MiniAudioPlayer audioUrl={audioState.audioUrl} filename={audioState.filename} />
           <button
             onClick={handleGenerate}
-            className="shrink-0 px-2 py-1 text-[10px] font-mono text-[#525252] hover:text-[#F5F5F5] border border-[#262626] hover:border-[#404040] transition-none"
+            className="shrink-0 px-2 py-1 text-[10px] font-mono text-[#7D7A72] hover:text-[#F0EEE6] border border-[#44423D] hover:border-[#5C5851] transition-none"
             style={{ borderRadius: "4px" }}
             title="Régénérer"
           >
@@ -172,8 +172,8 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
           disabled={isLoading}
           className={`shrink-0 w-36 px-3 py-1 text-[11px] font-mono font-semibold border transition-none flex items-center justify-center gap-1.5 disabled:opacity-50 ${
             isError
-              ? "bg-transparent border-[#EF4444] text-[#EF4444] hover:bg-[#EF4444] hover:text-[#0A0A0A]"
-              : "bg-transparent border-[#262626] text-[#F5F5F5] hover:bg-[#F5F5F5] hover:text-[#0A0A0A] hover:border-[#F5F5F5]"
+              ? "bg-transparent border-[#EF4444] text-[#EF4444] hover:bg-[#EF4444] hover:text-[#FFFFFF]"
+              : "bg-transparent border-[#44423D] text-[#F0EEE6] hover:bg-[#D97757] hover:text-[#FFFFFF] hover:border-[#D97757]"
           }`}
           style={{ borderRadius: "4px" }}
         >

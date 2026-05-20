@@ -428,7 +428,7 @@ export default function Home() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-[#F5F5F5]">
+    <div className="min-h-screen bg-[#262624] text-[#F0EEE6]">
       <Header
         history={history}
         showHistory={showHistory}
@@ -446,8 +446,8 @@ export default function Home() {
 
         {/* Video title */}
         {videoTitle && (
-          <p className="text-[12px] font-mono text-[#525252] truncate">
-            <span className="text-[#404040]">▸ </span>{videoTitle}
+          <p className="text-[12px] font-mono text-[#7D7A72] truncate">
+            <span className="text-[#5C5851]">▸ </span>{videoTitle}
           </p>
         )}
 
@@ -462,7 +462,7 @@ export default function Home() {
               error={error}
             />
             {step === "extracting" && (
-              <p className="text-[12px] font-mono text-[#525252]">Extraction du transcript…</p>
+              <p className="text-[12px] font-mono text-[#7D7A72]">Extraction du transcript…</p>
             )}
           </div>
         )}
@@ -470,10 +470,10 @@ export default function Home() {
         {/* Empty state */}
         {step === "idle" && !url && (
           <div className="py-16 text-center space-y-3">
-            <p className="text-[13px] font-mono text-[#525252]">
+            <p className="text-[13px] font-mono text-[#7D7A72]">
               Colle une URL pour commencer
             </p>
-            <p className="text-[11px] font-mono text-[#404040]">
+            <p className="text-[11px] font-mono text-[#5C5851]">
               YouTube · TikTok · Instagram  ·  ⌘K pour les actions rapides
             </p>
           </div>
@@ -481,9 +481,9 @@ export default function Home() {
 
         {/* Transcript card (collapsable) */}
         {(step === "transcript" || step === "rewriting" || step === "done") && transcriptText && (
-          <details className="group bg-[#141414] border border-[#262626] overflow-hidden" style={{ borderRadius: "8px" }}>
-            <summary className="flex items-center justify-between px-4 py-2.5 cursor-pointer list-none select-none hover:bg-[#1C1C1C] transition-none">
-              <span className="text-[10px] font-mono font-semibold text-[#A3A3A3] tracking-widest uppercase flex items-center gap-2">
+          <details className="group bg-[#2F2F2C] border border-[#44423D] overflow-hidden" style={{ borderRadius: "8px" }}>
+            <summary className="flex items-center justify-between px-4 py-2.5 cursor-pointer list-none select-none hover:bg-[#3A3A36] transition-none">
+              <span className="text-[10px] font-mono font-semibold text-[#B0ADA3] tracking-widest uppercase flex items-center gap-2">
                 <span className="group-open:rotate-90 inline-block transition-none">▸</span>
                 Transcript · {transcriptText.split(/\s+/).filter(Boolean).length} mots
               </span>
@@ -495,12 +495,12 @@ export default function Home() {
                   toast.success("Transcript copié");
                   setTimeout(() => setCopiedTranscript(false), 1500);
                 }}
-                className="text-[10px] font-mono text-[#525252] hover:text-[#F5F5F5] transition-none"
+                className="text-[10px] font-mono text-[#7D7A72] hover:text-[#F0EEE6] transition-none"
               >
                 {copiedTranscript ? "Copié !" : "Copier"}
               </button>
             </summary>
-            <p className="px-4 py-3 text-[12px] text-[#A3A3A3] font-sans whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto border-t border-[#262626]">
+            <p className="px-4 py-3 text-[12px] text-[#B0ADA3] font-sans whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto border-t border-[#44423D]">
               {transcriptText}
             </p>
           </details>
@@ -510,7 +510,7 @@ export default function Home() {
         {step === "transcript" && (
           <button
             onClick={() => handleRewrite(transcriptText, videoTitle)}
-            className="w-full h-12 bg-[#F5F5F5] text-[#0A0A0A] text-[13px] font-mono font-semibold hover:bg-transparent hover:text-[#F5F5F5] border border-[#F5F5F5] transition-none"
+            className="w-full h-12 bg-[#D97757] text-[#FFFFFF] text-[13px] font-mono font-semibold hover:bg-[#C56646] border border-[#D97757] transition-none"
             style={{ borderRadius: "8px" }}
           >
             Générer le QR
@@ -520,13 +520,13 @@ export default function Home() {
         {/* Rewriting — streaming preview + skeleton cards */}
         {step === "rewriting" && (
           <div className="space-y-6">
-            <div className="bg-[#141414] border border-[#262626] p-4 space-y-2" style={{ borderRadius: "8px" }}>
+            <div className="bg-[#2F2F2C] border border-[#44423D] p-4 space-y-2" style={{ borderRadius: "8px" }}>
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-[#F59E0B] animate-pulse" />
-                <span className="text-[10px] font-mono text-[#525252] tracking-widest uppercase">Réécriture en cours…</span>
+                <span className="text-[10px] font-mono text-[#7D7A72] tracking-widest uppercase">Réécriture en cours…</span>
               </div>
               {qrText && (
-                <p className="text-[12px] font-sans text-[#A3A3A3] whitespace-pre-wrap leading-relaxed line-clamp-6">
+                <p className="text-[12px] font-sans text-[#B0ADA3] whitespace-pre-wrap leading-relaxed line-clamp-6">
                   {qrText}
                 </p>
               )}
@@ -534,18 +534,18 @@ export default function Home() {
             {/* Skeleton script cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {["FR", "EN", "DE"].map((lang) => (
-                <div key={lang} className="bg-[#141414] border border-[#262626] overflow-hidden flex flex-col" style={{ borderRadius: "8px" }}>
-                  <div className="px-3 py-2 border-b border-[#262626] flex items-center gap-2">
-                    <div className="h-2.5 w-16 bg-[#262626] animate-pulse" style={{ borderRadius: "2px" }} />
-                    <div className="h-2 w-12 bg-[#1C1C1C] animate-pulse" style={{ borderRadius: "2px" }} />
+                <div key={lang} className="bg-[#2F2F2C] border border-[#44423D] overflow-hidden flex flex-col" style={{ borderRadius: "8px" }}>
+                  <div className="px-3 py-2 border-b border-[#44423D] flex items-center gap-2">
+                    <div className="h-2.5 w-16 bg-[#44423D] animate-pulse" style={{ borderRadius: "2px" }} />
+                    <div className="h-2 w-12 bg-[#3A3A36] animate-pulse" style={{ borderRadius: "2px" }} />
                   </div>
                   <div className="px-3 py-3 space-y-2 flex-1">
                     {[100, 90, 95, 80, 70].map((w, i) => (
-                      <div key={i} className="h-3 bg-[#1C1C1C] animate-pulse" style={{ borderRadius: "2px", width: `${w}%` }} />
+                      <div key={i} className="h-3 bg-[#3A3A36] animate-pulse" style={{ borderRadius: "2px", width: `${w}%` }} />
                     ))}
                   </div>
-                  <div className="px-3 py-2 border-t border-[#262626]">
-                    <div className="h-2 w-8 bg-[#1C1C1C] animate-pulse" style={{ borderRadius: "2px" }} />
+                  <div className="px-3 py-2 border-t border-[#44423D]">
+                    <div className="h-2 w-8 bg-[#3A3A36] animate-pulse" style={{ borderRadius: "2px" }} />
                   </div>
                 </div>
               ))}
@@ -610,19 +610,19 @@ export default function Home() {
                 if (!content && !sections[section]) return null;
                 const displayContent = content ?? "";
                 return (
-                  <div key={section} className="bg-[#141414] border border-[#262626] overflow-hidden" style={{ borderRadius: "8px" }}>
-                    <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#262626]">
-                      <span className="text-[10px] font-mono font-semibold text-[#A3A3A3] tracking-widest uppercase">
+                  <div key={section} className="bg-[#2F2F2C] border border-[#44423D] overflow-hidden" style={{ borderRadius: "8px" }}>
+                    <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#44423D]">
+                      <span className="text-[10px] font-mono font-semibold text-[#B0ADA3] tracking-widest uppercase">
                         {section}
                       </span>
                       <button
                         onClick={() => copySection(section, displayContent)}
-                        className="text-[10px] font-mono text-[#525252] hover:text-[#F5F5F5] transition-none"
+                        className="text-[10px] font-mono text-[#7D7A72] hover:text-[#F0EEE6] transition-none"
                       >
                         {copied === section ? "Copié ✓" : "Copier"}
                       </button>
                     </div>
-                    <p className="px-4 py-3 text-[13px] font-sans text-[#F5F5F5] whitespace-pre-wrap leading-relaxed">
+                    <p className="px-4 py-3 text-[13px] font-sans text-[#F0EEE6] whitespace-pre-wrap leading-relaxed">
                       {displayContent}
                     </p>
                   </div>
@@ -630,14 +630,14 @@ export default function Home() {
               })}
             </div>
 
-            <p className="text-center text-[#525252] text-[10px] font-mono py-4">
+            <p className="text-center text-[#7D7A72] text-[10px] font-mono py-4">
               Prêt pour le prochain script !
             </p>
           </div>
         )}
       </main>
 
-      <footer className="text-center text-[#262626] text-[10px] font-mono py-6 mt-8">
+      <footer className="text-center text-[#44423D] text-[10px] font-mono py-6 mt-8">
         DAV Pipeline · 2026
       </footer>
 

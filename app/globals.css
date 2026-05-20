@@ -2,17 +2,17 @@
 @import "@fontsource-variable/jetbrains-mono";
 
 @theme {
-  /* Colors */
-  --color-bg: #0A0A0A;
-  --color-surface: #141414;
-  --color-surface-hover: #1C1C1C;
-  --color-border: #262626;
-  --color-border-strong: #404040;
-  --color-text: #F5F5F5;
-  --color-text-muted: #A3A3A3;
-  --color-text-dim: #525252;
-  --color-accent: #FAFAFA;
-  --color-accent-fg: #0A0A0A;
+  /* Colors — Claude warm dark theme */
+  --color-bg: #262624;
+  --color-surface: #2F2F2C;
+  --color-surface-hover: #3A3A36;
+  --color-border: #44423D;
+  --color-border-strong: #5C5851;
+  --color-text: #F0EEE6;
+  --color-text-muted: #B0ADA3;
+  --color-text-dim: #7D7A72;
+  --color-accent: #D97757;
+  --color-accent-fg: #FFFFFF;
   --color-success: #22C55E;
   --color-warning: #F59E0B;
   --color-danger: #EF4444;
@@ -36,8 +36,8 @@ html {
 }
 
 body {
-  background-color: #0A0A0A;
-  color: #F5F5F5;
+  background-color: #262624;
+  color: #F0EEE6;
   font-family: "Geist Sans", ui-sans-serif, system-ui;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -48,7 +48,7 @@ input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
   height: 2px;
-  background: #262626;
+  background: #44423D;
   border-radius: 1px;
   outline: none;
   cursor: pointer;
@@ -60,7 +60,7 @@ input[type="range"]::-webkit-slider-thumb {
   width: 12px;
   height: 12px;
   border-radius: 2px;
-  background: #F5F5F5;
+  background: #D97757;
   cursor: pointer;
 }
 
@@ -68,14 +68,14 @@ input[type="range"]::-moz-range-thumb {
   width: 12px;
   height: 12px;
   border-radius: 2px;
-  background: #F5F5F5;
+  background: #D97757;
   cursor: pointer;
   border: none;
 }
 
 /* Focus ring override */
 *:focus-visible {
-  outline: 1px solid rgba(255, 255, 255, 0.2);
+  outline: 1px solid rgba(217, 119, 87, 0.4);
   outline-offset: 2px;
 }
 
@@ -88,9 +88,9 @@ input[type="range"]::-moz-range-thumb {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #262626;
+  background: #44423D;
   border-radius: 2px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #404040;
+  background: #5C5851;
 }

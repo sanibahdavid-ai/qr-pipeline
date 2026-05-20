@@ -31,7 +31,7 @@ export function FloatingActions({ onCopyAllQR, show }: Props) {
     <div className="fixed bottom-6 right-4 z-40 flex flex-col gap-2 items-end sm:hidden">
       <button
         onClick={handleCopy}
-        className="flex items-center gap-1.5 px-3 py-2 text-[11px] font-mono bg-[#141414] border border-[#262626] text-[#A3A3A3] hover:border-[#404040] hover:text-[#F5F5F5] shadow-lg transition-none"
+        className="flex items-center gap-1.5 px-3 py-2 text-[11px] font-mono bg-[#2F2F2C] border border-[#44423D] text-[#B0ADA3] hover:border-[#5C5851] hover:text-[#F0EEE6] shadow-lg transition-none"
         style={{ borderRadius: "6px" }}
       >
         <Copy size={11} />
@@ -40,7 +40,7 @@ export function FloatingActions({ onCopyAllQR, show }: Props) {
       {scrolled && (
         <button
           onClick={() => window.scrollTo({ top: 0 })}
-          className="flex items-center justify-center w-8 h-8 bg-[#141414] border border-[#262626] text-[#525252] hover:text-[#F5F5F5] hover:border-[#404040] shadow-lg transition-none"
+          className="flex items-center justify-center w-8 h-8 bg-[#2F2F2C] border border-[#44423D] text-[#7D7A72] hover:text-[#F0EEE6] hover:border-[#5C5851] shadow-lg transition-none"
           style={{ borderRadius: "6px" }}
           title="Remonter"
         >

@@ -121,24 +121,24 @@ export function CommandPalette({
         style={{ borderRadius: "8px" }}
       >
         <Command
-          className="bg-[#141414] border border-[#262626] overflow-hidden shadow-2xl"
+          className="bg-[#2F2F2C] border border-[#44423D] overflow-hidden shadow-2xl"
           style={{ borderRadius: "8px" }}
         >
           {/* Input */}
-          <div className="flex items-center border-b border-[#262626] px-3 gap-2">
-            <span className="text-[#525252] shrink-0 text-[11px] font-mono">⌘</span>
+          <div className="flex items-center border-b border-[#44423D] px-3 gap-2">
+            <span className="text-[#7D7A72] shrink-0 text-[11px] font-mono">⌘</span>
             <Command.Input
               ref={inputRef}
               placeholder="Rechercher une action…"
-              className="flex-1 h-11 bg-transparent text-[13px] font-mono text-[#F5F5F5] placeholder-[#525252] outline-none"
+              className="flex-1 h-11 bg-transparent text-[13px] font-mono text-[#F0EEE6] placeholder-[#7D7A72] outline-none"
             />
-            <button onClick={onClose} className="shrink-0 text-[#525252] hover:text-[#F5F5F5] transition-none">
+            <button onClick={onClose} className="shrink-0 text-[#7D7A72] hover:text-[#F0EEE6] transition-none">
               <X size={13} />
             </button>
           </div>
 
           <Command.List className="max-h-72 overflow-y-auto py-1">
-            <Command.Empty className="py-6 text-center text-[12px] font-mono text-[#525252]">
+            <Command.Empty className="py-6 text-center text-[12px] font-mono text-[#7D7A72]">
               Aucune action trouvée
             </Command.Empty>
 
@@ -148,14 +148,14 @@ export function CommandPalette({
                 value={item.value}
                 disabled={item.disabled}
                 onSelect={item.disabled ? undefined : item.action}
-                className="flex items-center justify-between px-3 py-2.5 cursor-pointer text-[#A3A3A3] data-[selected=true]:bg-[#1C1C1C] data-[selected=true]:text-[#F5F5F5] aria-disabled:opacity-40 aria-disabled:cursor-default transition-none"
+                className="flex items-center justify-between px-3 py-2.5 cursor-pointer text-[#B0ADA3] data-[selected=true]:bg-[#3A3A36] data-[selected=true]:text-[#F0EEE6] aria-disabled:opacity-40 aria-disabled:cursor-default transition-none"
               >
                 <div className="flex items-center gap-2.5">
-                  <span className="text-[#525252]">{item.icon}</span>
+                  <span className="text-[#7D7A72]">{item.icon}</span>
                   <span className="text-[13px] font-mono">{item.label}</span>
                 </div>
                 {item.shortcut && (
-                  <span className="text-[10px] font-mono text-[#525252] border border-[#262626] px-1.5 py-0.5" style={{ borderRadius: "3px" }}>
+                  <span className="text-[10px] font-mono text-[#7D7A72] border border-[#44423D] px-1.5 py-0.5" style={{ borderRadius: "3px" }}>
                     {item.shortcut}
                   </span>
                 )}
