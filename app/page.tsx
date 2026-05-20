@@ -1,10 +1,14 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 import { toast } from "sonner";
 import { Header } from "../components/Header";
 import { UrlInput } from "../components/UrlInput";
 import { GenerationPanel } from "../components/GenerationPanel";
+import { ScriptCard } from "../components/ScriptCard";
+import { CommandPalette } from "../components/CommandPalette";
+import { FloatingActions } from "../components/FloatingActions";
 import { EDGE_TTS_VOICES } from "../lib/edge-tts-voices";
 import { GOOGLE_TTS_VOICES } from "../lib/google-tts-voices";
 import { sanitizeTitle, wordStats } from "../lib/format";
@@ -85,6 +89,13 @@ export default function Home() {
     if (showHistory) document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [showHistory]);
+
+  // ── Keyboard shortcuts ────────────────────────────────────────────────────
+  useHotkeys("mod+k", (e) => { e.preventDefault(); setShowPalette((v) => !v); });
+  useHotkeys("mod+shift+c", (e) => { e.preventDefault(); if (step === "done") { copyAllQR(); toast.success("QR copié !"); } });
+  useHotkeys("1", () => { const a = audio["FR"] ?? audio["EDGE_FR"] ?? audio["GTTS_FR"]; if (a?.audioUrl) playAudio(a.audioUrl); }, { enabled: step === "done" });
+  useHotkeys("2", () => { const a = audio["EN"] ?? audio["EDGE_EN"] ?? audio["GTTS_EN"]; if (a?.audioUrl) playAudio(a.audioUrl); }, { enabled: step === "done" });
+  useHotkeys("3", () => { const a = audio["DE"] ?? audio["EDGE_DE"] ?? audio["GTTS_DE"]; if (a?.audioUrl) playAudio(a.audioUrl); }, { enabled: step === "done" });
 
   function saveToHistory(title: string, currentUrl: string, text: string) {
     const entry: HistoryEntry = {
@@ -359,6 +370,12 @@ export default function Home() {
     return defaults[p]?.[lang] ?? { voice: "", speed: 1.0 };
   }
 
+  // ── Audio helpers ─────────────────────────────────────────────────────────
+  function playAudio(url: string) {
+    const el = new Audio(url);
+    el.play().catch(() => {});
+  }
+
   // ── Copy all QR ───────────────────────────────────────────────────────────
   function copyAllQR() {
     const parts = SECTIONS.map((section) => {
@@ -403,6 +420,12 @@ export default function Home() {
     setTimeout(() => setCopied(null), 2000);
   }
 
+  function getVoiceConfigForLang(lang: string) {
+    const raw = typeof window !== "undefined" ? localStorage.getItem("qr_voice_config_v2") : null;
+    const configs = raw ? (JSON.parse(raw) as Record<string, { voice: string; speed: number }>) : {};
+    return configs[`${provider}__${lang}`] ?? getDefaultVoiceConfig(provider, lang);
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-[#F5F5F5]">
@@ -428,32 +451,35 @@ export default function Home() {
           </p>
         )}
 
-        {/* URL input (idle only) */}
-        {step === "idle" && (
-          <UrlInput
-            value={url}
-            onChange={setUrl}
-            onSubmit={handleExtract}
-            isLoading={false}
-            error={error}
-          />
-        )}
-
-        {/* Extracting state */}
-        {step === "extracting" && (
+        {/* URL input (idle or extracting) */}
+        {(step === "idle" || step === "extracting") && (
           <div className="space-y-3">
             <UrlInput
               value={url}
               onChange={setUrl}
               onSubmit={handleExtract}
-              isLoading={true}
-              error=""
+              isLoading={step === "extracting"}
+              error={error}
             />
-            <p className="text-[12px] font-mono text-[#525252]">Extraction du transcript…</p>
+            {step === "extracting" && (
+              <p className="text-[12px] font-mono text-[#525252]">Extraction du transcript…</p>
+            )}
           </div>
         )}
 
-        {/* Transcript step */}
+        {/* Empty state */}
+        {step === "idle" && !url && (
+          <div className="py-16 text-center space-y-3">
+            <p className="text-[13px] font-mono text-[#525252]">
+              Colle une URL pour commencer
+            </p>
+            <p className="text-[11px] font-mono text-[#404040]">
+              YouTube · TikTok · Instagram  ·  ⌘K pour les actions rapides
+            </p>
+          </div>
+        )}
+
+        {/* Transcript card (collapsable) */}
         {(step === "transcript" || step === "rewriting" || step === "done") && transcriptText && (
           <details className="group bg-[#141414] border border-[#262626] overflow-hidden" style={{ borderRadius: "8px" }}>
             <summary className="flex items-center justify-between px-4 py-2.5 cursor-pointer list-none select-none hover:bg-[#1C1C1C] transition-none">
@@ -491,18 +517,39 @@ export default function Home() {
           </button>
         )}
 
-        {/* Rewriting state — streaming preview */}
+        {/* Rewriting — streaming preview + skeleton cards */}
         {step === "rewriting" && (
-          <div className="bg-[#141414] border border-[#262626] p-4 space-y-2" style={{ borderRadius: "8px" }}>
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#F59E0B] animate-pulse" />
-              <span className="text-[10px] font-mono text-[#525252] tracking-widest uppercase">Réécriture en cours…</span>
+          <div className="space-y-6">
+            <div className="bg-[#141414] border border-[#262626] p-4 space-y-2" style={{ borderRadius: "8px" }}>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#F59E0B] animate-pulse" />
+                <span className="text-[10px] font-mono text-[#525252] tracking-widest uppercase">Réécriture en cours…</span>
+              </div>
+              {qrText && (
+                <p className="text-[12px] font-sans text-[#A3A3A3] whitespace-pre-wrap leading-relaxed line-clamp-6">
+                  {qrText}
+                </p>
+              )}
             </div>
-            {qrText && (
-              <p className="text-[12px] font-sans text-[#A3A3A3] whitespace-pre-wrap leading-relaxed line-clamp-6">
-                {qrText}
-              </p>
-            )}
+            {/* Skeleton script cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {["FR", "EN", "DE"].map((lang) => (
+                <div key={lang} className="bg-[#141414] border border-[#262626] overflow-hidden flex flex-col" style={{ borderRadius: "8px" }}>
+                  <div className="px-3 py-2 border-b border-[#262626] flex items-center gap-2">
+                    <div className="h-2.5 w-16 bg-[#262626] animate-pulse" style={{ borderRadius: "2px" }} />
+                    <div className="h-2 w-12 bg-[#1C1C1C] animate-pulse" style={{ borderRadius: "2px" }} />
+                  </div>
+                  <div className="px-3 py-3 space-y-2 flex-1">
+                    {[100, 90, 95, 80, 70].map((w, i) => (
+                      <div key={i} className="h-3 bg-[#1C1C1C] animate-pulse" style={{ borderRadius: "2px", width: `${w}%` }} />
+                    ))}
+                  </div>
+                  <div className="px-3 py-2 border-t border-[#262626]">
+                    <div className="h-2 w-8 bg-[#1C1C1C] animate-pulse" style={{ borderRadius: "2px" }} />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -593,103 +640,24 @@ export default function Home() {
       <footer className="text-center text-[#262626] text-[10px] font-mono py-6 mt-8">
         DAV Pipeline · 2026
       </footer>
+
+      {/* Command palette */}
+      <CommandPalette
+        open={showPalette}
+        onClose={() => setShowPalette(false)}
+        onPasteUrl={() => { reset(); setTimeout(() => { const el = document.querySelector("input[type=text]") as HTMLInputElement; el?.focus(); }, 50); }}
+        onGenerateFR={() => { const c = getVoiceConfigForLang("FR"); handleTTS("FR", c.voice, c.speed); }}
+        onGenerateEN={() => { const c = getVoiceConfigForLang("EN"); handleTTS("EN", c.voice, c.speed); }}
+        onGenerateDE={() => { const c = getVoiceConfigForLang("DE"); handleTTS("DE", c.voice, c.speed); }}
+        onGenerateAll={handleGenerateAll}
+        onCopyAllQR={() => { copyAllQR(); toast.success("QR copié !"); }}
+        onReset={reset}
+        hasContent={step === "done"}
+      />
+
+      {/* Floating actions (mobile) */}
+      <FloatingActions onCopyAllQR={() => { copyAllQR(); }} show={step === "done"} />
     </div>
   );
 }
 
-// ── ScriptCard (inline for now, extracted in Phase 4) ─────────────────────────
-type ScriptCardProps = {
-  section: Section;
-  content: string;
-  stats: { words: number; duration: string } | null;
-  adjustDurations: readonly AdjustDuration[];
-  isAdjusting: boolean;
-  hasOverride: boolean;
-  adjusting: boolean;
-  audioState?: AudioState;
-  isCopied: boolean;
-  onCopy: () => void;
-  onAdjust: (dur: AdjustDuration) => void;
-  onRestore: () => void;
-};
-
-function ScriptCard({
-  section, content, stats, adjustDurations, isAdjusting, hasOverride,
-  adjusting, audioState, isCopied, onCopy, onAdjust, onRestore,
-}: ScriptCardProps) {
-  return (
-    <div className="bg-[#141414] border border-[#262626] overflow-hidden flex flex-col" style={{ borderRadius: "8px" }}>
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[#262626]">
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-mono font-semibold text-[#A3A3A3] tracking-widest uppercase">
-            {section}
-          </span>
-          {stats && (
-            <span className="text-[10px] font-mono text-[#525252]">
-              {stats.words}w · {stats.duration}
-            </span>
-          )}
-          {isAdjusting && (
-            <span className="flex items-center gap-1 text-[10px] font-mono text-[#525252]">
-              <span className="w-2 h-2 rounded-full bg-[#F59E0B] animate-pulse" />
-              Réécriture…
-            </span>
-          )}
-          {hasOverride && !isAdjusting && (
-            <button
-              onClick={onRestore}
-              className="text-[10px] font-mono text-[#525252] hover:text-[#F5F5F5] transition-none"
-            >
-              ↩ Original
-            </button>
-          )}
-        </div>
-        <button
-          onClick={onCopy}
-          className="text-[10px] font-mono text-[#525252] hover:text-[#F5F5F5] transition-none"
-        >
-          {isCopied ? "Copié ✓" : "Copier"}
-        </button>
-      </div>
-
-      {/* Body */}
-      <div className="px-3 py-3 flex-1">
-        <p className="text-[13px] font-sans text-[#F5F5F5] whitespace-pre-wrap leading-[1.7]">
-          {content}
-        </p>
-      </div>
-
-      {/* Audio player if done */}
-      {audioState?.status === "done" && audioState.audioUrl && (
-        <div className="px-3 py-2 border-t border-[#262626]">
-          <audio controls src={audioState.audioUrl} className="w-full h-8" />
-          {audioState.filename && (
-            <a
-              href={audioState.audioUrl}
-              download={audioState.filename}
-              className="text-[10px] font-mono text-[#525252] hover:text-[#F5F5F5] transition-none mt-1 inline-block"
-            >
-              ↓ {audioState.filename}
-            </a>
-          )}
-        </div>
-      )}
-
-      {/* Footer — adjust durations */}
-      <div className="px-3 py-2 border-t border-[#262626] flex flex-wrap gap-1">
-        {adjustDurations.map((d) => (
-          <button
-            key={d}
-            onClick={() => onAdjust(d)}
-            disabled={adjusting}
-            className="text-[10px] font-mono px-2 py-0.5 border border-[#262626] text-[#525252] hover:border-[#404040] hover:text-[#F5F5F5] disabled:opacity-40 transition-none"
-            style={{ borderRadius: "3px" }}
-          >
-            {d}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
