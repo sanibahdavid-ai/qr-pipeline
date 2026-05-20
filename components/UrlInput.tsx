@@ -1,7 +1,8 @@
 "use client";
 
-import { ArrowRight, Loader2 } from "lucide-react";
+import { ArrowRight, Loader2, ClipboardPaste } from "lucide-react";
 import { useState, useRef } from "react";
+import { toast } from "sonner";
 
 type Platform = "YT" | "TT" | "IG" | null;
 
@@ -31,8 +32,20 @@ export function UrlInput({ value, onChange, onSubmit, isLoading, error }: Props)
   function handlePaste(e: React.ClipboardEvent) {
     const pasted = e.clipboardData.getData("text");
     if (detectPlatform(pasted)) {
-      // Small delay so the value updates first
       setTimeout(() => onSubmit(), 50);
+    }
+  }
+
+  async function handleClickPaste() {
+    try {
+      const text = await navigator.clipboard.readText();
+      const trimmed = text.trim();
+      onChange(trimmed);
+      if (detectPlatform(trimmed)) {
+        setTimeout(() => onSubmit(), 80);
+      }
+    } catch {
+      toast.error("Impossible de lire le presse-papier");
     }
   }
 
@@ -56,13 +69,25 @@ export function UrlInput({ value, onChange, onSubmit, isLoading, error }: Props)
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
           placeholder="youtube.com/watch?v=…  ·  tiktok.com/@…  ·  instagram.com/p/…"
-          className={`w-full h-12 bg-[#141414] border text-sm font-mono placeholder-[#525252] text-[#F5F5F5] focus:outline-none focus:border-[#404040] pr-14 transition-none ${
+          className={`w-full h-12 bg-[#141414] border text-sm font-mono placeholder-[#525252] text-[#F5F5F5] focus:outline-none focus:border-[#404040] pr-[84px] transition-none ${
             isLoading ? "border-[#404040] animate-pulse" : error ? "border-[#EF4444]" : "border-[#262626]"
           } ${platform ? "pl-12" : "pl-4"}`}
           style={{ borderRadius: "8px" }}
           disabled={isLoading}
         />
 
+        {/* Paste button */}
+        <button
+          onClick={handleClickPaste}
+          disabled={isLoading}
+          title="Coller depuis le presse-papier"
+          className="absolute right-[44px] flex items-center justify-center w-8 h-8 border border-[#262626] text-[#525252] hover:border-[#404040] hover:text-[#F5F5F5] disabled:opacity-40 transition-none"
+          style={{ borderRadius: "4px" }}
+        >
+          <ClipboardPaste size={13} />
+        </button>
+
+        {/* Submit button */}
         <button
           onClick={onSubmit}
           disabled={!value.trim() || isLoading}
