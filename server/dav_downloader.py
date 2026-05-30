@@ -4,16 +4,20 @@ Runs on port 5757 (internal). Proxied through Next.js on Railway.
 """
 
 import subprocess
-import sys
 import os
 import re
 import json as _json
+import threading
+import time
+import uuid
 from pathlib import Path
 
+import boto3
+from botocore.config import Config as BotoConfig
 from flask import Flask, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
 
-# ── Config ───────────────────────────────────────────────────────────────────
+# ── Config ────────────────────────────────────────────────────────────────────
 DOWNLOAD_FOLDER = Path(os.environ.get("DOWNLOAD_DIR", "/tmp/downloads"))
 DOWNLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 
@@ -24,16 +28,111 @@ CORS(app)
 
 history = []
 
+# ── ffmpeg: use imageio-ffmpeg's static binary so merging works on Render ─────
+try:
+    import imageio_ffmpeg
+    FFMPEG_PATH = imageio_ffmpeg.get_ffmpeg_exe()
+except Exception:
+    FFMPEG_PATH = "ffmpeg"  # fall back to system PATH
+
+# ── R2 / S3-compatible storage ─────────────────────────────────────────────────
+R2_BUCKET = os.environ.get("R2_BUCKET", "dav-downloads")
+R2_EXPIRY = 3600  # presigned URL TTL and cleanup age in seconds
+
+_r2_client = None
+_r2_lock   = threading.Lock()
+_r2_keys: dict = {}   # {key: expiry_epoch}
+
+
+def _get_r2():
+    global _r2_client
+    if _r2_client is None:
+        ep  = os.environ.get("R2_ENDPOINT")
+        kid = os.environ.get("R2_ACCESS_KEY_ID")
+        sec = os.environ.get("R2_SECRET_ACCESS_KEY")
+        if ep and kid and sec:
+            _r2_client = boto3.client(
+                "s3",
+                endpoint_url=ep,
+                aws_access_key_id=kid,
+                aws_secret_access_key=sec,
+                config=BotoConfig(signature_version="s3v4"),
+                region_name="auto",
+            )
+    return _r2_client
+
+
+def _cleanup_worker():
+    """Deletes R2 objects whose presigned URLs have expired (runs every 10 min)."""
+    while True:
+        time.sleep(600)
+        now = time.time()
+        r2 = _get_r2()
+        if not r2:
+            continue
+        with _r2_lock:
+            expired = [k for k, exp in list(_r2_keys.items()) if now > exp]
+        for key in expired:
+            try:
+                r2.delete_object(Bucket=R2_BUCKET, Key=key)
+            except Exception:
+                pass
+            with _r2_lock:
+                _r2_keys.pop(key, None)
+
+
+threading.Thread(target=_cleanup_worker, daemon=True).start()
+
+
+def upload_to_r2(local_path: Path) -> str:
+    """Upload file to R2, register it for cleanup, return 1-hour presigned URL."""
+    r2 = _get_r2()
+    if not r2:
+        raise RuntimeError("R2 credentials not configured")
+    filename = local_path.name
+    key = f"{uuid.uuid4().hex}/{filename}"
+    r2.upload_file(str(local_path), R2_BUCKET, key)
+    with _r2_lock:
+        _r2_keys[key] = time.time() + R2_EXPIRY
+    return r2.generate_presigned_url(
+        "get_object",
+        Params={
+            "Bucket": R2_BUCKET,
+            "Key": key,
+            "ResponseContentDisposition": f'attachment; filename="{filename}"',
+        },
+        ExpiresIn=R2_EXPIRY,
+    )
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
 def build_video_format_string(quality: str) -> str:
     if quality in ("1080", "720", "480", "360"):
         return (f"bestvideo[height<={quality}][ext=mp4]+bestaudio[ext=m4a]"
                 f"/best[height<={quality}][ext=mp4]/best[height<={quality}]")
     return "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best"
 
-# ── Routes ───────────────────────────────────────────────────────────────────
+
+def _find_downloaded_file(hint: str) -> Path | None:
+    """Locate the file yt-dlp produced: try exact name first, then newest in folder."""
+    candidate = DOWNLOAD_FOLDER / hint
+    if candidate.exists():
+        return candidate
+    files = sorted(
+        [f for f in DOWNLOAD_FOLDER.iterdir() if f.is_file()],
+        key=lambda p: p.stat().st_mtime, reverse=True,
+    )
+    return files[0] if files else None
+
+# ── Routes ────────────────────────────────────────────────────────────────────
 @app.route("/ping")
 def ping():
-    return jsonify({"status": "ok", "folder": str(DOWNLOAD_FOLDER)})
+    return jsonify({
+        "status": "ok",
+        "r2": _get_r2() is not None,
+        "ffmpeg": FFMPEG_PATH,
+        "folder": str(DOWNLOAD_FOLDER),
+    })
+
 
 @app.route("/download", methods=["POST"])
 def download():
@@ -50,39 +149,36 @@ def download():
     if format_choice == "audio":
         cmd = [
             "yt-dlp", "-x", "--audio-format", "mp3",
-            "-o", output_template, "--no-playlist", url
+            "--ffmpeg-location", FFMPEG_PATH,
+            "-o", output_template, "--no-playlist", url,
         ]
     else:
         cmd = [
             "yt-dlp",
             "-f", build_video_format_string(quality),
             "--merge-output-format", "mp4",
-            "-o", output_template, "--no-playlist", url
+            "--ffmpeg-location", FFMPEG_PATH,
+            "-o", output_template, "--no-playlist", url,
         ]
 
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
-
         if result.returncode == 0:
             lines = result.stdout.strip().split("\n")
-            filename = "Fichier téléchargé"
+            filename = "download"
             for line in lines:
                 if "[Merger]" in line and "Merging formats into" in line:
                     filename = line.split('"')[1].split("/")[-1].split("\\")[-1]
                     break
                 elif "[download] Destination:" in line:
                     filename = line.split("Destination:")[-1].strip().split("/")[-1].split("\\")[-1]
-
             entry = {"url": url, "filename": filename, "format": format_choice, "status": "success"}
             history.insert(0, entry)
             if len(history) > 20:
                 history.pop()
-
-            return jsonify({"success": True, "filename": filename, "folder": str(DOWNLOAD_FOLDER)})
+            return jsonify({"success": True, "filename": filename})
         else:
-            err = result.stderr[-500:] if result.stderr else "Erreur inconnue"
-            return jsonify({"success": False, "error": err}), 500
-
+            return jsonify({"success": False, "error": result.stderr[-500:]}), 500
     except subprocess.TimeoutExpired:
         return jsonify({"success": False, "error": "Timeout — vidéo trop longue ou connexion lente"}), 500
     except FileNotFoundError:
@@ -106,13 +202,19 @@ def download_stream():
     output_template = str(DOWNLOAD_FOLDER / "%(title)s.%(ext)s")
 
     if format_choice == "audio":
-        cmd = ["yt-dlp", "-x", "--audio-format", "mp3",
-               "-o", output_template, "--no-playlist", "--newline", url]
+        cmd = [
+            "yt-dlp", "-x", "--audio-format", "mp3",
+            "--ffmpeg-location", FFMPEG_PATH,
+            "-o", output_template, "--no-playlist", "--newline", url,
+        ]
     else:
-        cmd = ["yt-dlp",
-               "-f", build_video_format_string(quality),
-               "--merge-output-format", "mp4",
-               "-o", output_template, "--no-playlist", "--newline", url]
+        cmd = [
+            "yt-dlp",
+            "-f", build_video_format_string(quality),
+            "--merge-output-format", "mp4",
+            "--ffmpeg-location", FFMPEG_PATH,
+            "-o", output_template, "--no-playlist", "--newline", url,
+        ]
 
     def generate():
         try:
@@ -120,23 +222,19 @@ def download_stream():
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
-                text=True,
-                bufsize=1,
-                encoding="utf-8",
-                errors="replace"
+                text=True, bufsize=1,
+                encoding="utf-8", errors="replace",
             )
-            filename = "Fichier téléchargé"
+            filename = "download"
 
             for raw_line in iter(proc.stdout.readline, ""):
                 line = raw_line.rstrip()
                 if not line:
                     continue
-
                 m = re.search(r'\[download\]\s+([\d.]+)%', line)
                 if m:
                     pct = round(float(m.group(1)), 1)
                     yield f'data: {{"type":"progress","percent":{pct}}}\n\n'
-
                 if "[Merger]" in line and "Merging formats into" in line:
                     try:
                         filename = line.split('"')[1].split("/")[-1].split("\\")[-1]
@@ -148,14 +246,33 @@ def download_stream():
             proc.stdout.close()
             proc.wait()
 
-            if proc.returncode == 0:
-                entry = {"url": url, "filename": filename, "format": format_choice, "status": "success"}
-                history.insert(0, entry)
-                if len(history) > 20:
-                    history.pop()
-                yield f'data: {{"type":"done","success":true,"filename":{_json.dumps(filename)}}}\n\n'
-            else:
+            if proc.returncode != 0:
                 yield f'data: {{"type":"done","success":false,"error":"Téléchargement échoué (code {proc.returncode})"}}\n\n'
+                return
+
+            # Locate the file yt-dlp wrote
+            local_file = _find_downloaded_file(filename)
+            if local_file is None:
+                yield 'data: {"type":"done","success":false,"error":"Fichier introuvable après téléchargement"}\n\n'
+                return
+
+            filename = local_file.name
+            entry = {"url": url, "filename": filename, "format": format_choice, "status": "success"}
+            history.insert(0, entry)
+            if len(history) > 20:
+                history.pop()
+
+            # Upload to R2 and send presigned URL
+            yield f'data: {{"type":"uploading","message":"Envoi vers R2…"}}\n\n'
+            try:
+                presigned_url = upload_to_r2(local_file)
+                local_file.unlink(missing_ok=True)
+                yield (f'data: {{"type":"done","success":true,'
+                       f'"filename":{_json.dumps(filename)},'
+                       f'"presigned_url":{_json.dumps(presigned_url)}}}\n\n')
+            except Exception as exc:
+                local_file.unlink(missing_ok=True)
+                yield f'data: {{"type":"done","success":false,"error":{_json.dumps("Upload R2: " + str(exc)[:200])}}}\n\n'
 
         except FileNotFoundError:
             yield 'data: {"type":"done","success":false,"error":"yt-dlp introuvable"}\n\n'
@@ -165,7 +282,7 @@ def download_stream():
     return Response(
         stream_with_context(generate()),
         mimetype="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
 
@@ -176,6 +293,7 @@ def get_history():
 
 @app.route("/stream-download")
 def stream_download():
+    """Fallback: pipe yt-dlp stdout directly to browser (no R2, no merging)."""
     url = request.args.get("url", "").strip()
     format_choice = request.args.get("format", "video")
     quality = request.args.get("quality", "best")
@@ -184,30 +302,26 @@ def stream_download():
         return jsonify({"error": "URL vide"}), 400
 
     is_audio = format_choice == "audio"
-
     if is_audio:
-        cmd = [
-            "yt-dlp", "-x", "--audio-format", "mp3",
-            "-o", "-", "--no-playlist", url,
-        ]
+        cmd = ["yt-dlp", "-x", "--audio-format", "mp3",
+               "--ffmpeg-location", FFMPEG_PATH,
+               "-o", "-", "--no-playlist", url]
         filename = "audio.mp3"
         content_type = "audio/mpeg"
     else:
         if quality in ("1080", "720", "480", "360"):
             fmt = (f"best[height<={quality}][ext=mp4]"
-                   f"/best[height<={quality}]"
-                   f"/best[ext=mp4]/best")
+                   f"/best[height<={quality}]/best[ext=mp4]/best")
         else:
             fmt = "best[ext=mp4]/best"
-        cmd = ["yt-dlp", "-f", fmt, "-o", "-", "--no-playlist", url]
+        cmd = ["yt-dlp", "-f", fmt, "--ffmpeg-location", FFMPEG_PATH,
+               "-o", "-", "--no-playlist", url]
         filename = "video.mp4"
         content_type = "video/mp4"
 
     def generate():
         try:
-            proc = subprocess.Popen(
-                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-            )
+            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             while True:
                 chunk = proc.stdout.read(65536)
                 if not chunk:
@@ -225,7 +339,7 @@ def stream_download():
             "Content-Disposition": f'attachment; filename="{filename}"',
             "X-Accel-Buffering": "no",
             "Cache-Control": "no-cache",
-        }
+        },
     )
 
 
@@ -613,17 +727,6 @@ def serve_app():
     font-size: 0.72rem;
     letter-spacing: 2px;
   }
-
-  @keyframes slide {
-    0%   { transform: translateX(-120%); }
-    100% { transform: translateX(500%); }
-  }
-
-  .progress-bar.indeterminate .progress-fill {
-    width: 22%;
-    transition: none;
-    animation: slide 1.3s ease-in-out infinite;
-  }
 </style>
 </head>
 <body>
@@ -784,42 +887,84 @@ def serve_app():
 
     btn.disabled = true;
     btn.textContent = 'TÉLÉCHARGEMENT…';
-    bar.classList.add('active', 'indeterminate');
-    label.textContent = 'Démarrage…';
+    bar.classList.add('active');
+    fill.style.width = '2%';
+    label.textContent = 'Connexion…';
     status.className = 'status';
     status.style.display = 'none';
 
-    const quality = document.getElementById('qualitySelect').value;
-    const params = new URLSearchParams({ url, format, quality });
-    const href = '/stream-download?' + params.toString();
+    try {
+      const quality = document.getElementById('qualitySelect').value;
+      const response = await fetch('/download-stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, format, quality })
+      });
 
-    // Trigger native browser download (file streamed directly, no disk save)
-    const a = document.createElement('a');
-    a.href = href;
-    a.download = '';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+      if (!response.ok) throw new Error('Erreur serveur ' + response.status);
 
-    // Give the browser time to start the save dialog, then reset UI
-    await new Promise(r => setTimeout(r, 2500));
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
 
-    bar.classList.remove('indeterminate');
-    fill.style.width = '100%';
-    label.textContent = '↓';
-    await new Promise(r => setTimeout(r, 300));
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-    showStatus('success', '↓ Téléchargement lancé — vérifiez vos téléchargements');
-    document.getElementById('urlInput').value = '';
-    document.getElementById('platformBadge').style.display = 'none';
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop();
 
-    btn.disabled = false;
-    btn.textContent = 'TÉLÉCHARGER';
-    setTimeout(() => {
-      bar.classList.remove('active');
-      fill.style.width = '0%';
-      label.textContent = '0%';
-    }, 700);
+        for (const part of parts) {
+          const dataLine = part.split('\n').find(l => l.startsWith('data: '));
+          if (!dataLine) continue;
+          try {
+            const evt = JSON.parse(dataLine.slice(6));
+
+            if (evt.type === 'progress') {
+              const pct = Math.min(evt.percent, 93);
+              fill.style.width = pct + '%';
+              label.textContent = pct.toFixed(1) + '%';
+
+            } else if (evt.type === 'uploading') {
+              fill.style.width = '97%';
+              label.textContent = 'Envoi R2…';
+
+            } else if (evt.type === 'done') {
+              if (evt.success) {
+                fill.style.width = '100%';
+                label.textContent = '100%';
+                await new Promise(r => setTimeout(r, 450));
+                showStatus('success', '✓ ' + evt.filename);
+                document.getElementById('urlInput').value = '';
+                document.getElementById('platformBadge').style.display = 'none';
+                loadHistory();
+                if (evt.presigned_url) {
+                  const a = document.createElement('a');
+                  a.href = evt.presigned_url;
+                  a.download = evt.filename || '';
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                }
+              } else {
+                showStatus('error', '✗ ' + (evt.error || 'Inconnue'));
+              }
+            }
+          } catch (_) {}
+        }
+      }
+    } catch (e) {
+      showStatus('error', '✗ ' + (e.message || 'Serveur inaccessible'));
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'TÉLÉCHARGER';
+      setTimeout(() => {
+        bar.classList.remove('active');
+        fill.style.width = '0%';
+        label.textContent = '0%';
+      }, 700);
+    }
   }
 
   function showStatus(type, msg) {
@@ -862,7 +1007,7 @@ def serve_app():
     return Response(html, mimetype='text/html')
 
 
-# ── Main ─────────────────────────────────────────────────────────────────────
+# ── Main ──────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    print(f"DAV DOWNLOADER — port {PORT} — folder {DOWNLOAD_FOLDER}")
+    print(f"DAV DOWNLOADER — port {PORT} — ffmpeg: {FFMPEG_PATH} — r2: {_get_r2() is not None}")
     app.run(host="0.0.0.0", port=PORT, debug=False)
