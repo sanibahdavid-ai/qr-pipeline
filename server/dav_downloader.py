@@ -10,7 +10,7 @@ import re
 import json as _json
 from pathlib import Path
 
-from flask import Flask, request, jsonify, Response, stream_with_context
+from flask import Flask, request, jsonify, Response, stream_with_context, send_from_directory
 from flask_cors import CORS
 
 # ── Config ───────────────────────────────────────────────────────────────────
@@ -172,6 +172,11 @@ def download_stream():
 @app.route("/history")
 def get_history():
     return jsonify(history)
+
+
+@app.route("/files/<path:filename>")
+def serve_file(filename):
+    return send_from_directory(DOWNLOAD_FOLDER, filename, as_attachment=True)
 
 
 @app.route("/app")
@@ -766,6 +771,12 @@ def serve_app():
                 document.getElementById('urlInput').value = '';
                 document.getElementById('platformBadge').style.display = 'none';
                 loadHistory();
+                const a = document.createElement('a');
+                a.href = '/files/' + encodeURIComponent(evt.filename);
+                a.download = evt.filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
               } else {
                 showStatus('error', '✗ Erreur : ' + (evt.error || 'Inconnue'));
               }
