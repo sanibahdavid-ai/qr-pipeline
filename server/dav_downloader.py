@@ -10,7 +10,7 @@ import re
 import json as _json
 from pathlib import Path
 
-from flask import Flask, request, jsonify, Response, stream_with_context, send_from_directory
+from flask import Flask, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
 
 # ── Config ───────────────────────────────────────────────────────────────────
@@ -174,9 +174,59 @@ def get_history():
     return jsonify(history)
 
 
-@app.route("/files/<path:filename>")
-def serve_file(filename):
-    return send_from_directory(DOWNLOAD_FOLDER, filename, as_attachment=True)
+@app.route("/stream-download")
+def stream_download():
+    url = request.args.get("url", "").strip()
+    format_choice = request.args.get("format", "video")
+    quality = request.args.get("quality", "best")
+
+    if not url:
+        return jsonify({"error": "URL vide"}), 400
+
+    is_audio = format_choice == "audio"
+
+    if is_audio:
+        cmd = [
+            "yt-dlp", "-x", "--audio-format", "mp3",
+            "-o", "-", "--no-playlist", url,
+        ]
+        filename = "audio.mp3"
+        content_type = "audio/mpeg"
+    else:
+        if quality in ("1080", "720", "480", "360"):
+            fmt = (f"best[height<={quality}][ext=mp4]"
+                   f"/best[height<={quality}]"
+                   f"/best[ext=mp4]/best")
+        else:
+            fmt = "best[ext=mp4]/best"
+        cmd = ["yt-dlp", "-f", fmt, "-o", "-", "--no-playlist", url]
+        filename = "video.mp4"
+        content_type = "video/mp4"
+
+    def generate():
+        try:
+            proc = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            )
+            while True:
+                chunk = proc.stdout.read(65536)
+                if not chunk:
+                    break
+                yield chunk
+            proc.stdout.close()
+            proc.wait()
+        except Exception:
+            return
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype=content_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-Accel-Buffering": "no",
+            "Cache-Control": "no-cache",
+        }
+    )
 
 
 @app.route("/app")
@@ -563,6 +613,17 @@ def serve_app():
     font-size: 0.72rem;
     letter-spacing: 2px;
   }
+
+  @keyframes slide {
+    0%   { transform: translateX(-120%); }
+    100% { transform: translateX(500%); }
+  }
+
+  .progress-bar.indeterminate .progress-fill {
+    width: 22%;
+    transition: none;
+    animation: slide 1.3s ease-in-out infinite;
+  }
 </style>
 </head>
 <body>
@@ -723,78 +784,42 @@ def serve_app():
 
     btn.disabled = true;
     btn.textContent = 'TÉLÉCHARGEMENT…';
-    bar.classList.add('active');
-    fill.style.width = '2%';
-    label.textContent = 'Connexion…';
+    bar.classList.add('active', 'indeterminate');
+    label.textContent = 'Démarrage…';
     status.className = 'status';
     status.style.display = 'none';
 
-    try {
-      const quality = document.getElementById('qualitySelect').value;
-      const response = await fetch('/download-stream', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, format, quality })
-      });
+    const quality = document.getElementById('qualitySelect').value;
+    const params = new URLSearchParams({ url, format, quality });
+    const href = '/stream-download?' + params.toString();
 
-      if (!response.ok) throw new Error('Erreur serveur ' + response.status);
+    // Trigger native browser download (file streamed directly, no disk save)
+    const a = document.createElement('a');
+    a.href = href;
+    a.download = '';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
+    // Give the browser time to start the save dialog, then reset UI
+    await new Promise(r => setTimeout(r, 2500));
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+    bar.classList.remove('indeterminate');
+    fill.style.width = '100%';
+    label.textContent = '↓';
+    await new Promise(r => setTimeout(r, 300));
 
-        buffer += decoder.decode(value, { stream: true });
-        const parts = buffer.split('\n\n');
-        buffer = parts.pop();
+    showStatus('success', '↓ Téléchargement lancé — vérifiez vos téléchargements');
+    document.getElementById('urlInput').value = '';
+    document.getElementById('platformBadge').style.display = 'none';
 
-        for (const part of parts) {
-          const dataLine = part.split('\n').find(l => l.startsWith('data: '));
-          if (!dataLine) continue;
-          try {
-            const evt = JSON.parse(dataLine.slice(6));
-
-            if (evt.type === 'progress') {
-              const pct = Math.min(evt.percent, 99.9);
-              fill.style.width = pct + '%';
-              label.textContent = pct.toFixed(1) + '%';
-
-            } else if (evt.type === 'done') {
-              if (evt.success) {
-                fill.style.width = '100%';
-                label.textContent = '100%';
-                await new Promise(r => setTimeout(r, 450));
-                showStatus('success', '✓ Téléchargé → ' + evt.filename);
-                document.getElementById('urlInput').value = '';
-                document.getElementById('platformBadge').style.display = 'none';
-                loadHistory();
-                const a = document.createElement('a');
-                a.href = '/files/' + encodeURIComponent(evt.filename);
-                a.download = evt.filename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-              } else {
-                showStatus('error', '✗ Erreur : ' + (evt.error || 'Inconnue'));
-              }
-            }
-          } catch (_) {}
-        }
-      }
-    } catch (e) {
-      showStatus('error', '✗ ' + (e.message || 'Serveur inaccessible'));
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'TÉLÉCHARGER';
-      setTimeout(() => {
-        bar.classList.remove('active');
-        fill.style.width = '0%';
-        label.textContent = '0%';
-      }, 700);
-    }
+    btn.disabled = false;
+    btn.textContent = 'TÉLÉCHARGER';
+    setTimeout(() => {
+      bar.classList.remove('active');
+      fill.style.width = '0%';
+      label.textContent = '0%';
+    }, 700);
   }
 
   function showStatus(type, msg) {
