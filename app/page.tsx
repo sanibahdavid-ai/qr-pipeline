@@ -274,8 +274,9 @@ export default function Home() {
   // ── TTS ───────────────────────────────────────────────────────────────────
   async function handleTTS(language: "EN" | "DE" | "FR" | "ES", voice: string, speed: number) {
     const sectionKey = `SCRIPT ${language}` as Section;
-    const text = getContent(sectionKey);
-    if (!text) return;
+    const rawText = getContent(sectionKey);
+    if (!rawText) return;
+    const text = ctaEnabled ? insertCTA(rawText, language, ctaPosition) : rawText;
 
     const filename = `${sanitizeTitle(videoTitle)}_${language}.mp3`;
 
