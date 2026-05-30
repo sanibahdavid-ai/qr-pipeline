@@ -1,30 +1,31 @@
 @import "tailwindcss";
-@import "@fontsource-variable/jetbrains-mono";
 
 @theme {
-  /* Colors — Claude warm dark theme */
-  --color-bg: #262624;
-  --color-surface: #2F2F2C;
-  --color-surface-hover: #3A3A36;
-  --color-border: #44423D;
-  --color-border-strong: #5C5851;
-  --color-text: #F0EEE6;
-  --color-text-muted: #B0ADA3;
-  --color-text-dim: #7D7A72;
-  --color-accent: #D97757;
-  --color-accent-fg: #FFFFFF;
-  --color-success: #22C55E;
+  /* DAV Downloader palette */
+  --color-bg: #0a0a0f;
+  --color-surface: #111118;
+  --color-surface-hover: #16161f;
+  --color-border: #1e1e2e;
+  --color-border-strong: #2a2a3e;
+  --color-text: #e0e0f0;
+  --color-text-muted: #a0a0b8;
+  --color-text-dim: #555577;
+  --color-accent: #00e5ff;
+  --color-accent2: #ff3cac;
+  --color-accent-fg: #000000;
+  --color-success: #00ffaa;
   --color-warning: #F59E0B;
-  --color-danger: #EF4444;
+  --color-danger: #ff4466;
 
   /* Typography */
-  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;
-  --font-sans: "Geist Sans", ui-sans-serif, system-ui;
+  --font-mono: var(--font-space-mono), "Space Mono", ui-monospace, monospace;
+  --font-display: var(--font-syne), "Syne", sans-serif;
+  --font-sans: var(--font-space-mono), "Space Mono", ui-monospace, monospace;
 
-  /* Radius */
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
+  /* Radius — sharp like DAV downloader */
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 4px;
 }
 
 * {
@@ -36,11 +37,25 @@ html {
 }
 
 body {
-  background-color: #262624;
-  color: #F0EEE6;
-  font-family: "Geist Sans", ui-sans-serif, system-ui;
+  background-color: #0a0a0f;
+  color: #e0e0f0;
+  font-family: var(--font-space-mono), "Space Mono", ui-monospace, monospace;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Grid background overlay */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(#1e1e2e 1px, transparent 1px),
+    linear-gradient(90deg, #1e1e2e 1px, transparent 1px);
+  background-size: 40px 40px;
+  opacity: 0.4;
+  pointer-events: none;
+  z-index: 0;
 }
 
 /* Brutalist slider — square thumb */
@@ -48,7 +63,7 @@ input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
   height: 2px;
-  background: #44423D;
+  background: #1e1e2e;
   border-radius: 1px;
   outline: none;
   cursor: pointer;
@@ -60,7 +75,7 @@ input[type="range"]::-webkit-slider-thumb {
   width: 12px;
   height: 12px;
   border-radius: 2px;
-  background: #D97757;
+  background: #00e5ff;
   cursor: pointer;
 }
 
@@ -68,14 +83,14 @@ input[type="range"]::-moz-range-thumb {
   width: 12px;
   height: 12px;
   border-radius: 2px;
-  background: #D97757;
+  background: #00e5ff;
   cursor: pointer;
   border: none;
 }
 
-/* Focus ring override */
+/* Focus ring */
 *:focus-visible {
-  outline: 1px solid rgba(217, 119, 87, 0.4);
+  outline: 1px solid rgba(0, 229, 255, 0.4);
   outline-offset: 2px;
 }
 
@@ -88,9 +103,9 @@ input[type="range"]::-moz-range-thumb {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #44423D;
+  background: #1e1e2e;
   border-radius: 2px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #5C5851;
+  background: #2a2a3e;
 }

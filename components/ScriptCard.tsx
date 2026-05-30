@@ -50,26 +50,26 @@ function AudioPlayer({ audioUrl, filename }: { audioUrl: string; filename?: stri
       />
       <button
         onClick={toggle}
-        className="shrink-0 w-6 h-6 flex items-center justify-center border border-[#5C5851] hover:bg-[#D97757] hover:text-[#FFFFFF] hover:border-[#D97757] transition-none"
+        className="shrink-0 w-6 h-6 flex items-center justify-center border border-[#2a2a3e] hover:border-[#00e5ff] hover:text-[#00e5ff] transition-none text-[#555577]"
         style={{ borderRadius: "2px" }}
       >
         {playing ? <Pause size={10} /> : <Play size={10} />}
       </button>
       <div
-        className="flex-1 h-0.5 bg-[#44423D] relative overflow-hidden cursor-pointer"
+        className="flex-1 h-0.5 bg-[#1e1e2e] relative overflow-hidden cursor-pointer"
         style={{ borderRadius: "1px" }}
         onClick={handleSeek}
       >
-        <div className="h-full bg-[#D97757]" style={{ width: `${progress}%` }} />
+        <div className="h-full bg-[#00e5ff]" style={{ width: `${progress}%` }} />
       </div>
-      <span className="text-[10px] font-mono text-[#7D7A72] shrink-0 tabular-nums">
+      <span className="text-[10px] font-mono text-[#555577] shrink-0 tabular-nums">
         {formatTime(currentTime)}{duration ? `/${formatTime(duration)}` : ""}
       </span>
       {filename && (
         <a
           href={audioUrl}
           download={filename}
-          className="shrink-0 text-[#7D7A72] hover:text-[#F0EEE6] transition-none"
+          className="shrink-0 text-[#555577] hover:text-[#00e5ff] transition-none"
           title="Télécharger"
         >
           <Download size={11} />
@@ -99,20 +99,23 @@ export function ScriptCard({
   adjusting, audioState, isCopied, onCopy, onAdjust, onRestore,
 }: Props) {
   return (
-    <div className="bg-[#2F2F2C] border border-[#44423D] overflow-hidden flex flex-col" style={{ borderRadius: "8px" }}>
+    <div className="bg-[#111118] border border-[#1e1e2e] overflow-hidden flex flex-col" style={{ borderRadius: "4px" }}>
+      {/* Gradient top bar */}
+      <div className="h-[2px] w-full shrink-0" style={{ background: "linear-gradient(90deg, #00e5ff, #ff3cac)" }} />
+
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[#44423D]">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-[#1e1e2e]">
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          <span className="text-[10px] font-mono font-semibold text-[#B0ADA3] tracking-widest uppercase shrink-0">
+          <span className="text-[10px] font-mono font-semibold text-[#a0a0b8] tracking-widest uppercase shrink-0">
             {section}
           </span>
           {stats && (
-            <span className="text-[10px] font-mono text-[#7D7A72] shrink-0">
+            <span className="text-[10px] font-mono text-[#555577] shrink-0">
               {stats.words}w · {stats.duration}
             </span>
           )}
           {isAdjusting && (
-            <span className="flex items-center gap-1 text-[10px] font-mono text-[#7D7A72] shrink-0">
+            <span className="flex items-center gap-1 text-[10px] font-mono text-[#555577] shrink-0">
               <span className="w-2 h-2 rounded-full bg-[#F59E0B] animate-pulse" />
               Réécriture…
             </span>
@@ -120,7 +123,7 @@ export function ScriptCard({
           {hasOverride && !isAdjusting && (
             <button
               onClick={onRestore}
-              className="text-[10px] font-mono text-[#7D7A72] hover:text-[#F0EEE6] transition-none shrink-0"
+              className="text-[10px] font-mono text-[#555577] hover:text-[#e0e0f0] transition-none shrink-0"
             >
               ↩ Original
             </button>
@@ -128,7 +131,7 @@ export function ScriptCard({
         </div>
         <button
           onClick={onCopy}
-          className="text-[10px] font-mono text-[#7D7A72] hover:text-[#F0EEE6] transition-none shrink-0 ml-2"
+          className="text-[10px] font-mono text-[#555577] hover:text-[#00e5ff] transition-none shrink-0 ml-2"
         >
           {isCopied ? "Copié ✓" : "Copier"}
         </button>
@@ -136,27 +139,27 @@ export function ScriptCard({
 
       {/* Body */}
       <div className="px-3 py-3 flex-1">
-        <p className="text-[13px] font-sans text-[#F0EEE6] whitespace-pre-wrap leading-[1.7]">
+        <p className="text-[13px] font-mono text-[#e0e0f0] whitespace-pre-wrap leading-[1.7]">
           {content}
         </p>
       </div>
 
       {/* Audio player */}
       {audioState?.status === "done" && audioState.audioUrl && (
-        <div className="px-3 py-2.5 border-t border-[#44423D]">
+        <div className="px-3 py-2.5 border-t border-[#1e1e2e]">
           <AudioPlayer audioUrl={audioState.audioUrl} filename={audioState.filename} />
         </div>
       )}
 
       {/* Adjust durations */}
-      <div className="px-3 py-2 border-t border-[#44423D] flex flex-wrap gap-1">
+      <div className="px-3 py-2 border-t border-[#1e1e2e] flex flex-wrap gap-1">
         {adjustDurations.map((d) => (
           <button
             key={d}
             onClick={() => onAdjust(d)}
             disabled={adjusting}
-            className="text-[10px] font-mono px-2 py-0.5 border border-[#44423D] text-[#7D7A72] hover:border-[#5C5851] hover:text-[#F0EEE6] disabled:opacity-40 transition-none"
-            style={{ borderRadius: "3px" }}
+            className="text-[10px] font-mono px-2 py-0.5 border border-[#1e1e2e] text-[#555577] hover:border-[#00e5ff] hover:text-[#00e5ff] disabled:opacity-40 transition-none"
+            style={{ borderRadius: "2px" }}
           >
             {d}
           </button>

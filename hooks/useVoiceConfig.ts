@@ -9,11 +9,11 @@ type VoiceConfig = {
 };
 
 const DEFAULTS: Record<Provider, Record<string, VoiceConfig>> = {
-  "ai33-minimax":    { FR: { voice: "273587280617675", speed: 1.0 }, EN: { voice: "273587280617675", speed: 1.0 }, DE: { voice: "273587280617675", speed: 1.0 } },
-  "ai33-elevenlabs": { FR: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, EN: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, DE: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 } },
-  "elevenlabs":      { FR: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, EN: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, DE: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 } },
-  "edge-tts":        { FR: { voice: "fr-FR-HenriNeural", speed: 0 }, EN: { voice: "en-US-GuyNeural", speed: 0 }, DE: { voice: "de-DE-KillianNeural", speed: 0 } },
-  "google-tts":      { FR: { voice: "fr-FR-Neural2-B", speed: 1.0 }, EN: { voice: "en-US-Neural2-D", speed: 1.0 }, DE: { voice: "de-DE-Neural2-B", speed: 1.0 } },
+  "ai33-minimax":    { FR: { voice: "273587280617675", speed: 1.0 }, EN: { voice: "273587280617675", speed: 1.0 }, DE: { voice: "273587280617675", speed: 1.0 }, ES: { voice: "273587280617675", speed: 1.0 } },
+  "ai33-elevenlabs": { FR: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, EN: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, DE: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, ES: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 } },
+  "elevenlabs":      { FR: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, EN: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, DE: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, ES: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 } },
+  "edge-tts":        { FR: { voice: "fr-FR-HenriNeural", speed: 0 }, EN: { voice: "en-US-GuyNeural", speed: 0 }, DE: { voice: "de-DE-KillianNeural", speed: 0 }, ES: { voice: "es-ES-AlvaroNeural", speed: 0 } },
+  "google-tts":      { FR: { voice: "fr-FR-Neural2-B", speed: 1.0 }, EN: { voice: "en-US-Neural2-D", speed: 1.0 }, DE: { voice: "de-DE-Neural2-B", speed: 1.0 }, ES: { voice: "es-ES-Neural2-B", speed: 1.0 } },
 };
 
 const STORAGE_KEY = "qr_voice_config_v2";

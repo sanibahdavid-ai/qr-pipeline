@@ -38,4 +38,17 @@ export const GOOGLE_TTS_VOICES = {
       { id: "de-DE-Standard-C", label: "Standard — Frau 2" },
     ],
   },
+  es: {
+    langCode: "es-ES",
+    voices: [
+      { id: "es-ES-Neural2-B", label: "Neural2 — Hombre ★" },
+      { id: "es-ES-Neural2-A", label: "Neural2 — Mujer ★" },
+      { id: "es-ES-Neural2-C", label: "Neural2 — Mujer 2 ★" },
+      { id: "es-ES-Neural2-D", label: "Neural2 — Hombre 2 ★" },
+      { id: "es-ES-Standard-B", label: "Standard — Hombre" },
+      { id: "es-ES-Standard-A", label: "Standard — Mujer" },
+      { id: "es-ES-Standard-C", label: "Standard — Mujer 2" },
+      { id: "es-ES-Standard-D", label: "Standard — Hombre 2" },
+    ],
+  },
 } as const;

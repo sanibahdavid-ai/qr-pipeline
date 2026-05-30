@@ -17,4 +17,10 @@ export const EDGE_TTS_VOICES = {
     { id: 'de-DE-FlorianMultilingualNeural', label: 'Florian Multilingual (Mann)', gender: 'Male' },
     { id: 'de-DE-SeraphinaMultilingualNeural', label: 'Seraphina Multilingual (Frau)', gender: 'Female' },
   ],
+  es: [
+    { id: 'es-ES-AlvaroNeural', label: 'Álvaro (Hombre)', gender: 'Male' },
+    { id: 'es-ES-ElviraNeural', label: 'Elvira (Mujer)', gender: 'Female' },
+    { id: 'es-ES-ArabellaMultilingualNeural', label: 'Arabella Multilingual (Mujer)', gender: 'Female' },
+    { id: 'es-MX-JorgeNeural', label: 'Jorge MX (Hombre)', gender: 'Male' },
+  ],
 } as const;

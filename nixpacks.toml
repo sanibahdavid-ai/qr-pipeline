@@ -1,0 +1,11 @@
+# Tell Railway/nixpacks to install both Node.js and Python toolchains
+providers = ["node", "python"]
+
+[phases.install]
+cmds = ["npm ci", "pip install -r requirements.txt"]
+
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "bash start.sh"

@@ -31,8 +31,8 @@ export function FloatingActions({ onCopyAllQR, show }: Props) {
     <div className="fixed bottom-6 right-4 z-40 flex flex-col gap-2 items-end sm:hidden">
       <button
         onClick={handleCopy}
-        className="flex items-center gap-1.5 px-3 py-2 text-[11px] font-mono bg-[#2F2F2C] border border-[#44423D] text-[#B0ADA3] hover:border-[#5C5851] hover:text-[#F0EEE6] shadow-lg transition-none"
-        style={{ borderRadius: "6px" }}
+        className="flex items-center gap-1.5 px-3 py-2 text-[11px] font-mono bg-[#111118] border border-[#1e1e2e] text-[#a0a0b8] hover:border-[#00e5ff] hover:text-[#00e5ff] shadow-lg transition-none"
+        style={{ borderRadius: "2px" }}
       >
         <Copy size={11} />
         Copy QR
@@ -40,8 +40,8 @@ export function FloatingActions({ onCopyAllQR, show }: Props) {
       {scrolled && (
         <button
           onClick={() => window.scrollTo({ top: 0 })}
-          className="flex items-center justify-center w-8 h-8 bg-[#2F2F2C] border border-[#44423D] text-[#7D7A72] hover:text-[#F0EEE6] hover:border-[#5C5851] shadow-lg transition-none"
-          style={{ borderRadius: "6px" }}
+          className="flex items-center justify-center w-8 h-8 bg-[#111118] border border-[#1e1e2e] text-[#555577] hover:text-[#00e5ff] hover:border-[#00e5ff] shadow-lg transition-none"
+          style={{ borderRadius: "2px" }}
           title="Remonter"
         >
           <ArrowUp size={12} />

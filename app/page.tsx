@@ -16,12 +16,43 @@ import type { Provider, Section, AudioState, Step, HistoryEntry } from "../types
 import { SECTIONS } from "../types";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const SCRIPT_SECTIONS: Section[] = ["SCRIPT FR", "SCRIPT EN", "SCRIPT DE"];
+const SCRIPT_SECTIONS: Section[] = ["SCRIPT FR", "SCRIPT EN", "SCRIPT DE", "SCRIPT ES"];
+
+const CTA_TEXTS: Record<string, string> = {
+  FR: "Savais-tu que Cristiano sourit quand tu tapes sur le bouton plus ?",
+  EN: "Did you know Cristiano smiles when you tap the plus button?",
+  DE: "Wusstest du, dass Cristiano lächelt, wenn du auf Plus tippst?",
+  ES: "¿Sabías que Cristiano sonríe cuando tocas el botón plus?",
+};
+
+function insertCTA(text: string, lang: string, position: number): string {
+  const cta = CTA_TEXTS[lang];
+  if (!cta || !text.trim()) return text;
+  const parts: string[] = [];
+  let pos = 0;
+  const re = /[.!?…]+\s*/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    const chunk = text.slice(pos, m.index + m[0].length).trim();
+    if (chunk) parts.push(chunk);
+    pos = m.index + m[0].length;
+  }
+  if (pos < text.length) { const tail = text.slice(pos).trim(); if (tail) parts.push(tail); }
+  if (parts.length < 2) return `${text.trim()} ${cta}`;
+  // position is 2, 3, or 4 — insert after that sentence (0-based: position - 1).
+  // Never past the script midpoint.
+  const target = position - 1;
+  const midpoint = Math.floor(parts.length / 2);
+  const insertAfter = Math.min(target, Math.max(0, midpoint - 1), parts.length - 2);
+  return [...parts.slice(0, insertAfter + 1), cta, ...parts.slice(insertAfter + 1)].join(" ");
+}
 const ADJUST_DURATIONS = ["10s", "15s", "30s", "45s", "1min", "1min30", "2min"] as const;
 type AdjustDuration = (typeof ADJUST_DURATIONS)[number];
 
 const HISTORY_KEY = "qr_pipeline_history";
 const MAX_HISTORY = 50;
+const TAB_KEY = "dav_active_tab";
+type Tab = "scripts" | "download";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function cleanContent(raw: string): string {
@@ -56,7 +87,7 @@ export default function Home() {
   const [videoTitle, setVideoTitle] = useState("");
   const [qrText, setQrText] = useState("");
   const [error, setError] = useState("");
-  const [provider, setProvider] = useState<Provider>("ai33-minimax");
+  const [provider, setProvider] = useState<Provider>("ai33-elevenlabs");
   const [audio, setAudio] = useState<Record<string, AudioState>>({});
   const [copied, setCopied] = useState<string | null>(null);
   const [overrides, setOverrides] = useState<Partial<Record<Section, string>>>({});
@@ -64,6 +95,10 @@ export default function Home() {
   const [transcriptText, setTranscriptText] = useState("");
   const [copiedTranscript, setCopiedTranscript] = useState(false);
   const [targetDuration, setTargetDuration] = useState<AdjustDuration | "original">("original");
+
+  // CTA toggle
+  const [ctaEnabled, setCtaEnabled] = useState(false);
+  const [ctaPosition, setCtaPosition] = useState(2);
 
   // History
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -73,10 +108,18 @@ export default function Home() {
   // Command palette
   const [showPalette, setShowPalette] = useState(false);
 
+  // Tab switcher
+  const [activeTab, setActiveTab] = useState<Tab>("scripts");
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem(HISTORY_KEY);
       if (raw) setHistory(JSON.parse(raw));
+      if (localStorage.getItem("cta_enabled") === "1") setCtaEnabled(true);
+      const savedTab = localStorage.getItem(TAB_KEY) as Tab | null;
+      if (savedTab === "scripts" || savedTab === "download") setActiveTab(savedTab);
+      const savedPos = Number(localStorage.getItem("cta_position"));
+      if (savedPos === 2 || savedPos === 3 || savedPos === 4) setCtaPosition(savedPos);
     } catch {}
   }, []);
 
@@ -96,6 +139,7 @@ export default function Home() {
   useHotkeys("1", () => { const a = audio["FR"] ?? audio["EDGE_FR"] ?? audio["GTTS_FR"]; if (a?.audioUrl) playAudio(a.audioUrl); }, { enabled: step === "done" });
   useHotkeys("2", () => { const a = audio["EN"] ?? audio["EDGE_EN"] ?? audio["GTTS_EN"]; if (a?.audioUrl) playAudio(a.audioUrl); }, { enabled: step === "done" });
   useHotkeys("3", () => { const a = audio["DE"] ?? audio["EDGE_DE"] ?? audio["GTTS_DE"]; if (a?.audioUrl) playAudio(a.audioUrl); }, { enabled: step === "done" });
+  useHotkeys("4", () => { const a = audio["ES"] ?? audio["EDGE_ES"] ?? audio["GTTS_ES"]; if (a?.audioUrl) playAudio(a.audioUrl); }, { enabled: step === "done" });
 
   function saveToHistory(title: string, currentUrl: string, text: string) {
     const entry: HistoryEntry = {
@@ -180,7 +224,8 @@ export default function Home() {
 
     setVideoTitle(data.title);
     setTranscriptText(data.text);
-    setStep("transcript");
+    // Skip the intermediate transcript step — go straight to rewriting
+    await handleRewrite(data.text, data.title);
   }
 
   // ── Rewrite ───────────────────────────────────────────────────────────────
@@ -208,7 +253,7 @@ export default function Home() {
 
     if (!res.ok || !res.body) {
       setError("Erreur réécriture");
-      setStep("transcript");
+      setStep("idle");
       return;
     }
 
@@ -227,7 +272,7 @@ export default function Home() {
   }
 
   // ── TTS ───────────────────────────────────────────────────────────────────
-  async function handleTTS(language: "EN" | "DE" | "FR", voice: string, speed: number) {
+  async function handleTTS(language: "EN" | "DE" | "FR" | "ES", voice: string, speed: number) {
     const sectionKey = `SCRIPT ${language}` as Section;
     const text = getContent(sectionKey);
     if (!text) return;
@@ -260,7 +305,7 @@ export default function Home() {
 
     if (provider === "google-tts") {
       const audioKey = `GTTS_${language}`;
-      const langCode = GOOGLE_TTS_VOICES[language === "FR" ? "fr" : language === "EN" ? "en" : "de"].langCode;
+      const langCode = GOOGLE_TTS_VOICES[language === "FR" ? "fr" : language === "EN" ? "en" : language === "DE" ? "de" : "es"].langCode;
       setAudio((a) => ({ ...a, [audioKey]: { status: "loading", label: "Génération..." } }));
       try {
         const res = await fetch("/api/tts/google", {
@@ -327,18 +372,21 @@ export default function Home() {
       const label = elapsed < 60 ? `${elapsed}s...` : `${Math.floor(elapsed / 60)}min${elapsed % 60 > 0 ? `${elapsed % 60}s` : ""}...`;
       setAudio((a) => ({ ...a, [language]: { status: "loading", label } }));
       try {
-        const poll = await fetch(`https://api.ai33.pro/v1/task/${taskId}`, { headers: { "xi-api-key": apiKey } });
-        const pollData = await poll.json();
-        if (pollData.status === "done" && pollData.audio_url) {
-          setAudio((s) => ({ ...s, [language]: { status: "done", label: "Prêt", audioUrl: pollData.audio_url, filename } }));
-          return;
+        const poll = await fetch(`/api/tts/poll?taskId=${encodeURIComponent(taskId)}&provider=${encodeURIComponent(provider)}`);
+        if (poll.ok) {
+          const pollData = await poll.json();
+          const { status, audio_url: audioUrl } = pollData;
+          if (audioUrl && (status === "done" || status === "Success" || status === "success" || status === "completed")) {
+            setAudio((s) => ({ ...s, [language]: { status: "done", label: "Prêt", audioUrl, filename } }));
+            return;
+          }
         }
       } catch {}
     }
     setAudio((a) => ({ ...a, [language]: { status: "error", label: "Timeout" } }));
   }
 
-  function handleGenerateLang(lang: "FR" | "EN" | "DE", voice: string, speed: number) {
+  function handleGenerateLang(lang: "FR" | "EN" | "DE" | "ES", voice: string, speed: number) {
     handleTTS(lang, voice, speed);
   }
 
@@ -356,16 +404,17 @@ export default function Home() {
       handleTTS("FR", getVoiceConfig("FR").voice, getVoiceConfig("FR").speed),
       handleTTS("EN", getVoiceConfig("EN").voice, getVoiceConfig("EN").speed),
       handleTTS("DE", getVoiceConfig("DE").voice, getVoiceConfig("DE").speed),
+      handleTTS("ES", getVoiceConfig("ES").voice, getVoiceConfig("ES").speed),
     ]);
   }
 
   function getDefaultVoiceConfig(p: Provider, lang: string): { voice: string; speed: number } {
     const defaults: Record<string, Record<string, { voice: string; speed: number }>> = {
-      "ai33-minimax":    { FR: { voice: "273587280617675", speed: 1.0 }, EN: { voice: "273587280617675", speed: 1.0 }, DE: { voice: "273587280617675", speed: 1.0 } },
-      "ai33-elevenlabs": { FR: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, EN: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, DE: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 } },
-      "elevenlabs":      { FR: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, EN: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, DE: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 } },
-      "edge-tts":        { FR: { voice: "fr-FR-HenriNeural", speed: 0 }, EN: { voice: "en-US-GuyNeural", speed: 0 }, DE: { voice: "de-DE-KillianNeural", speed: 0 } },
-      "google-tts":      { FR: { voice: "fr-FR-Neural2-B", speed: 1.0 }, EN: { voice: "en-US-Neural2-D", speed: 1.0 }, DE: { voice: "de-DE-Neural2-B", speed: 1.0 } },
+      "ai33-minimax":    { FR: { voice: "273587280617675", speed: 1.0 }, EN: { voice: "273587280617675", speed: 1.0 }, DE: { voice: "273587280617675", speed: 1.0 }, ES: { voice: "273587280617675", speed: 1.0 } },
+      "ai33-elevenlabs": { FR: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, EN: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, DE: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, ES: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 } },
+      "elevenlabs":      { FR: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, EN: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, DE: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, ES: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 } },
+      "edge-tts":        { FR: { voice: "fr-FR-HenriNeural", speed: 0 }, EN: { voice: "en-US-GuyNeural", speed: 0 }, DE: { voice: "de-DE-KillianNeural", speed: 0 }, ES: { voice: "es-ES-AlvaroNeural", speed: 0 } },
+      "google-tts":      { FR: { voice: "fr-FR-Neural2-B", speed: 1.0 }, EN: { voice: "en-US-Neural2-D", speed: 1.0 }, DE: { voice: "de-DE-Neural2-B", speed: 1.0 }, ES: { voice: "es-ES-Neural2-B", speed: 1.0 } },
     };
     return defaults[p]?.[lang] ?? { voice: "", speed: 1.0 };
   }
@@ -378,9 +427,9 @@ export default function Home() {
 
   // ── Copy all QR ───────────────────────────────────────────────────────────
   function copyAllQR() {
-    const parts = SECTIONS.map((section) => {
+    const parts = SECTIONS.map((section, i) => {
       const content = getContent(section) ?? "";
-      return `=== ${section} ===\n${content}`;
+      return `SECTION ${i + 1}\n${section}\n${content}`;
     });
     navigator.clipboard.writeText(parts.join("\n\n"));
   }
@@ -414,7 +463,9 @@ export default function Home() {
   }
 
   async function copySection(key: string, text: string) {
-    await navigator.clipboard.writeText(`${key}\n\n${text}`);
+    const isTitre = key.startsWith("TITRE ET HASHTAGS");
+    const formatted = isTitre ? `${key}\n${text}` : `${key}\n\n${text}`;
+    await navigator.clipboard.writeText(formatted);
     setCopied(key);
     toast.success("Copié !");
     setTimeout(() => setCopied(null), 2000);
@@ -426,9 +477,25 @@ export default function Home() {
     return configs[`${provider}__${lang}`] ?? getDefaultVoiceConfig(provider, lang);
   }
 
+  function toggleCTA(v: boolean) {
+    setCtaEnabled(v);
+    try { localStorage.setItem("cta_enabled", v ? "1" : "0"); } catch {}
+  }
+
+  function handleCtaPositionChange(pos: number) {
+    setCtaPosition(pos);
+    try { localStorage.setItem("cta_position", String(pos)); } catch {}
+    if (!ctaEnabled) toggleCTA(true);
+  }
+
+  function switchTab(tab: Tab) {
+    setActiveTab(tab);
+    try { localStorage.setItem(TAB_KEY, tab); } catch {}
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-[#262624] text-[#F0EEE6]">
+    <div className="min-h-screen bg-[#0a0a0f] text-[#e0e0f0] relative z-[1]">
       <Header
         history={history}
         showHistory={showHistory}
@@ -440,14 +507,46 @@ export default function Home() {
         onReset={reset}
         onOpenPalette={() => setShowPalette(true)}
         historyPanelRef={historyPanelRef}
+        ctaEnabled={ctaEnabled}
+        ctaPosition={ctaPosition}
+        onCtaPositionChange={handleCtaPositionChange}
+        onCtaToggle={() => toggleCTA(!ctaEnabled)}
       />
 
+      {/* Tab switcher */}
+      <div style={{ borderBottom: "1px solid #1e1e2e" }}>
+        <div className="max-w-5xl mx-auto px-4 flex">
+          {(["scripts", "download"] as Tab[]).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => switchTab(tab)}
+              className="px-4 py-2.5 text-[11px] font-mono font-semibold tracking-widest uppercase transition-none"
+              style={{
+                color: activeTab === tab ? "#00e5ff" : "#555577",
+                borderBottom: activeTab === tab ? "2px solid #00e5ff" : "2px solid transparent",
+                marginBottom: "-1px",
+              }}
+            >
+              {tab === "scripts" ? "Scripts" : "Download"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {activeTab === "download" ? (
+        <iframe
+          src={`${process.env.NEXT_PUBLIC_DOWNLOADER_URL ?? ""}/app`}
+          title="DAV Download"
+          style={{ width: "100%", height: "100vh", border: "none", display: "block" }}
+        />
+      ) : (
+        <>
       <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
 
         {/* Video title */}
         {videoTitle && (
-          <p className="text-[12px] font-mono text-[#7D7A72] truncate">
-            <span className="text-[#5C5851]">▸ </span>{videoTitle}
+          <p className="text-[12px] font-mono text-[#555577] truncate">
+            <span className="text-[#2a2a3e]">▸ </span>{videoTitle}
           </p>
         )}
 
@@ -462,7 +561,7 @@ export default function Home() {
               error={error}
             />
             {step === "extracting" && (
-              <p className="text-[12px] font-mono text-[#7D7A72]">Extraction du transcript…</p>
+              <p className="text-[12px] font-mono text-[#555577]">Extraction du transcript…</p>
             )}
           </div>
         )}
@@ -470,10 +569,10 @@ export default function Home() {
         {/* Empty state */}
         {step === "idle" && !url && (
           <div className="py-16 text-center space-y-3">
-            <p className="text-[13px] font-mono text-[#7D7A72]">
+            <p className="text-[13px] font-mono text-[#555577]">
               Colle une URL pour commencer
             </p>
-            <p className="text-[11px] font-mono text-[#5C5851]">
+            <p className="text-[11px] font-mono text-[#2a2a3e]">
               YouTube · TikTok · Instagram  ·  ⌘K pour les actions rapides
             </p>
           </div>
@@ -481,9 +580,9 @@ export default function Home() {
 
         {/* Transcript card (collapsable) */}
         {(step === "transcript" || step === "rewriting" || step === "done") && transcriptText && (
-          <details className="group bg-[#2F2F2C] border border-[#44423D] overflow-hidden" style={{ borderRadius: "8px" }}>
-            <summary className="flex items-center justify-between px-4 py-2.5 cursor-pointer list-none select-none hover:bg-[#3A3A36] transition-none">
-              <span className="text-[10px] font-mono font-semibold text-[#B0ADA3] tracking-widest uppercase flex items-center gap-2">
+          <details className="group bg-[#111118] border border-[#1e1e2e] overflow-hidden" style={{ borderRadius: "4px" }}>
+            <summary className="flex items-center justify-between px-4 py-2.5 cursor-pointer list-none select-none hover:bg-[#16161f] transition-none">
+              <span className="text-[10px] font-mono font-semibold text-[#a0a0b8] tracking-widest uppercase flex items-center gap-2">
                 <span className="group-open:rotate-90 inline-block transition-none">▸</span>
                 Transcript · {transcriptText.split(/\s+/).filter(Boolean).length} mots
               </span>
@@ -495,57 +594,48 @@ export default function Home() {
                   toast.success("Transcript copié");
                   setTimeout(() => setCopiedTranscript(false), 1500);
                 }}
-                className="text-[10px] font-mono text-[#7D7A72] hover:text-[#F0EEE6] transition-none"
+                className="text-[10px] font-mono text-[#555577] hover:text-[#00e5ff] transition-none"
               >
                 {copiedTranscript ? "Copié !" : "Copier"}
               </button>
             </summary>
-            <p className="px-4 py-3 text-[12px] text-[#B0ADA3] font-sans whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto border-t border-[#44423D]">
+            <p className="px-4 py-3 text-[12px] text-[#a0a0b8] font-mono whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto border-t border-[#1e1e2e]">
               {transcriptText}
             </p>
           </details>
         )}
 
-        {/* Transcript step — generate button */}
-        {step === "transcript" && (
-          <button
-            onClick={() => handleRewrite(transcriptText, videoTitle)}
-            className="w-full h-12 bg-[#D97757] text-[#FFFFFF] text-[13px] font-mono font-semibold hover:bg-[#C56646] border border-[#D97757] transition-none"
-            style={{ borderRadius: "8px" }}
-          >
-            Générer le QR
-          </button>
-        )}
 
         {/* Rewriting — streaming preview + skeleton cards */}
         {step === "rewriting" && (
           <div className="space-y-6">
-            <div className="bg-[#2F2F2C] border border-[#44423D] p-4 space-y-2" style={{ borderRadius: "8px" }}>
+            <div className="bg-[#111118] border border-[#1e1e2e] p-4 space-y-2" style={{ borderRadius: "4px" }}>
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-[#F59E0B] animate-pulse" />
-                <span className="text-[10px] font-mono text-[#7D7A72] tracking-widest uppercase">Réécriture en cours…</span>
+                <span className="text-[10px] font-mono text-[#555577] tracking-widest uppercase">Réécriture en cours…</span>
               </div>
               {qrText && (
-                <p className="text-[12px] font-sans text-[#B0ADA3] whitespace-pre-wrap leading-relaxed line-clamp-6">
+                <p className="text-[12px] font-mono text-[#a0a0b8] whitespace-pre-wrap leading-relaxed line-clamp-6">
                   {qrText}
                 </p>
               )}
             </div>
             {/* Skeleton script cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {["FR", "EN", "DE"].map((lang) => (
-                <div key={lang} className="bg-[#2F2F2C] border border-[#44423D] overflow-hidden flex flex-col" style={{ borderRadius: "8px" }}>
-                  <div className="px-3 py-2 border-b border-[#44423D] flex items-center gap-2">
-                    <div className="h-2.5 w-16 bg-[#44423D] animate-pulse" style={{ borderRadius: "2px" }} />
-                    <div className="h-2 w-12 bg-[#3A3A36] animate-pulse" style={{ borderRadius: "2px" }} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+              {["FR", "EN", "DE", "ES"].map((lang) => (
+                <div key={lang} className="bg-[#111118] border border-[#1e1e2e] overflow-hidden flex flex-col" style={{ borderRadius: "4px" }}>
+                  <div className="h-[2px] w-full" style={{ background: "linear-gradient(90deg, #00e5ff, #ff3cac)" }} />
+                  <div className="px-3 py-2 border-b border-[#1e1e2e] flex items-center gap-2">
+                    <div className="h-2.5 w-16 bg-[#1e1e2e] animate-pulse" style={{ borderRadius: "2px" }} />
+                    <div className="h-2 w-12 bg-[#16161f] animate-pulse" style={{ borderRadius: "2px" }} />
                   </div>
                   <div className="px-3 py-3 space-y-2 flex-1">
                     {[100, 90, 95, 80, 70].map((w, i) => (
-                      <div key={i} className="h-3 bg-[#3A3A36] animate-pulse" style={{ borderRadius: "2px", width: `${w}%` }} />
+                      <div key={i} className="h-3 bg-[#16161f] animate-pulse" style={{ borderRadius: "2px", width: `${w}%` }} />
                     ))}
                   </div>
-                  <div className="px-3 py-2 border-t border-[#44423D]">
-                    <div className="h-2 w-8 bg-[#3A3A36] animate-pulse" style={{ borderRadius: "2px" }} />
+                  <div className="px-3 py-2 border-t border-[#1e1e2e]">
+                    <div className="h-2 w-8 bg-[#16161f] animate-pulse" style={{ borderRadius: "2px" }} />
                   </div>
                 </div>
               ))}
@@ -570,14 +660,15 @@ export default function Home() {
               disabled={isLoading}
             />
 
-            {/* Script cards — grid 3-col on md+ */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Script cards — grid 4-col on md+ */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               {SCRIPT_SECTIONS.map((section) => {
                 const content = getContent(section);
                 if (!content && !sections[section]) return null;
-                const displayContent = content ?? "";
-                const stats = displayContent ? wordStats(displayContent) : null;
                 const lang = section.split(" ")[1];
+                const rawContent = content ?? "";
+                const displayContent = ctaEnabled ? insertCTA(rawContent, lang, ctaPosition) : rawContent;
+                const stats = displayContent ? wordStats(displayContent) : null;
                 const audioKey = provider === "edge-tts" ? `EDGE_${lang}` : provider === "google-tts" ? `GTTS_${lang}` : lang;
                 const audioState = audio[audioKey];
                 const isAdjusting = adjusting === section;
@@ -610,19 +701,20 @@ export default function Home() {
                 if (!content && !sections[section]) return null;
                 const displayContent = content ?? "";
                 return (
-                  <div key={section} className="bg-[#2F2F2C] border border-[#44423D] overflow-hidden" style={{ borderRadius: "8px" }}>
-                    <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#44423D]">
-                      <span className="text-[10px] font-mono font-semibold text-[#B0ADA3] tracking-widest uppercase">
+                  <div key={section} className="bg-[#111118] border border-[#1e1e2e] overflow-hidden" style={{ borderRadius: "4px" }}>
+                    <div className="h-[2px] w-full" style={{ background: "linear-gradient(90deg, #00e5ff, #ff3cac)" }} />
+                    <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#1e1e2e]">
+                      <span className="text-[10px] font-mono font-semibold text-[#a0a0b8] tracking-widest uppercase">
                         {section}
                       </span>
                       <button
                         onClick={() => copySection(section, displayContent)}
-                        className="text-[10px] font-mono text-[#7D7A72] hover:text-[#F0EEE6] transition-none"
+                        className="text-[10px] font-mono text-[#555577] hover:text-[#00e5ff] transition-none"
                       >
                         {copied === section ? "Copié ✓" : "Copier"}
                       </button>
                     </div>
-                    <p className="px-4 py-3 text-[13px] font-sans text-[#F0EEE6] whitespace-pre-wrap leading-relaxed">
+                    <p className="px-4 py-3 text-[13px] font-mono text-[#e0e0f0] whitespace-pre-wrap leading-relaxed">
                       {displayContent}
                     </p>
                   </div>
@@ -630,14 +722,14 @@ export default function Home() {
               })}
             </div>
 
-            <p className="text-center text-[#7D7A72] text-[10px] font-mono py-4">
+            <p className="text-center text-[#555577] text-[10px] font-mono py-4">
               Prêt pour le prochain script !
             </p>
           </div>
         )}
       </main>
 
-      <footer className="text-center text-[#44423D] text-[10px] font-mono py-6 mt-8">
+      <footer className="text-center text-[#1e1e2e] text-[10px] font-mono py-6 mt-8">
         DAV Pipeline · 2026
       </footer>
 
@@ -649,6 +741,7 @@ export default function Home() {
         onGenerateFR={() => { const c = getVoiceConfigForLang("FR"); handleTTS("FR", c.voice, c.speed); }}
         onGenerateEN={() => { const c = getVoiceConfigForLang("EN"); handleTTS("EN", c.voice, c.speed); }}
         onGenerateDE={() => { const c = getVoiceConfigForLang("DE"); handleTTS("DE", c.voice, c.speed); }}
+        onGenerateES={() => { const c = getVoiceConfigForLang("ES"); handleTTS("ES", c.voice, c.speed); }}
         onGenerateAll={handleGenerateAll}
         onCopyAllQR={() => { copyAllQR(); toast.success("QR copié !"); }}
         onReset={reset}
@@ -657,6 +750,9 @@ export default function Home() {
 
       {/* Floating actions (mobile) */}
       <FloatingActions onCopyAllQR={() => { copyAllQR(); }} show={step === "done"} />
+
+        </>
+      )}
     </div>
   );
 }

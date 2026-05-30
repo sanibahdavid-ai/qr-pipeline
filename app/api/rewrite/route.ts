@@ -20,27 +20,35 @@ SCRIPT DE
 [version allemande réécrite]
 
 SECTION 4
+SCRIPT ES
+[version espagnole réécrite]
+
+SECTION 5
 SEARCH KEYWORDS EN
 [8 à 10 mots-clés, un par ligne, sans numérotation]
 
-SECTION 5
-TITRE ET HASHTAGS FR
-[titre viral + max 4 hashtags]
-
 SECTION 6
-TITRE ET HASHTAGS EN
-[titre viral + max 4 hashtags]
+TITRE ET HASHTAGS FR
+[titre viral avec ≥1 emoji + max 4 hashtags — UNE SEULE LIGNE, max 80 caractères au total]
 
 SECTION 7
+TITRE ET HASHTAGS EN
+[titre viral avec ≥1 emoji + max 4 hashtags — UNE SEULE LIGNE, max 80 caractères au total]
+
+SECTION 8
 TITRE ET HASHTAGS DE
-[titre viral + max 4 hashtags]
+[titre viral avec ≥1 emoji + max 4 hashtags — UNE SEULE LIGNE, max 80 caractères au total]
+
+SECTION 9
+TITRE ET HASHTAGS ES
+[titre viral avec ≥1 emoji + max 4 hashtags — UNE SEULE LIGNE, max 80 caractères au total]
 
 ---
 
 RÈGLES STRICTES À RESPECTER À CHAQUE FOIS :
 
 1. FORMAT QR — RÉÉCRITURE INDÉPENDANTE
-Chaque version linguistique est une réécriture véritablement indépendante. Ce ne sont pas des traductions. Le FR, le EN et le DE doivent avoir leurs propres tournures, leurs propres structures de phrases, leurs propres angles de formulation. Une même idée doit être exprimée différemment dans chaque langue : ordre des mots, construction syntaxique, choix des verbes, point de vue narratif. Un algorithme ne doit pas pouvoir identifier les 3 versions comme du contenu dupliqué. Ce n'est pas suffisant de changer les mots tout en gardant la même structure de phrase. La structure elle-même doit varier d'une langue à l'autre.
+Chaque version linguistique est une réécriture véritablement indépendante. Ce ne sont pas des traductions. Le FR, le EN, le DE et le ES doivent avoir leurs propres tournures, leurs propres structures de phrases, leurs propres angles de formulation. Une même idée doit être exprimée différemment dans chaque langue : ordre des mots, construction syntaxique, choix des verbes, point de vue narratif. Un algorithme ne doit pas pouvoir identifier les 4 versions comme du contenu dupliqué. Ce n'est pas suffisant de changer les mots tout en gardant la même structure de phrase. La structure elle-même doit varier d'une langue à l'autre.
 
 2. HOOK
 Le hook de chaque version doit rester similaire au hook original, simplement paraphrasé. Ne jamais inventer un angle complètement différent pour le hook.
@@ -51,14 +59,19 @@ Toujours conserver ou remplacer par un équivalent naturel les connecteurs logiq
 4. RÉÉCRITURE
 Même ordre d'apparition des éléments. Aucun élément ajouté qui sortirait de nulle part ou n'aurait pas de sens. Pas d'inventions bizarres.
 
-5. TITRES ET HASHTAGS
-Maximum 4 hashtags par section. Le titre et les hashtags ensemble ne doivent jamais dépasser 90 caractères espaces compris. Les titres doivent être accrocheurs, susciter l'intérêt, donner envie de regarder. Pas de clickbait grossier mais suffisamment percutant pour stopper le scroll.
+5. TITRES ET HASHTAGS — FORMAT STRICT
+Chaque bloc TITRE ET HASHTAGS doit être sur une seule ligne exactement. Minimum 1 emoji dans le titre. Titre + hashtags ensemble : maximum 80 caractères espaces compris, jamais plus.
+Les titres doivent être percutants, curiosity-driven, viraux — exactement comme les titres qui stoppent le scroll sur TikTok et YouTube Shorts.
+INTERDIT : les points de suspension (...) dans les titres. Jamais.
+Utilise à la place : des mots forts, des chiffres, des questions directes, des affirmations choquantes ou inattendues.
+Exemples de bon style : "Elle trouve ça dans sa salle de bain 😱", "Ce que cette mère découvre change tout 🔥", "La vérité choque toute la famille 👀", "3 secondes et tout bascule 😳", "Personne ne s'y attendait 💀"
+Maximum 4 hashtags.
 
 6. FORMAT DE SORTIE
 Aucune mise en forme spéciale : pas de gras, pas d'italique, pas de tirets dans les scripts. Débuter directement sans introduction ni commentaire. Terminer chaque réponse par : Prêt pour le prochain script !
 
 7. LONGUEUR DES RÉÉCRITURES — DURÉE AUDIO
-Le nombre de mots cible et la tolérance autorisée pour chaque version (FR, EN, DE) sont fournis dans le user prompt et doivent être respectés strictement. Plafond absolu : 140 mots par version, jamais dépassé, même si la cible suggère plus. L'allemand en particulier ne doit jamais dépasser 140 mots car les mots composés y sont plus longs à l'oral. Si le script source est déjà très court (moins de 30 mots), ne pas le comprimer davantage au risque d'en perdre le sens.`;
+Le nombre de mots cible et la tolérance autorisée pour chaque version (FR, EN, DE, ES) sont fournis dans le user prompt et doivent être respectés strictement. Plafond absolu : 140 mots par version, jamais dépassé, même si la cible suggère plus. L'allemand en particulier ne doit jamais dépasser 140 mots car les mots composés y sont plus longs à l'oral. Si le script source est déjà très court (moins de 30 mots), ne pas le comprimer davantage au risque d'en perdre le sens.`;
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
@@ -91,7 +104,7 @@ export async function POST(req: NextRequest) {
   const durationInstruction =
     `[INSTRUCTION DURÉE] Le transcript original fait ${wordCount} mots. ` +
     `Durée cible : ${durationSec} secondes à 130 mots/min. ` +
-    `Chaque réécriture (SCRIPT FR, SCRIPT EN, SCRIPT DE) doit faire entre ${targetMin} et ${targetMax} mots, plafonné à 140. ` +
+    `Chaque réécriture (SCRIPT FR, SCRIPT EN, SCRIPT DE, SCRIPT ES) doit faire entre ${targetMin} et ${targetMax} mots, plafonné à 140. ` +
     `Respecte cette fourchette strictement.\n\n`;
 
   const userContent = durationInstruction + transcript;

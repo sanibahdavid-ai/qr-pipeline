@@ -1,19 +1,19 @@
 "use client";
 
-import { Play, RefreshCw, Loader2, Check, X, Pause } from "lucide-react";
+import { Play, RefreshCw, Loader2, Pause, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { useVoiceConfig } from "../hooks/useVoiceConfig";
 import type { Provider, AudioState } from "../types";
 import { EDGE_TTS_VOICES } from "../lib/edge-tts-voices";
 import { GOOGLE_TTS_VOICES } from "../lib/google-tts-voices";
 
-type LangCode = "FR" | "EN" | "DE";
+type LangCode = "FR" | "EN" | "DE" | "ES";
 
 const EDGE_LANG_MAP: Record<LangCode, keyof typeof EDGE_TTS_VOICES> = {
-  FR: "fr", EN: "en", DE: "de",
+  FR: "fr", EN: "en", DE: "de", ES: "es",
 };
 const GOOGLE_LANG_MAP: Record<LangCode, keyof typeof GOOGLE_TTS_VOICES> = {
-  FR: "fr", EN: "en", DE: "de",
+  FR: "fr", EN: "en", DE: "de", ES: "es",
 };
 
 const EDGE_RATE_MIN = -50;
@@ -29,10 +29,10 @@ type Props = {
 };
 
 function StatusDot({ state }: { state?: AudioState }) {
-  if (!state) return <span className="w-2 h-2 rounded-full border border-[#5C5851] inline-block" title="idle" />;
-  if (state.status === "loading") return <Loader2 size={12} className="text-[#B0ADA3] animate-spin" />;
-  if (state.status === "done") return <span className="w-2 h-2 rounded-full bg-[#22C55E] inline-block" title="ready" />;
-  return <span className="w-2 h-2 rounded-full bg-[#EF4444] inline-block" title="error" />;
+  if (!state) return <span className="w-2 h-2 rounded-full border border-[#2a2a3e] inline-block" title="idle" />;
+  if (state.status === "loading") return <Loader2 size={12} className="text-[#a0a0b8] animate-spin" />;
+  if (state.status === "done") return <span className="w-2 h-2 rounded-full bg-[#00ffaa] inline-block" title="ready" />;
+  return <span className="w-2 h-2 rounded-full bg-[#ff4466] inline-block" title="error" />;
 }
 
 function MiniAudioPlayer({ audioUrl, filename }: { audioUrl: string; filename?: string }) {
@@ -60,19 +60,19 @@ function MiniAudioPlayer({ audioUrl, filename }: { audioUrl: string; filename?: 
       />
       <button
         onClick={toggle}
-        className="shrink-0 w-6 h-6 flex items-center justify-center border border-[#5C5851] hover:bg-[#D97757] hover:text-[#FFFFFF] hover:border-[#D97757] transition-none"
+        className="shrink-0 w-6 h-6 flex items-center justify-center border border-[#2a2a3e] text-[#555577] hover:border-[#00e5ff] hover:text-[#00e5ff] transition-none"
         style={{ borderRadius: "2px" }}
       >
         {playing ? <Pause size={10} /> : <Play size={10} />}
       </button>
-      <div className="flex-1 h-0.5 bg-[#44423D] relative overflow-hidden" style={{ borderRadius: "1px" }}>
-        <div className="h-full bg-[#D97757] transition-none" style={{ width: `${progress}%` }} />
+      <div className="flex-1 h-0.5 bg-[#1e1e2e] relative overflow-hidden" style={{ borderRadius: "1px" }}>
+        <div className="h-full bg-[#00e5ff] transition-none" style={{ width: `${progress}%` }} />
       </div>
       {filename && (
         <a
           href={audioUrl}
           download={filename}
-          className="text-[10px] text-[#7D7A72] hover:text-[#F0EEE6] font-mono transition-none shrink-0"
+          className="text-[10px] text-[#555577] hover:text-[#00e5ff] font-mono transition-none shrink-0"
           title="Télécharger"
         >
           ↓
@@ -88,11 +88,10 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
   const isEdge = provider === "edge-tts";
   const isGoogle = provider === "google-tts";
 
-  // Voice list for current provider + lang
   const voices: { id: string; label: string }[] = (() => {
     if (isEdge) return [...EDGE_TTS_VOICES[EDGE_LANG_MAP[lang]]];
     if (isGoogle) return [...GOOGLE_TTS_VOICES[GOOGLE_LANG_MAP[lang]].voices];
-    return []; // minimax / elevenlabs: no voice choice exposed
+    return [];
   })();
 
   const hasVoiceSelect = voices.length > 0;
@@ -101,18 +100,13 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
   const isError = audioState?.status === "error";
 
   function handleGenerate() {
-    let speedValue = config.speed;
-    if (isEdge) {
-      // speed stored as % offset (-50..200)
-      speedValue = config.speed;
-    }
-    onGenerate(lang, config.voice, speedValue);
+    onGenerate(lang, config.voice, config.speed);
   }
 
   return (
     <div className="flex items-center gap-2 py-1.5">
       {/* Lang badge */}
-      <span className="text-[11px] font-mono font-semibold text-[#B0ADA3] w-6 shrink-0 uppercase tracking-wider">
+      <span className="text-[11px] font-mono font-semibold text-[#a0a0b8] w-6 shrink-0 uppercase tracking-wider">
         {lang}
       </span>
 
@@ -121,15 +115,18 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
         <select
           value={config.voice}
           onChange={(e) => update({ voice: e.target.value })}
-          className="flex-1 min-w-0 bg-[#2F2F2C] border border-[#44423D] text-[11px] font-mono text-[#F0EEE6] px-2 py-1 focus:outline-none focus:border-[#5C5851] cursor-pointer"
-          style={{ borderRadius: "4px" }}
+          className="flex-1 min-w-0 bg-[#0d0d15] border border-[#1e1e2e] text-[11px] font-mono text-[#e0e0f0] px-2 py-1 focus:outline-none focus:border-[#00e5ff] cursor-pointer"
+          style={{ borderRadius: "2px" }}
         >
           {voices.map((v) => (
             <option key={v.id} value={v.id}>{v.label}</option>
           ))}
         </select>
       ) : (
-        <span className="flex-1 min-w-0 text-[11px] font-mono text-[#7D7A72] px-2 py-1 border border-[#44423D] truncate" style={{ borderRadius: "4px" }}>
+        <span
+          className="flex-1 min-w-0 text-[11px] font-mono text-[#555577] px-2 py-1 border border-[#1e1e2e] truncate"
+          style={{ borderRadius: "2px" }}
+        >
           {provider === "ai33-minimax" ? "Minimax Speech-2.6" : "ElevenLabs Multilingual v2"}
         </span>
       )}
@@ -143,10 +140,10 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
           step={isEdge ? 5 : 0.05}
           value={config.speed}
           onChange={(e) => update({ speed: parseFloat(e.target.value) })}
-          className="flex-1 h-0.5 bg-[#44423D] cursor-pointer"
-          style={{ accentColor: "#D97757" }}
+          className="flex-1 h-0.5 bg-[#1e1e2e] cursor-pointer"
+          style={{ accentColor: "#00e5ff" }}
         />
-        <span className="text-[10px] font-mono text-[#7D7A72] w-9 text-right shrink-0">
+        <span className="text-[10px] font-mono text-[#555577] w-9 text-right shrink-0">
           {isEdge
             ? `${config.speed >= 0 ? "+" : ""}${config.speed}%`
             : `×${config.speed.toFixed(2)}`}
@@ -159,8 +156,8 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
           <MiniAudioPlayer audioUrl={audioState.audioUrl} filename={audioState.filename} />
           <button
             onClick={handleGenerate}
-            className="shrink-0 px-2 py-1 text-[10px] font-mono text-[#7D7A72] hover:text-[#F0EEE6] border border-[#44423D] hover:border-[#5C5851] transition-none"
-            style={{ borderRadius: "4px" }}
+            className="shrink-0 px-2 py-1 text-[10px] font-mono text-[#555577] hover:text-[#00e5ff] border border-[#1e1e2e] hover:border-[#00e5ff] transition-none"
+            style={{ borderRadius: "2px" }}
             title="Régénérer"
           >
             <RefreshCw size={10} />
@@ -172,10 +169,10 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
           disabled={isLoading}
           className={`shrink-0 w-36 px-3 py-1 text-[11px] font-mono font-semibold border transition-none flex items-center justify-center gap-1.5 disabled:opacity-50 ${
             isError
-              ? "bg-transparent border-[#EF4444] text-[#EF4444] hover:bg-[#EF4444] hover:text-[#FFFFFF]"
-              : "bg-transparent border-[#44423D] text-[#F0EEE6] hover:bg-[#D97757] hover:text-[#FFFFFF] hover:border-[#D97757]"
+              ? "bg-transparent border-[#ff4466] text-[#ff4466] hover:bg-[#ff4466] hover:text-black"
+              : "bg-transparent border-[#1e1e2e] text-[#e0e0f0] hover:border-[#00e5ff] hover:text-[#00e5ff]"
           }`}
-          style={{ borderRadius: "4px" }}
+          style={{ borderRadius: "2px" }}
         >
           {isLoading ? (
             <>
