@@ -14,7 +14,7 @@ from pathlib import Path
 
 import boto3
 from botocore.config import Config as BotoConfig
-from flask import Flask, request, jsonify, Response, stream_with_context
+from flask import Flask, request, jsonify, Response, stream_with_context, redirect as flask_redirect
 from flask_cors import CORS
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -41,7 +41,8 @@ R2_EXPIRY = 3600  # presigned URL TTL and cleanup age in seconds
 
 _r2_client = None
 _r2_lock   = threading.Lock()
-_r2_keys: dict = {}   # {key: expiry_epoch}
+_r2_keys: dict = {}        # {r2_key: expiry_epoch}
+_redirect_keys: dict = {}  # {token: {"url": presigned_url, "expires": epoch}}
 
 
 def _get_r2():
@@ -63,10 +64,15 @@ def _get_r2():
 
 
 def _cleanup_worker():
-    """Deletes R2 objects whose presigned URLs have expired (runs every 10 min)."""
+    """Deletes R2 objects and redirect tokens whose TTL has expired (runs every 10 min)."""
     while True:
         time.sleep(600)
         now = time.time()
+        # Clean redirect tokens
+        expired_tokens = [t for t, v in list(_redirect_keys.items()) if now > v["expires"]]
+        for t in expired_tokens:
+            _redirect_keys.pop(t, None)
+        # Clean R2 objects
         r2 = _get_r2()
         if not r2:
             continue
@@ -267,9 +273,14 @@ def download_stream():
             try:
                 presigned_url = upload_to_r2(local_file)
                 local_file.unlink(missing_ok=True)
+                # Store a same-origin redirect token so the iframe can trigger
+                # the download without hitting cross-origin restrictions on the
+                # presigned URL directly.
+                token = uuid.uuid4().hex
+                _redirect_keys[token] = {"url": presigned_url, "expires": time.time() + R2_EXPIRY}
                 yield (f'data: {{"type":"done","success":true,'
                        f'"filename":{_json.dumps(filename)},'
-                       f'"presigned_url":{_json.dumps(presigned_url)}}}\n\n')
+                       f'"redirect_key":{_json.dumps(token)}}}\n\n')
             except Exception as exc:
                 local_file.unlink(missing_ok=True)
                 yield f'data: {{"type":"done","success":false,"error":{_json.dumps("Upload R2: " + str(exc)[:200])}}}\n\n'
@@ -289,6 +300,15 @@ def download_stream():
 @app.route("/history")
 def get_history():
     return jsonify(history)
+
+
+@app.route("/redirect/<token>")
+def redirect_to_r2(token):
+    """Same-origin redirect to the R2 presigned URL so iframe downloads work."""
+    entry = _redirect_keys.get(token)
+    if not entry or time.time() > entry["expires"]:
+        return jsonify({"error": "Lien expiré ou invalide"}), 404
+    return flask_redirect(entry["url"], code=302)
 
 
 @app.route("/stream-download")
@@ -939,9 +959,9 @@ def serve_app():
                 document.getElementById('urlInput').value = '';
                 document.getElementById('platformBadge').style.display = 'none';
                 loadHistory();
-                if (evt.presigned_url) {
+                if (evt.redirect_key) {
                   const a = document.createElement('a');
-                  a.href = evt.presigned_url;
+                  a.href = '/redirect/' + evt.redirect_key;
                   a.download = evt.filename || '';
                   document.body.appendChild(a);
                   a.click();
