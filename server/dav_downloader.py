@@ -3,6 +3,10 @@ DAV DOWNLOADER - Backend Server
 Runs on port 5757 (internal). Proxied through Next.js on Railway.
 """
 
+from pathlib import Path as _Path
+from dotenv import load_dotenv
+load_dotenv(dotenv_path=_Path(__file__).parent.parent / ".env.render")
+
 import subprocess
 import os
 import re

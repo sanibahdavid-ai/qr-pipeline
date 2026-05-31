@@ -3,3 +3,4 @@ flask-cors
 yt-dlp
 boto3
 imageio-ffmpeg
+python-dotenv
