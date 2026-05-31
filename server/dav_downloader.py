@@ -283,7 +283,7 @@ def download_stream():
                        f'"redirect_key":{_json.dumps(token)}}}\n\n')
             except Exception as exc:
                 local_file.unlink(missing_ok=True)
-                yield f'data: {{"type":"done","success":false,"error":{_json.dumps("Upload R2: " + str(exc)[:200])}}}\n\n'
+                yield f'data: {{"type":"done","success":false,"error":{_json.dumps("Upload R2: " + str(exc))}}}\n\n'
 
         except FileNotFoundError:
             yield 'data: {"type":"done","success":false,"error":"yt-dlp introuvable"}\n\n'
@@ -300,6 +300,31 @@ def download_stream():
 @app.route("/history")
 def get_history():
     return jsonify(history)
+
+
+@app.route("/test-r2")
+def test_r2():
+    """Diagnostic: upload a 1-byte file to R2 and return the presigned URL or full error."""
+    r2 = _get_r2()
+    if not r2:
+        return jsonify({"ok": False, "error": "R2 client not initialised — check env vars"}), 500
+    import tempfile
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as f:
+            f.write(b"ping")
+            tmp = Path(f.name)
+        key = f"test/{uuid.uuid4().hex}.txt"
+        r2.upload_file(str(tmp), R2_BUCKET, key)
+        tmp.unlink(missing_ok=True)
+        url = r2.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": R2_BUCKET, "Key": key},
+            ExpiresIn=300,
+        )
+        r2.delete_object(Bucket=R2_BUCKET, Key=key)
+        return jsonify({"ok": True, "bucket": R2_BUCKET, "presigned_url": url})
+    except Exception as exc:
+        return jsonify({"ok": False, "bucket": R2_BUCKET, "error": str(exc)}), 500
 
 
 @app.route("/redirect/<token>")
