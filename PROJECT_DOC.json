@@ -1,0 +1,450 @@
+{
+  "project": {
+    "name": "qr-pipeline",
+    "title": "DAV Pipeline",
+    "version": "2.3",
+    "description": "Content creation pipeline for social media creators. Extracts transcripts from YouTube/TikTok/Instagram videos, rewrites them into multilingual QR-format scripts (FR/EN/DE/ES), generates TTS audio in multiple languages, and provides a separate video downloader tab powered by yt-dlp and Cloudflare R2.",
+    "urls": {
+      "live": "https://qr-pipeline.onrender.com",
+      "local_nextjs": "http://localhost:3000",
+      "local_flask": "http://localhost:5757",
+      "github": "https://github.com/sanibahdavid-ai/qr-pipeline"
+    }
+  },
+
+  "tech_stack": {
+    "frontend": {
+      "framework": "Next.js 16.2.4 (Turbopack)",
+      "language": "TypeScript 5",
+      "styling": "Tailwind CSS 4",
+      "fonts": ["Syne (700/800)", "Space Mono (400/700)"],
+      "ui_libraries": ["lucide-react", "sonner (toasts)", "cmdk (command palette)"],
+      "state": "React 19 useState/useEffect",
+      "hotkeys": "react-hotkeys-hook"
+    },
+    "backend_nextjs": {
+      "runtime": "Node.js / Edge (per-route)",
+      "ai": "Anthropic Claude Sonnet 4.6 (@anthropic-ai/sdk)",
+      "tts_providers": [
+        "AI33Pro proxy → ElevenLabs eleven_multilingual_v2",
+        "AI33Pro proxy → Minimax speech-2.6-hd",
+        "ElevenLabs direct (@elevenlabs/elevenlabs-js)",
+        "Microsoft Edge TTS (edge-tts-universal)",
+        "Google Cloud Text-to-Speech"
+      ],
+      "transcript": "Supadata API (native captions + AI generation fallback)"
+    },
+    "backend_flask": {
+      "language": "Python 3.11+",
+      "framework": "Flask + Flask-CORS",
+      "downloader": "yt-dlp",
+      "ffmpeg": "imageio-ffmpeg (bundled static binary)",
+      "storage": "Cloudflare R2 via boto3 (S3-compatible)",
+      "env_loading": "python-dotenv"
+    }
+  },
+
+  "pages": [
+    {
+      "path": "/",
+      "file": "app/page.tsx",
+      "type": "Next.js Client Component",
+      "description": "Main application page. Contains the tab switcher between Scripts and Download tabs. Scripts tab handles the full pipeline: URL input → transcript extraction → AI rewrite → multilingual script cards → TTS generation. Download tab renders the Flask /app iframe.",
+      "tabs": [
+        {
+          "id": "scripts",
+          "label": "Scripts",
+          "description": "Full content pipeline: paste a video URL, extract transcript via Supadata, rewrite with Claude into QR-format scripts in FR/EN/DE/ES with title+hashtag sections, generate TTS audio in up to 5 providers, adjust script duration, copy sections."
+        },
+        {
+          "id": "download",
+          "label": "Download",
+          "description": "DAV Downloader embedded as a full-height iframe pointing to the Flask /app route. Allows downloading any video (YouTube, TikTok, Instagram, etc.) as MP4 or MP3. Shows real-time download progress via SSE, uploads to Cloudflare R2, and delivers a presigned download link."
+        }
+      ]
+    },
+    {
+      "path": "/app",
+      "file": "server/dav_downloader.py → serve_app()",
+      "type": "Flask HTML route",
+      "description": "Self-contained single-page HTML/CSS/JS app served by Flask. Dark cyberpunk UI with DAV DOWNLOAD branding. Includes URL input, platform detection badge, format (MP4/MP3) selector, quality selector (best/1080/720/480/360), progress bar (real % from yt-dlp SSE), and download history."
+    }
+  ],
+
+  "nextjs_api_routes": [
+    {
+      "method": "POST",
+      "path": "/api/transcript",
+      "file": "app/api/transcript/route.ts",
+      "runtime": "nodejs",
+      "description": "Extracts transcript from a video URL. Detects platform (YouTube/TikTok/Instagram), calls Supadata API with native captions first (1 credit), falls back to AI generation (2 credits/min). Handles async jobs (HTTP 202) by polling. Returns transcript text, video title, platform, and detected language.",
+      "body_params": ["url: string"],
+      "response": { "text": "string", "title": "string", "platform": "string", "lang": "string" }
+    },
+    {
+      "method": "POST",
+      "path": "/api/rewrite",
+      "file": "app/api/rewrite/route.ts",
+      "runtime": "edge",
+      "description": "Rewrites a transcript into multilingual QR-format scripts using Claude Sonnet 4.6. Streams the response as plain text. The QR format contains sections: SCRIPT FR/EN/DE/ES, SEARCH KEYWORDS EN, TITRE ET HASHTAGS FR/EN/DE/ES. Supports optional target duration (10s to 2min at 130 wpm).",
+      "body_params": ["text: string", "targetSeconds: number | 'original'"],
+      "response": "Streaming plain text (QR-formatted script)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/adjust",
+      "file": "app/api/adjust/route.ts",
+      "runtime": "edge",
+      "description": "Rewrites a single script section to a target duration using Claude Sonnet 4.6. Preserves tone, style and narrative connectors. Streams response as plain text.",
+      "body_params": ["text: string", "language: string", "targetDuration: string"],
+      "response": "Streaming plain text (rewritten script)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/tts",
+      "file": "app/api/tts/route.ts",
+      "runtime": "nodejs",
+      "description": "Submits TTS generation job via AI33Pro proxy for ai33-elevenlabs (ElevenLabs eleven_multilingual_v2) or ai33-minimax (Minimax speech-2.6-hd). Returns a taskId for async polling. Returns apiKey so the browser can poll AI33Pro directly to avoid Vercel timeouts.",
+      "body_params": ["text: string", "language: string", "provider: string", "title: string", "speed: number"],
+      "response": { "taskId": "string", "filename": "string", "apiKey": "string" }
+    },
+    {
+      "method": "GET",
+      "path": "/api/tts/poll",
+      "file": "app/api/tts/poll/route.ts",
+      "runtime": "nodejs",
+      "description": "Polls AI33Pro for TTS task completion. Routes to /v1m/ for Minimax or /v1/ for ElevenLabs. Normalises the response to always return { status, audio_url }.",
+      "query_params": ["taskId: string", "provider: string"],
+      "response": { "status": "string", "audio_url": "string" }
+    },
+    {
+      "method": "POST",
+      "path": "/api/tts/elevenlabs",
+      "file": "app/api/tts/elevenlabs/route.ts",
+      "runtime": "nodejs",
+      "description": "Direct ElevenLabs TTS using the official SDK. Uses voice aTTiK3YzK3dXETpuDE2h with model eleven_multilingual_v2, output mp3_44100_128. Returns audio/mpeg stream directly (no async job).",
+      "body_params": ["text: string"],
+      "response": "audio/mpeg binary stream"
+    },
+    {
+      "method": "POST",
+      "path": "/api/tts/google",
+      "file": "app/api/tts/google/route.ts",
+      "runtime": "nodejs",
+      "description": "Google Cloud Text-to-Speech via REST API. Supports Neural2 voices, adjustable speaking rate (0.25–4.0). Returns decoded MP3 buffer.",
+      "body_params": ["text: string", "voice: string", "languageCode: string", "speakingRate: number"],
+      "response": "audio/mpeg binary"
+    },
+    {
+      "method": "POST",
+      "path": "/api/tts-edge",
+      "file": "app/api/tts-edge/route.ts",
+      "runtime": "nodejs",
+      "description": "Microsoft Edge TTS via edge-tts-universal package. Free, no API key required. Supports rate (e.g. +30%), volume, pitch. Returns MP3 audio buffer.",
+      "body_params": ["text: string", "voice: string", "rate: string"],
+      "response": "audio/mpeg binary"
+    },
+    {
+      "method": "GET",
+      "path": "/api/ping",
+      "file": "app/api/ping/route.ts",
+      "runtime": "nodejs",
+      "description": "Keep-alive endpoint pinged by GitHub Actions every 14 minutes to prevent Render free-tier sleep.",
+      "response": { "status": "ok" }
+    }
+  ],
+
+  "flask_routes": [
+    {
+      "method": "GET",
+      "path": "/ping",
+      "description": "Health check. Returns server status, R2 connectivity, ffmpeg binary path, and /tmp download folder path.",
+      "response": { "status": "ok", "r2": "bool", "ffmpeg": "string", "folder": "string" }
+    },
+    {
+      "method": "POST",
+      "path": "/download",
+      "description": "Synchronous yt-dlp download to /tmp. Blocks until complete. Kept for compatibility; the SSE route is preferred.",
+      "body_params": ["url: string", "format: 'video'|'audio'", "quality: string"],
+      "response": { "success": "bool", "filename": "string" }
+    },
+    {
+      "method": "POST",
+      "path": "/download-stream",
+      "description": "Main download endpoint. Streams SSE events: progress (0–100%), uploading, done. yt-dlp saves to /tmp, ffmpeg merges (imageio-ffmpeg binary), file is uploaded to Cloudflare R2, /tmp file is deleted, a same-origin redirect token is generated and returned.",
+      "body_params": ["url: string", "format: 'video'|'audio'", "quality: 'best'|'1080'|'720'|'480'|'360'"],
+      "sse_events": [
+        { "type": "progress", "fields": ["percent: float"] },
+        { "type": "uploading", "fields": ["message: string"] },
+        { "type": "done", "fields": ["success: bool", "filename: string", "redirect_key: string"] }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/redirect/<token>",
+      "description": "Same-origin redirect gateway. Looks up a short-lived token (1h TTL) in server memory and returns HTTP 302 to the R2 presigned URL. Solves the iframe cross-origin download restriction: the browser navigates same-origin first, then follows the redirect to R2 where Content-Disposition: attachment triggers the save dialog.",
+      "path_params": ["token: string (UUID hex)"],
+      "response": "302 → R2 presigned URL (or 404 if expired)"
+    },
+    {
+      "method": "GET",
+      "path": "/stream-download",
+      "description": "Fallback direct-stream route. Runs yt-dlp with -o - (stdout) and pipes bytes directly to the browser without saving to disk. No R2, no merging for video. Used as a fallback when R2 is not configured.",
+      "query_params": ["url: string", "format: string", "quality: string"],
+      "response": "video/mp4 or audio/mpeg binary stream with Content-Disposition: attachment"
+    },
+    {
+      "method": "GET",
+      "path": "/history",
+      "description": "Returns in-memory download history for the current server session (last 20 entries).",
+      "response": "[{ url, filename, format, status }]"
+    },
+    {
+      "method": "GET",
+      "path": "/test-r2",
+      "description": "Diagnostic endpoint. Uploads a 4-byte test file to R2, generates a presigned URL, then deletes it. Returns full boto3 error on failure.",
+      "response": { "ok": "bool", "bucket": "string", "presigned_url": "string | error: string" }
+    },
+    {
+      "method": "GET",
+      "path": "/app",
+      "description": "Serves the self-contained DAV Downloader HTML/CSS/JS single-page app. Embedded as an iframe in the Next.js Download tab.",
+      "response": "text/html"
+    }
+  ],
+
+  "nextjs_proxy_rewrites": {
+    "description": "next.config.ts rewrites that proxy Flask routes through the single Next.js port (3000 locally, shared on Render). Flask runs on localhost:5757.",
+    "rules": [
+      { "source": "/app", "destination": "http://localhost:5757/app" },
+      { "source": "/ping", "destination": "http://localhost:5757/ping" },
+      { "source": "/download", "destination": "http://localhost:5757/download" },
+      { "source": "/download-stream", "destination": "http://localhost:5757/download-stream" },
+      { "source": "/history", "destination": "http://localhost:5757/history" },
+      { "source": "/open-folder", "destination": "http://localhost:5757/open-folder" },
+      { "source": "/stream-download", "destination": "http://localhost:5757/stream-download" },
+      { "source": "/redirect/:token", "destination": "http://localhost:5757/redirect/:token" },
+      { "source": "/test-r2", "destination": "http://localhost:5757/test-r2" }
+    ]
+  },
+
+  "components": [
+    {
+      "name": "Header",
+      "file": "components/Header.tsx",
+      "description": "Sticky top navigation bar. Contains: DAV PIPELINE logo + version badge, hidden CTA toggle dot (discreet, invisible to casual visitors) with position popover (sentence 2/3/4), command palette trigger (⌘K), history panel (dropdown, up to 50 entries with restore/delete), reset button."
+    },
+    {
+      "name": "UrlInput",
+      "file": "components/UrlInput.tsx",
+      "description": "Video URL input field with submit button. Shows error state. Triggers transcript extraction on Enter or button click."
+    },
+    {
+      "name": "GenerationPanel",
+      "file": "components/GenerationPanel.tsx",
+      "description": "TTS control panel shown after script generation. Contains: TTS provider selector (AI33/Direct/Free groups), duration selector (10s–2min or original), per-language generation rows (LanguageRow), generate-all button, copy-all-QR button."
+    },
+    {
+      "name": "ScriptCard",
+      "file": "components/ScriptCard.tsx",
+      "description": "Card for a single language script section (FR/EN/DE/ES). Shows content, word/time stats, duration adjustment buttons (10s–2min), copy button, audio playback and download when TTS is ready, restore-original button when overridden."
+    },
+    {
+      "name": "LanguageRow",
+      "file": "components/LanguageRow.tsx",
+      "description": "Single row in GenerationPanel for one language. Shows voice selector and speed control (persisted to localStorage per provider+lang), generate button, audio player/download when ready. Voice list differs per provider."
+    },
+    {
+      "name": "CommandPalette",
+      "file": "components/CommandPalette.tsx",
+      "description": "⌘K command palette (cmdk). Actions: paste URL, generate FR/EN/DE/ES audio, generate all, copy all QR, reset. Keyboard-driven, accessible via ⌘K or header button."
+    },
+    {
+      "name": "FloatingActions",
+      "file": "components/FloatingActions.tsx",
+      "description": "Floating action button visible on mobile when scripts are ready. Provides quick access to copy-all-QR."
+    },
+    {
+      "name": "CTAToggle",
+      "file": "components/CTAToggle.tsx",
+      "description": "Standalone CTA toggle component (also integrated in Header). Controls CTA injection on/off and sentence position."
+    }
+  ],
+
+  "lib_files": [
+    {
+      "file": "lib/format.ts",
+      "exports": ["sanitizeTitle()", "wordStats()", "formatDate()"],
+      "description": "Utility functions: sanitizes video titles for filenames, computes word count and estimated speaking duration, formats ISO dates for display."
+    },
+    {
+      "file": "lib/utils.ts",
+      "exports": ["cn()"],
+      "description": "Tailwind class merging helper using clsx + tailwind-merge."
+    },
+    {
+      "file": "lib/edge-tts-voices.ts",
+      "exports": ["EDGE_TTS_VOICES"],
+      "description": "Curated list of Microsoft Edge TTS neural voices per language (FR/EN/DE/ES) with display names."
+    },
+    {
+      "file": "lib/google-tts-voices.ts",
+      "exports": ["GOOGLE_TTS_VOICES"],
+      "description": "Curated list of Google Cloud Neural2 TTS voices per language with langCode mappings."
+    }
+  ],
+
+  "types": {
+    "file": "types.ts",
+    "definitions": [
+      { "name": "Provider", "type": "union", "values": ["ai33-minimax", "ai33-elevenlabs", "elevenlabs", "edge-tts", "google-tts"] },
+      { "name": "Section", "type": "union", "values": ["SCRIPT FR", "SCRIPT EN", "SCRIPT DE", "SCRIPT ES", "SEARCH KEYWORDS EN", "TITRE ET HASHTAGS FR", "TITRE ET HASHTAGS EN", "TITRE ET HASHTAGS DE", "TITRE ET HASHTAGS ES"] },
+      { "name": "SECTIONS", "type": "const array", "description": "All 9 QR script sections" },
+      { "name": "AudioState", "type": "object", "fields": ["status: loading|done|error", "label: string", "audioUrl?: string", "filename?: string"] },
+      { "name": "Step", "type": "union", "values": ["idle", "extracting", "transcript", "rewriting", "done"] },
+      { "name": "HistoryEntry", "type": "object", "fields": ["id: string", "date: ISO string", "title: string", "url: string", "qrText: string", "provider: Provider"] }
+    ]
+  },
+
+  "environment_variables": {
+    "nextjs_server": [
+      { "name": "ANTHROPIC_API_KEY", "used_in": ["/api/rewrite", "/api/adjust"], "description": "Claude API key for script rewriting and duration adjustment" },
+      { "name": "ELEVENLABS_API_KEY", "used_in": ["/api/tts/elevenlabs"], "description": "ElevenLabs direct API key" },
+      { "name": "MINIMAX_API_KEY", "used_in": ["/api/tts", "/api/tts/poll"], "description": "AI33Pro API key (used as xi-api-key header, works for both Minimax and ElevenLabs proxy routes)" },
+      { "name": "SUPADATA_API_KEY", "used_in": ["/api/transcript"], "description": "Supadata transcript API key" },
+      { "name": "GOOGLE_TTS_API_KEY", "used_in": ["/api/tts/google"], "description": "Google Cloud TTS REST API key" }
+    ],
+    "nextjs_public": [
+      { "name": "NEXT_PUBLIC_DOWNLOADER_URL", "used_in": ["app/page.tsx iframe src"], "description": "Base URL for the Flask downloader server (empty in prod since Next.js proxies /app; set to http://localhost:5757 for local dev if running Flask separately)" }
+    ],
+    "flask_server": [
+      { "name": "R2_ENDPOINT", "value_format": "https://<account_id>.eu.r2.cloudflarestorage.com", "description": "Cloudflare R2 S3-compatible endpoint (EU jurisdiction)" },
+      { "name": "R2_ACCESS_KEY_ID", "description": "R2 API token access key" },
+      { "name": "R2_SECRET_ACCESS_KEY", "description": "R2 API token secret key" },
+      { "name": "R2_BUCKET", "value": "dav-downloads", "description": "R2 bucket name for storing downloaded videos" },
+      { "name": "FLASK_PORT", "default": "5757", "description": "Flask server port" },
+      { "name": "DOWNLOAD_DIR", "default": "/tmp/downloads", "description": "Temporary directory for yt-dlp downloads before R2 upload" }
+    ],
+    "local_files": [
+      { "file": ".env.local", "loaded_by": "Next.js automatically", "contains": "All ANTHROPIC/ELEVENLABS/MINIMAX/SUPADATA/GOOGLE/R2 keys for local dev" },
+      { "file": ".env.render", "loaded_by": "python-dotenv in dav_downloader.py at startup", "contains": "All keys including R2 credentials for local Flask dev" }
+    ]
+  },
+
+  "features": [
+    {
+      "name": "Transcript Extraction",
+      "description": "Paste a YouTube, TikTok, or Instagram URL. Fetches transcript via Supadata API — tries native captions first (cheaper), falls back to AI generation. Handles async jobs. Auto-fetches video title via YouTube oEmbed."
+    },
+    {
+      "name": "QR Script Generation",
+      "description": "Rewrites transcript into the Quad Remix (QR) format using Claude Sonnet 4.6: 4 script languages (FR/EN/DE/ES), English search keywords, and title+hashtag sets for all 4 languages. Streamed in real-time with skeleton cards during generation."
+    },
+    {
+      "name": "Duration Adjustment",
+      "description": "Per-script-section duration adjust: re-rewrites a single language to 10s/15s/30s/45s/1min/1min30/2min at 130 wpm target. Streamed. Preserves original alongside override with restore button."
+    },
+    {
+      "name": "CTA Injection System",
+      "description": "Hidden CTA (Call-To-Action) toggle accessible via a discreet dot in the header. When enabled, inserts a multilingual CTA sentence (Cristiano smiles when you tap the plus button) into each script at sentence position 2, 3, or 4. CTA is baked into audio generation and copy output. Persisted to localStorage."
+    },
+    {
+      "name": "Multi-Provider TTS",
+      "description": "5 TTS providers: AI33Pro-ElevenLabs (async polling), AI33Pro-Minimax (async polling), ElevenLabs Direct (streaming), Edge TTS (free, Microsoft neural voices, no API key), Google Cloud TTS (Neural2). Voice and speed saved per provider+language in localStorage. Generate all 4 languages in parallel."
+    },
+    {
+      "name": "Command Palette",
+      "description": "⌘K palette for keyboard-first workflow: quick URL paste, generate per language, generate all, copy all QR, reset."
+    },
+    {
+      "name": "History",
+      "description": "Stores last 50 generated scripts in localStorage. Restore any past entry (title, URL, scripts, provider) with one click. Delete individual entries or clear all."
+    },
+    {
+      "name": "DAV Downloader (Download Tab)",
+      "description": "Video downloader embedded as iframe. Supports YouTube, TikTok, Instagram, Twitter/X, Snapchat, Dailymotion, Facebook, Vimeo. Downloads via yt-dlp with ffmpeg merge (imageio-ffmpeg). Real-time SSE progress bar. Uploads to Cloudflare R2, returns presigned URL via same-origin redirect token to bypass iframe cross-origin restrictions."
+    },
+    {
+      "name": "Cloudflare R2 Storage",
+      "description": "Downloaded files are uploaded to R2 bucket dav-downloads (EU jurisdiction). Files are stored with UUID-prefixed keys. Presigned URLs valid for 1 hour. Background thread deletes expired R2 objects and redirect tokens every 10 minutes."
+    },
+    {
+      "name": "Keep-Alive (GitHub Actions)",
+      "description": "GitHub Actions workflow pings /api/ping every 14 minutes to prevent Render free-tier instance sleep."
+    }
+  ],
+
+  "qr_format": {
+    "description": "QR (Quad Remix) is the proprietary script format used by this pipeline. Each output contains 9 sections.",
+    "sections": [
+      { "key": "SCRIPT FR", "description": "French script with narrative tension connectors" },
+      { "key": "SCRIPT EN", "description": "English script" },
+      { "key": "SCRIPT DE", "description": "German script" },
+      { "key": "SCRIPT ES", "description": "Spanish script" },
+      { "key": "SEARCH KEYWORDS EN", "description": "English SEO keywords for the video" },
+      { "key": "TITRE ET HASHTAGS FR", "description": "French title and hashtags" },
+      { "key": "TITRE ET HASHTAGS EN", "description": "English title and hashtags" },
+      { "key": "TITRE ET HASHTAGS DE", "description": "German title and hashtags" },
+      { "key": "TITRE ET HASHTAGS ES", "description": "Spanish title and hashtags" }
+    ],
+    "cta_texts": {
+      "FR": "Savais-tu que Cristiano sourit quand tu tapes sur le bouton plus ?",
+      "EN": "Did you know Cristiano smiles when you tap the plus button?",
+      "DE": "Wusstest du, dass Cristiano lächelt, wenn du auf Plus tippst?",
+      "ES": "¿Sabías que Cristiano sonríe cuando tocas el botón plus?"
+    }
+  },
+
+  "deployment": {
+    "platform": "Render (free tier)",
+    "service_type": "Web Service — single process running both Next.js and Flask",
+    "architecture": "Next.js proxies Flask routes via next.config.ts rewrites. Flask runs on internal port 5757, Next.js on the public port. Both share the same Render instance.",
+    "github_repo": "https://github.com/sanibahdavid-ai/qr-pipeline",
+    "auto_deploy": true,
+    "keep_alive": "GitHub Actions workflow pings /api/ping every 14 minutes",
+    "r2_storage": {
+      "provider": "Cloudflare R2",
+      "bucket": "dav-downloads",
+      "region": "EU (eu jurisdiction endpoint)",
+      "endpoint_format": "https://<account_id>.eu.r2.cloudflarestorage.com",
+      "ttl_hours": 1,
+      "cleanup": "Background daemon thread, runs every 10 minutes"
+    },
+    "build_commands": {
+      "nextjs": "npm run build",
+      "flask_deps": "pip install -r requirements.txt"
+    },
+    "python_requirements": ["flask", "flask-cors", "yt-dlp", "boto3", "imageio-ffmpeg", "python-dotenv"]
+  },
+
+  "local_development": {
+    "start_nextjs": "npm run dev",
+    "start_flask": "python server/dav_downloader.py",
+    "nextjs_port": 3000,
+    "flask_port": 5757,
+    "env_files": [".env.local (Next.js)", ".env.render (Flask via python-dotenv)"],
+    "notes": [
+      "Flask must be running for the Download tab to work",
+      "R2 credentials in .env.render are loaded automatically by dav_downloader.py via load_dotenv()",
+      "imageio-ffmpeg provides a bundled ffmpeg binary — no system ffmpeg install needed",
+      "yt-dlp downloads to /tmp/downloads before R2 upload"
+    ]
+  },
+
+  "keyboard_shortcuts": [
+    { "shortcut": "⌘K / Ctrl+K", "action": "Open command palette" },
+    { "shortcut": "⌘Shift+C / Ctrl+Shift+C", "action": "Copy all QR sections (when scripts are ready)" },
+    { "shortcut": "1", "action": "Play FR audio (when scripts are ready)" },
+    { "shortcut": "2", "action": "Play EN audio (when scripts are ready)" },
+    { "shortcut": "3", "action": "Play DE audio (when scripts are ready)" },
+    { "shortcut": "4", "action": "Play ES audio (when scripts are ready)" }
+  ],
+
+  "localStorage_keys": [
+    { "key": "qr_pipeline_history", "description": "Array of up to 50 HistoryEntry objects" },
+    { "key": "cta_enabled", "description": "'1' or '0' — CTA injection toggle" },
+    { "key": "cta_position", "description": "2, 3, or 4 — sentence position for CTA insertion" },
+    { "key": "dav_active_tab", "description": "'scripts' or 'download' — last active tab" },
+    { "key": "qr_voice_config_v2", "description": "JSON map of {provider__LANG: {voice, speed}} for TTS voice settings" }
+  ]
+}
