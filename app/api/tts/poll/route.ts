@@ -13,11 +13,10 @@ export async function GET(req: NextRequest) {
     return Response.json({ error: "taskId manquant" }, { status: 400 });
   }
 
-  // Minimax tasks live under /v1m/; ElevenLabs tasks under /v1/
-  const pollUrl =
-    provider === "ai33-minimax"
-      ? `https://api.ai33.pro/v1m/task/${taskId}`
-      : `https://api.ai33.pro/v1/task/${taskId}`;
+  // Both ai33-elevenlabs and ai33-minimax use the unified /v1/task/ endpoint.
+  // (The /v1m/ path only exists for the submit step, not polling.)
+  const pollUrl = `https://api.ai33.pro/v1/task/${taskId}`;
+  console.log(`[TTS poll] provider=${provider} url=${pollUrl}`);
 
   const res = await fetch(pollUrl, {
     headers: { "xi-api-key": apiKey },
@@ -31,12 +30,15 @@ export async function GET(req: NextRequest) {
   }
 
   const data = await res.json();
-  console.log("POLL RESPONSE:", JSON.stringify(data));
+  console.log("[TTS poll] raw response:", JSON.stringify(data));
 
-  // Normalise the response so the client always sees { status, audio_url }
+  // AI33 wraps the audio URL inside metadata.audio_url for all providers.
+  // Also check top-level fallbacks for any future shape changes.
   const status: string =
     data.status ?? data.data?.status ?? "";
+
   const audio_url: string =
+    data.metadata?.audio_url ??   // ← primary: AI33 always puts it here
     data.audio_url ??
     data.audioUrl ??
     data.audio ??
@@ -50,6 +52,8 @@ export async function GET(req: NextRequest) {
     data.data?.audio ??
     data.data?.audio_address ??
     "";
+
+  console.log(`[TTS poll] status="${status}" audio_url="${audio_url}"`);
 
   return Response.json({ status, audio_url, _raw: data });
 }

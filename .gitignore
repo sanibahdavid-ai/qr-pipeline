@@ -5,3 +5,4 @@ node_modules/
 *.zip
 qr-pipeline-migration/
 .env.render
+SECRETS_LOCAL.txt

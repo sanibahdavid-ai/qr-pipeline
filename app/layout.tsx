@@ -20,6 +20,7 @@ const spaceMono = Space_Mono({
 export const metadata: Metadata = {
   title: "DAV Pipeline",
   description: "Made by Dav",
+  icons: { icon: "/favicon.svg" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
