@@ -23,9 +23,25 @@ SECTION 4
 SCRIPT ES
 [version espagnole réécrite]
 
-SECTION 5
-SEARCH KEYWORDS EN
-[8 à 10 mots-clés, un par ligne, sans numérotation]
+SECTION 5 — SEARCH KEYWORDS EN
+Generate 8-10 visual search keywords to help a video editor find stock footage on Pexels, Unsplash or Getty.
+Rules:
+- Short: 2-4 words max per keyword
+- Describe concrete visual scenes, actions or objects
+- Use cross-sport synonyms when relevant (if padel → also tennis equivalents)
+- No SEO, no slow motion, no adjectives like 'amazing' or 'incredible'
+- Each keyword must be immediately usable as a stock footage search query
+Example output:
+tennis player smashing racket
+broken racket court floor
+athlete rage sport court
+racket destruction debris
+professional player mental reset
+carbon racket shattered
+sport frustration face
+padel smash zone
+athlete throwing equipment
+angry player close-up
 
 SECTION 6
 TITRE ET HASHTAGS FR
