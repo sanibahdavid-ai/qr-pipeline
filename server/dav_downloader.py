@@ -158,13 +158,14 @@ def download():
 
     if format_choice == "audio":
         cmd = [
-            "yt-dlp", "-x", "--audio-format", "mp3",
+            "yt-dlp", "--extractor-args", "youtube:player_client=android",
+            "-x", "--audio-format", "mp3",
             "--ffmpeg-location", FFMPEG_PATH,
             "-o", output_template, "--no-playlist", url,
         ]
     else:
         cmd = [
-            "yt-dlp",
+            "yt-dlp", "--extractor-args", "youtube:player_client=android",
             "-f", build_video_format_string(quality),
             "--merge-output-format", "mp4",
             "--ffmpeg-location", FFMPEG_PATH,
@@ -213,13 +214,14 @@ def download_stream():
 
     if format_choice == "audio":
         cmd = [
-            "yt-dlp", "-x", "--audio-format", "mp3",
+            "yt-dlp", "--extractor-args", "youtube:player_client=android",
+            "-x", "--audio-format", "mp3",
             "--ffmpeg-location", FFMPEG_PATH,
             "-o", output_template, "--no-playlist", "--newline", url,
         ]
     else:
         cmd = [
-            "yt-dlp",
+            "yt-dlp", "--extractor-args", "youtube:player_client=android",
             "-f", build_video_format_string(quality),
             "--merge-output-format", "mp4",
             "--ffmpeg-location", FFMPEG_PATH,
@@ -352,7 +354,8 @@ def stream_download():
 
     is_audio = format_choice == "audio"
     if is_audio:
-        cmd = ["yt-dlp", "-x", "--audio-format", "mp3",
+        cmd = ["yt-dlp", "--extractor-args", "youtube:player_client=android",
+               "-x", "--audio-format", "mp3",
                "--ffmpeg-location", FFMPEG_PATH,
                "-o", "-", "--no-playlist", url]
         filename = "audio.mp3"
@@ -363,7 +366,8 @@ def stream_download():
                    f"/best[height<={quality}]/best[ext=mp4]/best")
         else:
             fmt = "best[ext=mp4]/best"
-        cmd = ["yt-dlp", "-f", fmt, "--ffmpeg-location", FFMPEG_PATH,
+        cmd = ["yt-dlp", "--extractor-args", "youtube:player_client=android",
+               "-f", fmt, "--ffmpeg-location", FFMPEG_PATH,
                "-o", "-", "--no-playlist", url]
         filename = "video.mp4"
         content_type = "video/mp4"
@@ -942,6 +946,10 @@ def serve_app():
     status.className = 'status';
     status.style.display = 'none';
 
+    let coldStartTimer = setTimeout(() => {
+      label.textContent = 'Démarrage serveur…';
+    }, 8000);
+
     try {
       const quality = document.getElementById('qualitySelect').value;
       const response = await fetch('/download-stream', {
@@ -971,6 +979,7 @@ def serve_app():
             const evt = JSON.parse(dataLine.slice(6));
 
             if (evt.type === 'progress') {
+              clearTimeout(coldStartTimer);
               const pct = Math.min(evt.percent, 93);
               fill.style.width = pct + '%';
               label.textContent = pct.toFixed(1) + '%';
@@ -1006,6 +1015,7 @@ def serve_app():
     } catch (e) {
       showStatus('error', '✗ ' + (e.message || 'Serveur inaccessible'));
     } finally {
+      clearTimeout(coldStartTimer);
       btn.disabled = false;
       btn.textContent = 'TÉLÉCHARGER';
       setTimeout(() => {
