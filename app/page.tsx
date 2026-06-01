@@ -12,8 +12,10 @@ import { FloatingActions } from "../components/FloatingActions";
 import { EDGE_TTS_VOICES } from "../lib/edge-tts-voices";
 import { GOOGLE_TTS_VOICES } from "../lib/google-tts-voices";
 import { sanitizeTitle, wordStats } from "../lib/format";
-import type { Provider, Section, AudioState, Step, HistoryEntry } from "../types";
+import type { Provider, Section, AudioState, Step, HistoryEntry, AuthUser } from "../types";
 import { SECTIONS } from "../types";
+import { supabase } from "../lib/supabase";
+import type { GenerationRow } from "../lib/supabase";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const SCRIPT_SECTIONS: Section[] = ["SCRIPT FR", "SCRIPT EN", "SCRIPT DE", "SCRIPT ES"];
@@ -105,6 +107,10 @@ export default function Home() {
   const [showHistory, setShowHistory] = useState(false);
   const historyPanelRef = useRef<HTMLDivElement>(null);
 
+  // Auth + cloud history
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [cloudHistory, setCloudHistory] = useState<GenerationRow[]>([]);
+
   // Command palette
   const [showPalette, setShowPalette] = useState(false);
 
@@ -132,6 +138,23 @@ export default function Home() {
     if (showHistory) document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [showHistory]);
+
+  useEffect(() => {
+    if (!supabase) return;
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) {
+        setUser(data.user as AuthUser);
+        loadCloudHistory();
+      }
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const u = session?.user ?? null;
+      setUser(u as AuthUser | null);
+      if (u) loadCloudHistory();
+      else setCloudHistory([]);
+    });
+    return () => subscription.unsubscribe();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
   useHotkeys("mod+k", (e) => { e.preventDefault(); setShowPalette((v) => !v); });
@@ -178,6 +201,75 @@ export default function Home() {
   function clearHistory() {
     setHistory([]);
     try { localStorage.removeItem(HISTORY_KEY); } catch {}
+  }
+
+  // ── Cloud auth helpers ────────────────────────────────────────────────────
+  async function loadCloudHistory() {
+    if (!supabase) return;
+    const { data } = await supabase
+      .from("generations")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (data) setCloudHistory(data as GenerationRow[]);
+  }
+
+  async function handleLogin() {
+    if (!supabase) return;
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: typeof window !== "undefined" ? window.location.origin : "/" },
+    });
+  }
+
+  async function handleLogout() {
+    if (!supabase) return;
+    await supabase.auth.signOut();
+    setUser(null);
+    setCloudHistory([]);
+  }
+
+  function restoreFromCloudHistory(gen: GenerationRow) {
+    const parts: string[] = [];
+    if (gen.script_fr) parts.push(`SCRIPT FR\n${gen.script_fr}`);
+    if (gen.script_en) parts.push(`SCRIPT EN\n${gen.script_en}`);
+    if (gen.script_de) parts.push(`SCRIPT DE\n${gen.script_de}`);
+    if (gen.script_es) parts.push(`SCRIPT ES\n${gen.script_es}`);
+    if (gen.titre_fr) parts.push(`TITRE ET HASHTAGS FR\n${gen.titre_fr}`);
+    if (gen.titre_en) parts.push(`TITRE ET HASHTAGS EN\n${gen.titre_en}`);
+    if (gen.titre_de) parts.push(`TITRE ET HASHTAGS DE\n${gen.titre_de}`);
+    if (gen.titre_es) parts.push(`TITRE ET HASHTAGS ES\n${gen.titre_es}`);
+    const reconstructed = parts.join("\n\n");
+    reset();
+    setTimeout(() => {
+      setVideoTitle(gen.video_title ?? "");
+      setUrl("");
+      setQrText(reconstructed);
+      setStep("done");
+      setShowHistory(false);
+    }, 50);
+  }
+
+  function saveToCloud(qrText: string, title: string) {
+    if (!supabase || !user) return;
+    const parsed = parseQR(qrText);
+    void (async () => {
+      try {
+        await supabase.from("generations").insert({
+          user_id: user.id,
+          video_title: title,
+          script_fr: parsed["SCRIPT FR"] ?? null,
+          script_en: parsed["SCRIPT EN"] ?? null,
+          script_de: parsed["SCRIPT DE"] ?? null,
+          script_es: parsed["SCRIPT ES"] ?? null,
+          titre_fr: parsed["TITRE ET HASHTAGS FR"] ?? null,
+          titre_en: parsed["TITRE ET HASHTAGS EN"] ?? null,
+          titre_de: parsed["TITRE ET HASHTAGS DE"] ?? null,
+          titre_es: parsed["TITRE ET HASHTAGS ES"] ?? null,
+        });
+        loadCloudHistory();
+      } catch {}
+    })();
   }
 
   const sections = step === "done" ? parseQR(qrText) : {};
@@ -268,7 +360,10 @@ export default function Home() {
     }
     setStep("done");
     const finalTitle = title ?? videoTitle;
-    if (finalTitle) saveToHistory(finalTitle, url, accumulated);
+    if (finalTitle) {
+      saveToHistory(finalTitle, url, accumulated);
+      saveToCloud(accumulated, finalTitle);
+    }
   }
 
   // ── TTS ───────────────────────────────────────────────────────────────────
@@ -376,8 +471,19 @@ export default function Home() {
         const poll = await fetch(`/api/tts/poll?taskId=${encodeURIComponent(taskId)}&provider=${encodeURIComponent(provider)}`);
         if (poll.ok) {
           const pollData = await poll.json();
-          const { status, audio_url: audioUrl } = pollData;
-          if (audioUrl && (status === "done" || status === "Success" || status === "success" || status === "completed")) {
+          const { audio_url: audioUrl } = pollData;
+          if (audioUrl && audioUrl.startsWith("http")) {
+            setAudio((a) => ({ ...a, [language]: { status: "loading", label: "Téléchargement..." } }));
+            try {
+              const proxyRes = await fetch(`/api/tts/audio?url=${encodeURIComponent(audioUrl)}`);
+              if (proxyRes.ok) {
+                const blob = await proxyRes.blob();
+                const localUrl = URL.createObjectURL(blob);
+                setAudio((s) => ({ ...s, [language]: { status: "done", label: "Prêt", audioUrl: localUrl, filename } }));
+                return;
+              }
+            } catch {}
+            // Fallback: direct URL if proxy fails
             setAudio((s) => ({ ...s, [language]: { status: "done", label: "Prêt", audioUrl, filename } }));
             return;
           }
@@ -512,6 +618,11 @@ export default function Home() {
         ctaPosition={ctaPosition}
         onCtaPositionChange={handleCtaPositionChange}
         onCtaToggle={() => toggleCTA(!ctaEnabled)}
+        user={user}
+        cloudHistory={cloudHistory}
+        onLogin={handleLogin}
+        onLogout={handleLogout}
+        onRestoreCloud={restoreFromCloudHistory}
       />
 
       {/* Tab switcher */}

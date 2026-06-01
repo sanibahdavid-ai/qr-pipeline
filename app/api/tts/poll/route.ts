@@ -41,6 +41,11 @@ export async function GET(req: NextRequest) {
     data.audioUrl ??
     data.audio ??
     data.audio_address ??
+    data.output_url ??
+    data.output?.audio_url ??
+    data.output?.audio ??
+    data.result?.audio_url ??
+    data.result?.audio ??
     data.data?.audio_url ??
     data.data?.audio ??
     data.data?.audio_address ??

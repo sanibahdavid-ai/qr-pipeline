@@ -12,6 +12,8 @@
     "@anthropic-ai/sdk": "^0.40.0",
     "@elevenlabs/elevenlabs-js": "^2.45.0",
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
+    "@supabase/auth-helpers-nextjs": "^0.15.0",
+    "@supabase/supabase-js": "^2.106.2",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "edge-tts-universal": "^1.4.0",

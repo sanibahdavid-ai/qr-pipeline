@@ -32,3 +32,14 @@ export type HistoryEntry = {
   qrText: string;
   provider: Provider;
 };
+
+export type AuthUser = {
+  id: string;
+  email?: string;
+  user_metadata: {
+    avatar_url?: string;
+    picture?: string;
+    full_name?: string;
+    name?: string;
+  };
+};

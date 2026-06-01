@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Clock, RotateCcw, Command } from "lucide-react";
-import type { HistoryEntry } from "../types";
+import { Clock, RotateCcw, Command, LogIn, LogOut } from "lucide-react";
+import type { HistoryEntry, AuthUser } from "../types";
+import type { GenerationRow } from "../lib/supabase";
 import { formatDate } from "../lib/format";
 
-const APP_VERSION = "2.3";
+const APP_VERSION = "2.4";
 const CTA_POSITIONS = [2, 3, 4] as const;
 
 type Props = {
@@ -23,26 +24,36 @@ type Props = {
   ctaPosition: number;
   onCtaPositionChange: (pos: number) => void;
   onCtaToggle: () => void;
+  user: AuthUser | null;
+  cloudHistory: GenerationRow[];
+  onLogin: () => void;
+  onLogout: () => void;
+  onRestoreCloud: (gen: GenerationRow) => void;
 };
 
 export function Header({
   history, showHistory, onToggleHistory, onRestoreHistory,
   onDeleteHistory, onClearHistory, canReset, onReset, onOpenPalette,
   historyPanelRef, ctaEnabled, ctaPosition, onCtaPositionChange, onCtaToggle,
+  user, cloudHistory, onLogin, onLogout, onRestoreCloud,
 }: Props) {
   const [showCtaPopover, setShowCtaPopover] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const ctaPopoverRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
-  // Close popover on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (ctaPopoverRef.current && !ctaPopoverRef.current.contains(e.target as Node)) {
         setShowCtaPopover(false);
       }
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setShowUserMenu(false);
+      }
     }
-    if (showCtaPopover) document.addEventListener("mousedown", handleClick);
+    document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
-  }, [showCtaPopover]);
+  }, []);
 
   function handleSelectPosition(pos: number) {
     onCtaPositionChange(pos);
@@ -53,6 +64,11 @@ export function Header({
     onCtaToggle();
     setShowCtaPopover(false);
   }
+
+  const displayName = user?.user_metadata?.full_name ?? user?.user_metadata?.name ?? user?.email ?? "";
+  const avatarUrl = user?.user_metadata?.avatar_url ?? user?.user_metadata?.picture ?? "";
+
+  const historyCount = user ? cloudHistory.length : history.length;
 
   return (
     <header
@@ -81,7 +97,7 @@ export function Header({
             v{APP_VERSION}
           </span>
 
-          {/* Hidden CTA toggle — discreet dot, invisible to casual visitors */}
+          {/* Hidden CTA toggle */}
           <div className="relative" ref={ctaPopoverRef}>
             <button
               onClick={() => setShowCtaPopover((v) => !v)}
@@ -99,7 +115,6 @@ export function Header({
               )}
             </button>
 
-            {/* CTA position popover */}
             {showCtaPopover && (
               <div
                 className="absolute top-full left-0 mt-1.5 z-[60] w-28 bg-[#111118] border border-[#1e1e2e] overflow-hidden shadow-xl"
@@ -162,12 +177,12 @@ export function Header({
             >
               <Clock size={11} />
               <span className="hidden sm:inline">Historique</span>
-              {history.length > 0 && (
+              {historyCount > 0 && (
                 <span
                   className="bg-[#1e1e2e] text-[#a0a0b8] px-1 text-[9px] font-mono"
                   style={{ borderRadius: "2px" }}
                 >
-                  {history.length}
+                  {historyCount}
                 </span>
               )}
             </button>
@@ -179,10 +194,13 @@ export function Header({
               >
                 <div className="h-[2px] w-full" style={{ background: "linear-gradient(90deg, #00e5ff, #ff3cac)" }} />
                 <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#1e1e2e]">
-                  <span className="text-[10px] font-mono font-semibold text-[#a0a0b8] tracking-widest uppercase">
+                  <span className="text-[10px] font-mono font-semibold text-[#a0a0b8] tracking-widest uppercase flex items-center gap-1.5">
                     Historique
+                    {user && (
+                      <span className="text-[#00e5ff]">· Cloud</span>
+                    )}
                   </span>
-                  {history.length > 0 && (
+                  {!user && history.length > 0 && (
                     <button
                       onClick={onClearHistory}
                       className="text-[10px] font-mono text-[#555577] hover:text-[#ff4466] transition-none"
@@ -191,39 +209,123 @@ export function Header({
                     </button>
                   )}
                 </div>
-                {history.length === 0 ? (
-                  <div className="px-4 py-8 text-center text-[11px] font-mono text-[#555577]">
-                    Aucune vidéo générée
-                  </div>
-                ) : (
-                  <div className="max-h-80 overflow-y-auto divide-y divide-[#1e1e2e]">
-                    {history.map((entry) => (
-                      <div
-                        key={entry.id}
-                        onClick={() => onRestoreHistory(entry)}
-                        className="group flex items-start gap-2 px-4 py-2.5 hover:bg-[#16161f] cursor-pointer transition-none"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[12px] text-[#e0e0f0] truncate font-medium leading-snug">
-                            {entry.title || "Sans titre"}
-                          </p>
-                          <p className="text-[10px] text-[#555577] font-mono mt-0.5">
-                            {formatDate(entry.date)} · {entry.provider}
-                          </p>
-                        </div>
-                        <button
-                          onClick={(e) => onDeleteHistory(entry.id, e)}
-                          className="opacity-0 group-hover:opacity-100 text-[#555577] hover:text-[#ff4466] transition-none shrink-0 mt-0.5"
+
+                {/* Cloud history when logged in */}
+                {user ? (
+                  cloudHistory.length === 0 ? (
+                    <div className="px-4 py-8 text-center text-[11px] font-mono text-[#555577]">
+                      Aucune génération sauvegardée
+                    </div>
+                  ) : (
+                    <div className="max-h-80 overflow-y-auto divide-y divide-[#1e1e2e]">
+                      {cloudHistory.map((gen) => (
+                        <div
+                          key={gen.id}
+                          onClick={() => onRestoreCloud(gen)}
+                          className="flex items-start gap-2 px-4 py-2.5 hover:bg-[#16161f] cursor-pointer transition-none"
                         >
-                          <span className="text-xs">×</span>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[12px] text-[#e0e0f0] truncate font-medium leading-snug">
+                              {gen.video_title || "Sans titre"}
+                            </p>
+                            <p className="text-[10px] text-[#555577] font-mono mt-0.5">
+                              {formatDate(gen.created_at)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                ) : (
+                  /* Local history when not logged in */
+                  history.length === 0 ? (
+                    <div className="px-4 py-8 text-center text-[11px] font-mono text-[#555577]">
+                      Aucune vidéo générée
+                    </div>
+                  ) : (
+                    <div className="max-h-80 overflow-y-auto divide-y divide-[#1e1e2e]">
+                      {history.map((entry) => (
+                        <div
+                          key={entry.id}
+                          onClick={() => onRestoreHistory(entry)}
+                          className="group flex items-start gap-2 px-4 py-2.5 hover:bg-[#16161f] cursor-pointer transition-none"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[12px] text-[#e0e0f0] truncate font-medium leading-snug">
+                              {entry.title || "Sans titre"}
+                            </p>
+                            <p className="text-[10px] text-[#555577] font-mono mt-0.5">
+                              {formatDate(entry.date)} · {entry.provider}
+                            </p>
+                          </div>
+                          <button
+                            onClick={(e) => onDeleteHistory(entry.id, e)}
+                            className="opacity-0 group-hover:opacity-100 text-[#555577] hover:text-[#ff4466] transition-none shrink-0 mt-0.5"
+                          >
+                            <span className="text-xs">×</span>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )
                 )}
               </div>
             )}
           </div>
+
+          {/* Auth */}
+          {user ? (
+            <div className="relative" ref={userMenuRef}>
+              <button
+                onClick={() => setShowUserMenu((v) => !v)}
+                className="flex items-center gap-1.5 px-2 py-1 border border-[#1e1e2e] hover:border-[#2a2a3e] transition-none"
+                style={{ borderRadius: "2px" }}
+                title={displayName}
+              >
+                {avatarUrl ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={avatarUrl} alt="" className="w-5 h-5 rounded-full" />
+                ) : (
+                  <span className="w-5 h-5 rounded-full bg-[#1e1e2e] flex items-center justify-center text-[9px] font-mono text-[#a0a0b8]">
+                    {displayName.charAt(0).toUpperCase()}
+                  </span>
+                )}
+                <span className="hidden sm:inline text-[11px] font-mono text-[#a0a0b8] max-w-[80px] truncate">
+                  {displayName.split(" ")[0]}
+                </span>
+              </button>
+
+              {showUserMenu && (
+                <div
+                  className="absolute right-0 top-9 w-44 bg-[#111118] border border-[#1e1e2e] shadow-xl z-50 overflow-hidden"
+                  style={{ borderRadius: "4px" }}
+                >
+                  <div className="h-[2px] w-full" style={{ background: "linear-gradient(90deg, #00e5ff, #ff3cac)" }} />
+                  <div className="px-3 py-2 border-b border-[#1e1e2e]">
+                    <p className="text-[11px] font-mono text-[#e0e0f0] truncate">{displayName}</p>
+                    <p className="text-[10px] font-mono text-[#555577] truncate">{user.email}</p>
+                  </div>
+                  <button
+                    onClick={() => { setShowUserMenu(false); onLogout(); }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-[11px] font-mono text-[#555577] hover:text-[#ff4466] hover:bg-[#16161f] transition-none"
+                  >
+                    <LogOut size={11} />
+                    Déconnexion
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button
+              onClick={onLogin}
+              className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-mono text-[#555577] border border-[#1e1e2e] hover:border-[#00e5ff] hover:text-[#00e5ff] transition-none"
+              style={{ borderRadius: "2px" }}
+              title="Connexion avec Google"
+            >
+              <LogIn size={11} />
+              <span className="hidden sm:inline">Google</span>
+            </button>
+          )}
 
           {/* Reset */}
           {canReset && (
