@@ -97,6 +97,7 @@ export default function Home() {
   const [transcriptText, setTranscriptText] = useState("");
   const [copiedTranscript, setCopiedTranscript] = useState(false);
   const [targetDuration, setTargetDuration] = useState<AdjustDuration | "original">("original");
+  const [customSeconds, setCustomSeconds] = useState<number | null>(null);
 
   // CTA toggle
   const [ctaEnabled, setCtaEnabled] = useState(false);
@@ -335,7 +336,7 @@ export default function Home() {
 
   async function handleRewrite(text: string, title?: string) {
     setStep("rewriting");
-    const targetSeconds = durationToSeconds(targetDuration);
+    const targetSeconds = customSeconds !== null ? customSeconds : durationToSeconds(targetDuration);
 
     const res = await fetch("/api/rewrite", {
       method: "POST",
@@ -765,6 +766,8 @@ export default function Home() {
               onProviderChange={setProvider}
               targetDuration={targetDuration}
               onDurationChange={setTargetDuration}
+              customSeconds={customSeconds}
+              onCustomSecondsChange={setCustomSeconds}
               audio={audio}
               onGenerate={handleGenerateLang}
               onGenerateAll={handleGenerateAll}

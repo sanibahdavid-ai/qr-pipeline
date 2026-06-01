@@ -25,6 +25,8 @@ type Props = {
   onProviderChange: (p: Provider) => void;
   targetDuration: DurationOption | "original";
   onDurationChange: (d: DurationOption | "original") => void;
+  customSeconds: number | null;
+  onCustomSecondsChange: (s: number | null) => void;
   audio: Record<string, AudioState>;
   onGenerate: (lang: LangCode, voice: string, speed: number) => void;
   onGenerateAll: () => void;
@@ -35,10 +37,12 @@ type Props = {
 export function GenerationPanel({
   provider, onProviderChange,
   targetDuration, onDurationChange,
+  customSeconds, onCustomSecondsChange,
   audio, onGenerate, onGenerateAll, onCopyAllQR,
   disabled,
 }: Props) {
   const [copiedAll, setCopiedAll] = useState(false);
+  const [customInput, setCustomInput] = useState("");
 
   const groups = ["AI33", "Direct", "Free"];
 
@@ -114,20 +118,49 @@ export function GenerationPanel({
           {([...DURATION_OPTIONS, "original"] as const).map((d) => (
             <button
               key={d}
-              onClick={() => onDurationChange(d as DurationOption | "original")}
+              onClick={() => {
+                onDurationChange(d as DurationOption | "original");
+                setCustomInput("");
+                onCustomSecondsChange(null);
+              }}
               className={`px-2.5 py-0.5 text-[11px] font-mono border transition-none ${
-                targetDuration === d
+                targetDuration === d && customSeconds === null
                   ? "text-black border-[#00e5ff]"
                   : "bg-transparent border-[#1e1e2e] text-[#a0a0b8] hover:border-[#2a2a3e] hover:text-[#e0e0f0]"
               }`}
               style={{
                 borderRadius: "2px",
-                background: targetDuration === d ? "linear-gradient(135deg, #00e5ff, #0077ff)" : undefined,
+                background: targetDuration === d && customSeconds === null ? "linear-gradient(135deg, #00e5ff, #0077ff)" : undefined,
               }}
             >
               {d === "original" ? "Original" : d}
             </button>
           ))}
+          <div className="w-px h-4 bg-[#1e1e2e] mx-1" />
+          <input
+            type="number"
+            min="1"
+            placeholder="sec"
+            value={customInput}
+            onChange={(e) => {
+              const val = e.target.value;
+              setCustomInput(val);
+              const parsed = parseInt(val, 10);
+              if (val === "" || isNaN(parsed) || parsed <= 0) {
+                onCustomSecondsChange(null);
+              } else {
+                onCustomSecondsChange(parsed);
+              }
+            }}
+            className="w-14 px-2 py-0.5 text-[11px] font-mono bg-[#0a0a10] border border-[#1e1e2e] text-[#a0a0b8] outline-none transition-none"
+            style={{
+              borderRadius: "2px",
+              fontFamily: "var(--font-space-mono, monospace)",
+              borderColor: customSeconds !== null ? "#00e5ff" : undefined,
+            }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = "#00e5ff"; }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = customSeconds !== null ? "#00e5ff" : "#1e1e2e"; }}
+          />
         </div>
       </div>
 
