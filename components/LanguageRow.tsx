@@ -1,6 +1,6 @@
 "use client";
 
-import { Play, RefreshCw, Loader2, Pause, X, Scissors, CheckCircle2, AlertCircle } from "lucide-react";
+import { Play, RefreshCw, Loader2, Pause, X, Scissors, CheckCircle2, AlertCircle, Download } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
 import { useVoiceConfig } from "../hooks/useVoiceConfig";
 import type { Provider, AudioState } from "../types";
@@ -37,47 +37,107 @@ function StatusDot({ state }: { state?: AudioState }) {
   return <span className="w-2 h-2 rounded-full bg-[#ff4466] inline-block" title="error" />;
 }
 
-function MiniAudioPlayer({ audioUrl, filename }: { audioUrl: string; filename?: string }) {
+function fmt(s: number): string {
+  if (!isFinite(s) || s < 0) return "0:00";
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return `${m}:${sec.toString().padStart(2, "0")}`;
+}
+
+function AudioPlayer({ audioUrl, filename }: { audioUrl: string; filename?: string }) {
   const audioRef = useRef<HTMLAudioElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
   const [playing, setPlaying] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
 
   function toggle() {
     const el = audioRef.current;
     if (!el) return;
-    if (playing) { el.pause(); setPlaying(false); }
-    else { el.play(); setPlaying(true); }
+    if (playing) {
+      el.pause();
+      setPlaying(false);
+    } else {
+      el.play().catch(() => {});
+      setPlaying(true);
+    }
   }
 
+  function seek(e: React.MouseEvent<HTMLDivElement>) {
+    const el = audioRef.current;
+    const bar = barRef.current;
+    if (!el || !bar || !el.duration) return;
+    const rect = bar.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    el.currentTime = ratio * el.duration;
+  }
+
+  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+
   return (
-    <div className="flex items-center gap-2 flex-1 min-w-0">
+    <div
+      className="flex items-center gap-3 px-3 py-2 border border-[#1e1e2e]"
+      style={{ background: "#111118", borderRadius: "2px" }}
+    >
       <audio
         ref={audioRef}
         src={audioUrl}
-        onTimeUpdate={(e) => {
-          const el = e.currentTarget;
-          if (el.duration) setProgress((el.currentTime / el.duration) * 100);
-        }}
-        onEnded={() => { setPlaying(false); setProgress(0); }}
+        onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+        onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+        onDurationChange={(e) => setDuration(e.currentTarget.duration)}
+        onEnded={() => { setPlaying(false); setCurrentTime(0); }}
       />
+
+      {/* Play / Pause */}
       <button
         onClick={toggle}
-        className="shrink-0 w-6 h-6 flex items-center justify-center border border-[#2a2a3e] text-[#555577] hover:border-[#00e5ff] hover:text-[#00e5ff] transition-none"
+        className="shrink-0 w-8 h-8 flex items-center justify-center border border-[#2a2a3e] text-[#a0a0b8] hover:border-[#00e5ff] hover:text-[#00e5ff] transition-none"
         style={{ borderRadius: "2px" }}
+        aria-label={playing ? "Pause" : "Play"}
       >
-        {playing ? <Pause size={10} /> : <Play size={10} />}
+        {playing ? <Pause size={13} /> : <Play size={13} />}
       </button>
-      <div className="flex-1 h-0.5 bg-[#1e1e2e] relative overflow-hidden" style={{ borderRadius: "1px" }}>
-        <div className="h-full bg-[#00e5ff] transition-none" style={{ width: `${progress}%` }} />
+
+      {/* Progress bar */}
+      <div
+        ref={barRef}
+        onClick={seek}
+        className="flex-1 relative h-2 cursor-pointer group"
+        style={{ borderRadius: "2px" }}
+        title="Cliquer pour naviguer"
+      >
+        {/* Track */}
+        <div className="absolute inset-0 bg-[#1e1e2e]" style={{ borderRadius: "2px" }} />
+        {/* Fill */}
+        <div
+          className="absolute inset-y-0 left-0 bg-[#00e5ff]"
+          style={{ width: `${progress}%`, borderRadius: "2px" }}
+        />
+        {/* Thumb dot */}
+        <div
+          className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-[#00e5ff] opacity-0 group-hover:opacity-100 transition-opacity"
+          style={{ left: `calc(${progress}% - 5px)`, borderRadius: "50%" }}
+        />
       </div>
+
+      {/* Time */}
+      <span
+        className="shrink-0 text-[10px] text-[#555577] tabular-nums"
+        style={{ fontFamily: "var(--font-space-mono, monospace)", minWidth: "72px", textAlign: "center" }}
+      >
+        {fmt(currentTime)} / {fmt(duration)}
+      </span>
+
+      {/* Download */}
       {filename && (
         <a
           href={audioUrl}
           download={filename}
-          className="text-[10px] text-[#555577] hover:text-[#00e5ff] font-mono transition-none shrink-0"
+          className="shrink-0 w-7 h-7 flex items-center justify-center border border-[#1e1e2e] text-[#555577] hover:border-[#00e5ff] hover:text-[#00e5ff] transition-none"
+          style={{ borderRadius: "2px" }}
           title="Télécharger"
         >
-          ↓
+          <Download size={12} />
         </a>
       )}
     </div>
@@ -91,7 +151,6 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
   const [processedUrl, setProcessedUrl] = useState<string | null>(null);
   const [processedDuration, setProcessedDuration] = useState<string | null>(null);
 
-  // Reset silence state whenever a new audio is generated
   useEffect(() => {
     setSilenceStatus("idle");
     setProcessedUrl(null);
@@ -112,7 +171,6 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
   const isDone = audioState?.status === "done";
   const isError = audioState?.status === "error";
 
-  // Show the processed audio after silence removal, otherwise the original
   const currentAudioUrl = processedUrl ?? audioState?.audioUrl;
 
   function handleGenerate() {
@@ -123,29 +181,19 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
     if (!audioState?.audioUrl) return;
     setSilenceStatus("loading");
     try {
-      // Fetch the local blob URL to get the binary data
       const blobRes = await fetch(audioState.audioUrl);
       const blob = await blobRes.blob();
-
       const form = new FormData();
       form.append("audio", blob, audioState.filename ?? "audio.mp3");
 
-      const res = await fetch("/api/tts/remove-silence", {
-        method: "POST",
-        body: form,
-      });
+      const res = await fetch("/api/tts/remove-silence", { method: "POST", body: form });
+      if (!res.ok) { setSilenceStatus("error"); return; }
 
-      if (!res.ok) {
-        setSilenceStatus("error");
-        return;
-      }
-
-      const duration = res.headers.get("X-Duration");
+      const dur = res.headers.get("X-Duration");
       const processedBlob = await res.blob();
       const url = URL.createObjectURL(processedBlob);
-
       setProcessedUrl(url);
-      setProcessedDuration(duration || null);
+      setProcessedDuration(dur || null);
       setSilenceStatus("done");
     } catch {
       setSilenceStatus("error");
@@ -153,9 +201,11 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
   }
 
   return (
-    <div className="flex flex-col py-1.5">
-      {/* Main row */}
+    <div className="flex flex-col py-2 gap-1.5">
+
+      {/* ── Controls row ────────────────────────────────────────────── */}
       <div className="flex items-center gap-2">
+
         {/* Lang badge */}
         <span className="text-[11px] font-mono font-semibold text-[#a0a0b8] w-6 shrink-0 uppercase tracking-wider">
           {lang}
@@ -201,23 +251,16 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
           </span>
         </div>
 
-        {/* Generate button or audio player */}
-        {isDone && currentAudioUrl ? (
-          <div className="flex items-center gap-2 w-36 shrink-0">
-            <MiniAudioPlayer
-              key={currentAudioUrl}
-              audioUrl={currentAudioUrl}
-              filename={audioState?.filename}
-            />
-            <button
-              onClick={handleGenerate}
-              className="shrink-0 px-2 py-1 text-[10px] font-mono text-[#555577] hover:text-[#00e5ff] border border-[#1e1e2e] hover:border-[#00e5ff] transition-none"
-              style={{ borderRadius: "2px" }}
-              title="Régénérer"
-            >
-              <RefreshCw size={10} />
-            </button>
-          </div>
+        {/* Action button — Générer / loading / error / Régénérer */}
+        {isDone ? (
+          <button
+            onClick={handleGenerate}
+            className="shrink-0 w-36 px-3 py-1 text-[11px] font-mono border border-[#1e1e2e] text-[#555577] hover:border-[#00e5ff] hover:text-[#00e5ff] transition-none flex items-center justify-center gap-1.5"
+            style={{ borderRadius: "2px" }}
+          >
+            <RefreshCw size={10} />
+            Régénérer
+          </button>
         ) : (
           <button
             onClick={handleGenerate}
@@ -254,62 +297,53 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
         </div>
       </div>
 
-      {/* Remove silence button — shown when audio is ready */}
+      {/* ── Audio player ─────────────────────────────────────────────── */}
+      {isDone && currentAudioUrl && (
+        <AudioPlayer
+          key={currentAudioUrl}
+          audioUrl={currentAudioUrl}
+          filename={audioState?.filename}
+        />
+      )}
+
+      {/* ── Remove Silence button ────────────────────────────────────── */}
       {isDone && audioState?.audioUrl && (
-        <div className="pt-1.5">
-          <button
-            onClick={silenceStatus === "loading" ? undefined : handleRemoveSilence}
-            disabled={silenceStatus === "loading"}
-            className="w-full flex items-center justify-center gap-2 px-3 py-1.5 text-[11px] font-mono border transition-none disabled:opacity-60"
-            style={{
-              borderRadius: "2px",
-              fontFamily: "var(--font-space-mono, monospace)",
-              background: "#0a0a10",
-              borderColor:
-                silenceStatus === "done"
-                  ? "#00ffaa"
-                  : silenceStatus === "error"
-                  ? "#ff4466"
-                  : "#00e5ff",
-              color:
-                silenceStatus === "done"
-                  ? "#00ffaa"
-                  : silenceStatus === "error"
-                  ? "#ff4466"
-                  : "#00e5ff",
-            }}
-          >
-            {silenceStatus === "loading" && (
-              <>
-                <Loader2 size={11} className="animate-spin shrink-0" />
-                <span>Traitement en cours...</span>
-              </>
-            )}
-            {silenceStatus === "done" && (
-              <>
-                <CheckCircle2 size={11} className="shrink-0" />
-                <span>
-                  Silences supprimés ✓
-                  {processedDuration && (
-                    <span className="ml-2 opacity-70">{processedDuration}</span>
-                  )}
-                </span>
-              </>
-            )}
-            {silenceStatus === "error" && (
-              <>
-                <AlertCircle size={11} className="shrink-0" />
-                <span>Erreur — réessayer</span>
-              </>
-            )}
-            {silenceStatus === "idle" && (
-              <>
-                <Scissors size={11} className="shrink-0" />
-                <span>Supprimer les silences</span>
-              </>
-            )}
-          </button>
-        </div>
+        <button
+          onClick={silenceStatus === "loading" ? undefined : handleRemoveSilence}
+          disabled={silenceStatus === "loading"}
+          className="w-full flex items-center justify-center gap-2 px-3 py-1.5 text-[11px] font-mono border transition-none disabled:opacity-60"
+          style={{
+            borderRadius: "2px",
+            fontFamily: "var(--font-space-mono, monospace)",
+            background: "#0a0a10",
+            borderColor:
+              silenceStatus === "done" ? "#00ffaa"
+              : silenceStatus === "error" ? "#ff4466"
+              : "#00e5ff",
+            color:
+              silenceStatus === "done" ? "#00ffaa"
+              : silenceStatus === "error" ? "#ff4466"
+              : "#00e5ff",
+          }}
+        >
+          {silenceStatus === "loading" && (
+            <><Loader2 size={11} className="animate-spin shrink-0" /><span>Traitement en cours...</span></>
+          )}
+          {silenceStatus === "done" && (
+            <><CheckCircle2 size={11} className="shrink-0" />
+              <span>
+                Silences supprimés ✓
+                {processedDuration && <span className="ml-2 opacity-70">{processedDuration}</span>}
+              </span>
+            </>
+          )}
+          {silenceStatus === "error" && (
+            <><AlertCircle size={11} className="shrink-0" /><span>Erreur — réessayer</span></>
+          )}
+          {silenceStatus === "idle" && (
+            <><Scissors size={11} className="shrink-0" /><span>Supprimer les silences</span></>
+          )}
+        </button>
       )}
     </div>
   );
