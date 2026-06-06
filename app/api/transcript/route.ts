@@ -61,37 +61,61 @@ async function pollJob(jobId: string, apiKey: string): Promise<{ content: string
   return null;
 }
 
-async function fetchTranscriptContent(url: string, apiKey: string): Promise<{ content: string; lang?: string }> {
-  // Try native captions first (1 credit), fallback to AI generation (2 credits/min)
-  let res = await supadataCall(url, "native", apiKey);
-  console.log("[transcript] native status:", res.status);
-
-  // 206 = no native captions available
-  if (res.status === 206 || res.status === 404) {
-    console.log("[transcript] no native captions, trying AI generation");
-    res = await supadataCall(url, "generate", apiKey);
-    console.log("[transcript] generate status:", res.status);
-  }
-
+async function fetchTranscriptViaYtDlp(url: string): Promise<{ content: string; lang?: string }> {
+  const flaskUrl = process.env.FLASK_INTERNAL_URL ?? "http://localhost:5757";
+  console.log("[transcript] calling yt-dlp fallback at", flaskUrl);
+  const res = await fetch(`${flaskUrl}/transcript`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url }),
+  });
   if (!res.ok) {
-    const errBody = await res.text().catch(() => "");
-    console.error("[transcript] Supadata error:", res.status, errBody.slice(0, 200));
-    throw new Error("Transcript indisponible pour cette vidéo.");
+    const err = await res.json().catch(() => ({ error: "Erreur yt-dlp" })) as { error?: string };
+    throw new Error(err.error ?? "Transcript indisponible via yt-dlp");
   }
+  const data = (await res.json()) as { content?: string; lang?: string };
+  if (!data.content) throw new Error("Transcript vide pour cette vidéo.");
+  return { content: data.content, lang: data.lang };
+}
 
-  const data = (await res.json()) as SupadataResponse;
+async function fetchTranscriptContent(url: string, apiKey: string): Promise<{ content: string; lang?: string }> {
+  try {
+    // Try native captions first (1 credit), fallback to AI generation (2 credits/min)
+    let res = await supadataCall(url, "native", apiKey);
+    console.log("[transcript] native status:", res.status);
 
-  // Async job (HTTP 202)
-  if (data.jobId) {
-    console.log("[transcript] async job started:", data.jobId);
-    const result = await pollJob(data.jobId, apiKey);
-    if (!result) throw new Error("Traitement trop long. Réessaie dans quelques minutes.");
-    return result;
+    // 206 = no native captions available
+    if (res.status === 206 || res.status === 404) {
+      console.log("[transcript] no native captions, trying AI generation");
+      res = await supadataCall(url, "generate", apiKey);
+      console.log("[transcript] generate status:", res.status);
+    }
+
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "");
+      console.error("[transcript] Supadata error:", res.status, errBody.slice(0, 200));
+      throw new Error("supadata_error");
+    }
+
+    const data = (await res.json()) as SupadataResponse;
+
+    // Async job (HTTP 202)
+    if (data.jobId) {
+      console.log("[transcript] async job started:", data.jobId);
+      const result = await pollJob(data.jobId, apiKey);
+      if (!result) throw new Error("supadata_error");
+      return result;
+    }
+
+    const content = data.content?.trim();
+    if (!content) throw new Error("supadata_error");
+    return { content, lang: data.lang };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "";
+    // Fall back to yt-dlp for any Supadata failure (limit exceeded, timeout, etc.)
+    console.log("[transcript] Supadata unavailable, falling back to yt-dlp:", msg);
+    return fetchTranscriptViaYtDlp(url);
   }
-
-  const content = data.content?.trim();
-  if (!content) throw new Error("Transcript vide pour cette vidéo.");
-  return { content, lang: data.lang };
 }
 
 export async function POST(req: NextRequest) {

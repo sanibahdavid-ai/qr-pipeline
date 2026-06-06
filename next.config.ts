@@ -18,6 +18,7 @@ const nextConfig: NextConfig = {
       { source: "/stream-download",        destination: `${FLASK_URL}/stream-download` },
       { source: "/redirect/:token",        destination: `${FLASK_URL}/redirect/:token` },
       { source: "/test-r2",               destination: `${FLASK_URL}/test-r2` },
+      { source: "/transcript-ytdlp",       destination: `${FLASK_URL}/transcript` },
     ];
   },
 };

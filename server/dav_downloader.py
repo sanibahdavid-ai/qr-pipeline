@@ -14,6 +14,7 @@ import json as _json
 import threading
 import time
 import uuid
+import shutil
 from pathlib import Path
 
 import boto3
@@ -1064,6 +1065,77 @@ def serve_app():
 </body>
 </html>"""
     return Response(html, mimetype='text/html')
+
+
+def _parse_vtt(vtt_text: str) -> str:
+    """Extract clean text from a WebVTT subtitle file, deduplicating rolling captions."""
+    lines = []
+    prev = ""
+    for line in vtt_text.split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+        if line.startswith("WEBVTT") or line.startswith("Kind:") or line.startswith("Language:") or line.startswith("NOTE"):
+            continue
+        if re.search(r"\d+:\d+:\d+[\.,]\d+\s*-->", line):
+            continue
+        if re.match(r"^(align:|position:|line:|size:)", line):
+            continue
+        line = re.sub(r"<[^>]+>", "", line).strip()
+        if line and line != prev:
+            lines.append(line)
+            prev = line
+    return " ".join(lines)
+
+
+@app.route("/transcript", methods=["POST"])
+def get_transcript():
+    data = request.json or {}
+    url = data.get("url", "").strip()
+    if not url:
+        return jsonify({"error": "URL vide"}), 400
+
+    sub_dir = DOWNLOAD_FOLDER / f"subs_{uuid.uuid4().hex}"
+    sub_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        cmd = [
+            "yt-dlp",
+            "--extractor-args", "youtube:player_client=android",
+            "--write-auto-subs",
+            "--write-subs",
+            "--sub-langs", "en,fr",
+            "--skip-download",
+            "--convert-subs", "vtt",
+            "-o", str(sub_dir / "%(id)s"),
+            "--no-playlist",
+            url,
+        ]
+        subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+
+        vtt_files = list(sub_dir.glob("*.vtt"))
+        if not vtt_files:
+            return jsonify({"error": "Aucun sous-titre disponible pour cette vidéo"}), 404
+
+        en_files = [f for f in vtt_files if ".en." in f.name]
+        vtt_file = en_files[0] if en_files else vtt_files[0]
+
+        lang = "unknown"
+        name_parts = vtt_file.stem.split(".")
+        if len(name_parts) >= 2:
+            lang = name_parts[-1]
+
+        content = _parse_vtt(vtt_file.read_text(encoding="utf-8", errors="replace"))
+        if not content:
+            return jsonify({"error": "Sous-titres vides pour cette vidéo"}), 404
+
+        return jsonify({"content": content, "lang": lang})
+    except subprocess.TimeoutExpired:
+        return jsonify({"error": "Timeout lors de l'extraction des sous-titres"}), 500
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+    finally:
+        shutil.rmtree(sub_dir, ignore_errors=True)
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
