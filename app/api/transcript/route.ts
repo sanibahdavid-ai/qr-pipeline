@@ -109,6 +109,26 @@ async function fetchTranscriptViaYtDlp(url: string): Promise<{ content: string; 
   return { content: data.content, lang: data.lang };
 }
 
+// ── Fallback 3: yt-dlp audio → HuggingFace Whisper (works for any video) ─────
+
+async function fetchTranscriptViaWhisper(url: string): Promise<{ content: string; lang?: string }> {
+  const flaskUrl = process.env.FLASK_INTERNAL_URL ?? "http://localhost:5757";
+  console.log("[transcript] whisper fallback →", flaskUrl);
+  const res = await fetch(`${flaskUrl}/transcript-whisper`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url }),
+    // Whisper can take ~40s on cold start; rely on Render's connection timeout
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "whisper error" })) as { error?: string };
+    throw new Error(err.error ?? "whisper: transcription failed");
+  }
+  const data = (await res.json()) as { content?: string; lang?: string };
+  if (!data.content) throw new Error("whisper: empty transcript");
+  return { content: data.content, lang: data.lang ?? "en" };
+}
+
 // ── Fallback 2: YouTube page → captionTracks → timedtext XML ─────────────────
 
 type CaptionTrack = { languageCode: string; baseUrl: string; kind?: string };
@@ -227,9 +247,18 @@ async function fetchTranscriptContent(url: string, apiKey: string): Promise<{ co
   }
 
   // Tier 3: YouTube page → captionTracks → timedtext XML
-  console.log("[transcript] tier3 (youtube-page) attempt");
-  const result = await fetchTranscriptViaYouTubePage(url);
-  console.log("[transcript] tier3 ok");
+  try {
+    const result = await fetchTranscriptViaYouTubePage(url);
+    console.log("[transcript] tier3 (youtube-page) ok");
+    return result;
+  } catch (e) {
+    console.log("[transcript] tier3 failed:", (e as Error).message);
+  }
+
+  // Tier 4: yt-dlp audio → HuggingFace Whisper (works for any video)
+  console.log("[transcript] tier4 (whisper) attempt");
+  const result = await fetchTranscriptViaWhisper(url);
+  console.log("[transcript] tier4 (whisper) ok");
   return result;
 }
 

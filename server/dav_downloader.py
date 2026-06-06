@@ -15,6 +15,7 @@ import threading
 import time
 import uuid
 import shutil
+import urllib.request as _urllib_req
 from pathlib import Path
 
 import boto3
@@ -1075,7 +1076,7 @@ def _parse_vtt(vtt_text: str) -> str:
         line = line.strip()
         if not line:
             continue
-        if line.startswith("WEBVTT") or line.startswith("Kind:") or line.startswith("Language:") or line.startswith("NOTE"):
+        if line.startswith(("WEBVTT", "Kind:", "Language:", "NOTE")):
             continue
         if re.search(r"\d+:\d+:\d+[\.,]\d+\s*-->", line):
             continue
@@ -1088,6 +1089,47 @@ def _parse_vtt(vtt_text: str) -> str:
     return " ".join(lines)
 
 
+def _parse_subtitle_raw(raw: str, ext: str) -> str:
+    """Parse subtitle content for any ext returned by yt-dlp dump-json."""
+    if ext == "vtt":
+        return _parse_vtt(raw)
+    if ext in ("srv1", "srv2", "ttml"):
+        # XML-based: strip all tags and deduplicate lines
+        text = re.sub(r"<[^>]+>", " ", raw)
+        lines, prev = [], ""
+        for line in text.split("\n"):
+            line = line.strip()
+            if line and line != prev:
+                lines.append(line)
+                prev = line
+        return " ".join(lines)
+    if ext in ("json3", "srv3"):
+        # JSON events format: {"events":[{"segs":[{"utf8":"..."}]},...]}
+        try:
+            data = _json.loads(raw)
+            texts, prev = [], ""
+            for evt in data.get("events", []):
+                chunk = "".join(s.get("utf8", "") for s in evt.get("segs", [])).replace("\n", " ").strip()
+                if chunk and chunk != prev:
+                    texts.append(chunk)
+                    prev = chunk
+            return " ".join(texts)
+        except Exception:
+            return ""
+    return _parse_vtt(raw)
+
+
+def _vtt_files_pick(vtt_files: list) -> tuple:
+    """Return (content, lang) from the best VTT file in the list."""
+    en_exact = [f for f in vtt_files if re.search(r"\.(en)\.", f.name)]
+    en_any   = [f for f in vtt_files if re.search(r"\.(en[-.])", f.name)]
+    vtt_file = (en_exact or en_any or vtt_files)[0]
+    stem_parts = vtt_file.name.split(".")
+    lang = ".".join(stem_parts[1:-1]) if len(stem_parts) >= 3 else "unknown"
+    content = _parse_vtt(vtt_file.read_text(encoding="utf-8", errors="replace"))
+    return content, lang
+
+
 @app.route("/transcript", methods=["POST"])
 def get_transcript():
     data = request.json or {}
@@ -1097,57 +1139,159 @@ def get_transcript():
 
     sub_dir = DOWNLOAD_FOLDER / f"subs_{uuid.uuid4().hex}"
     sub_dir.mkdir(parents=True, exist_ok=True)
+    output_tpl = str(sub_dir / "%(id)s")
 
     try:
-        base_cmd = [
-            "yt-dlp",
-            "--extractor-args", "youtube:player_client=android",
-            "--skip-download",
-            "--convert-subs", "vtt",
-            "-o", str(sub_dir / "%(id)s"),
-            "--no-playlist",
-            url,
-        ]
-        # Pass 1: manually uploaded subtitles (higher quality, works for many videos)
-        subprocess.run(
-            base_cmd[:3] + ["--write-subs", "--sub-langs", "en,en-US,en-GB"] + base_cmd[3:],
-            capture_output=True, text=True, timeout=60,
-        )
-        vtt_files = list(sub_dir.glob("*.vtt"))
-
-        # Pass 2: auto-generated subtitles (covers Shorts and most YouTube videos)
-        if not vtt_files:
+        # ── Passes 1-4: subtitle file extraction with different clients ──
+        vtt_files = []
+        for flags in [
+            # Pass 1: manual subs, android client
+            ["--write-subs",      "--extractor-args", "youtube:player_client=android",
+             "--sub-langs", "en,en-US,en-GB"],
+            # Pass 2: auto subs, android client
+            ["--write-auto-subs", "--extractor-args", "youtube:player_client=android",
+             "--sub-langs", "en,en-US,en-GB,a.en"],
+            # Pass 3: auto subs, default web client (works better for many Shorts)
+            ["--write-auto-subs", "--sub-langs", "en,en-US,en-GB,a.en"],
+            # Pass 4: both types, web client, broad match
+            ["--write-subs", "--write-auto-subs", "--sub-langs", "en,en-US,en-GB,a.en"],
+        ]:
             subprocess.run(
-                base_cmd[:3] + ["--write-auto-subs", "--sub-langs", "en,en-US,en-GB,a.en"] + base_cmd[3:],
+                ["yt-dlp"] + flags + [
+                    "--skip-download", "--convert-subs", "vtt",
+                    "-o", output_tpl, "--no-playlist", url,
+                ],
                 capture_output=True, text=True, timeout=60,
             )
             vtt_files = list(sub_dir.glob("*.vtt"))
+            if vtt_files:
+                break
 
-        if not vtt_files:
-            return jsonify({"error": "Aucun sous-titre disponible pour cette vidéo"}), 404
+        if vtt_files:
+            content, lang = _vtt_files_pick(vtt_files)
+            if content:
+                return jsonify({"content": content, "lang": lang})
 
-        # Prefer exact English match, then any English variant
-        en_exact = [f for f in vtt_files if re.search(r"\.(en)\.", f.name)]
-        en_any   = [f for f in vtt_files if re.search(r"\.(en[-.])", f.name)]
-        vtt_file = (en_exact or en_any or vtt_files)[0]
+        # ── Pass 5: dump-json → fetch signed subtitle URLs directly ──
+        # Bypasses player-client restrictions; works for Shorts that hide subs from API
+        try:
+            dump = subprocess.run(
+                ["yt-dlp", "--dump-json", "--no-playlist", url],
+                capture_output=True, text=True, timeout=30,
+            )
+            if dump.returncode == 0:
+                info = _json.loads(dump.stdout)
+                all_subs: dict = {}
+                all_subs.update(info.get("subtitles", {}))
+                all_subs.update(info.get("automatic_captions", {}))
 
-        # Extract lang tag from filename: "ID.en.vtt" → "en", "ID.a.en.vtt" → "a.en"
-        lang = "unknown"
-        stem_parts = vtt_file.name.split(".")  # ["ID", "en", "vtt"] or ["ID", "a", "en", "vtt"]
-        if len(stem_parts) >= 3:
-            lang = ".".join(stem_parts[1:-1])  # everything between ID and extension
+                ext_pref = {"vtt": 0, "json3": 1, "srv3": 2, "srv2": 3, "srv1": 4, "ttml": 5}
+                for lang_code in ("en", "en-US", "en-GB"):
+                    if lang_code not in all_subs:
+                        continue
+                    for fmt in sorted(all_subs[lang_code], key=lambda f: ext_pref.get(f.get("ext", ""), 99)):
+                        sub_url = fmt.get("url", "")
+                        ext     = fmt.get("ext", "vtt")
+                        if not sub_url:
+                            continue
+                        try:
+                            with _urllib_req.urlopen(sub_url, timeout=15) as resp:
+                                raw = resp.read().decode("utf-8", errors="replace")
+                            content = _parse_subtitle_raw(raw, ext)
+                            if content:
+                                return jsonify({"content": content, "lang": lang_code})
+                        except Exception:
+                            continue
+        except Exception:
+            pass
 
-        content = _parse_vtt(vtt_file.read_text(encoding="utf-8", errors="replace"))
-        if not content:
-            return jsonify({"error": "Sous-titres vides pour cette vidéo"}), 404
+        return jsonify({"error": "Aucun sous-titre disponible pour cette vidéo"}), 404
 
-        return jsonify({"content": content, "lang": lang})
     except subprocess.TimeoutExpired:
-        return jsonify({"error": "Timeout lors de l'extraction des sous-titres"}), 500
+        return jsonify({"error": "Timeout extraction sous-titres"}), 500
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
     finally:
         shutil.rmtree(sub_dir, ignore_errors=True)
+
+
+@app.route("/transcript-whisper", methods=["POST"])
+def transcript_whisper():
+    """Tier-4 fallback: download audio with yt-dlp, transcribe via HuggingFace Whisper."""
+    data = request.json or {}
+    url = data.get("url", "").strip()
+    if not url:
+        return jsonify({"error": "URL vide"}), 400
+
+    hf_token = os.environ.get("HF_API_TOKEN", "").strip()
+    if not hf_token:
+        return jsonify({"error": "HF_API_TOKEN manquant — ajoute-le dans Render > Environment"}), 503
+
+    audio_dir = DOWNLOAD_FOLDER / f"whisper_{uuid.uuid4().hex}"
+    audio_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        # Download worst-quality audio — fast and small for Whisper
+        cmd = [
+            "yt-dlp",
+            "--extractor-args", "youtube:player_client=android",
+            "-x", "--audio-format", "mp3", "--audio-quality", "9",
+            "--ffmpeg-location", FFMPEG_PATH,
+            "-o", str(audio_dir / "audio.%(ext)s"),
+            "--no-playlist", url,
+        ]
+        dl = subprocess.run(cmd, capture_output=True, text=True, timeout=90)
+        audio_files = list(audio_dir.glob("audio.*"))
+        if not audio_files:
+            stderr = (dl.stderr or "")[-300:]
+            return jsonify({"error": f"Téléchargement audio échoué: {stderr}"}), 500
+
+        audio_file = audio_files[0]
+        file_size  = audio_file.stat().st_size
+        if file_size > 25 * 1024 * 1024:
+            return jsonify({"error": f"Audio trop grand ({file_size // 1048576}MB > 25MB)"}), 413
+
+        audio_data = audio_file.read_bytes()
+
+        # POST to HuggingFace Inference API — whisper-large-v3-turbo (fast + accurate)
+        def _hf_request():
+            req = _urllib_req.Request(
+                "https://api-inference.huggingface.co/models/openai/whisper-large-v3-turbo",
+                data=audio_data,
+                headers={"Authorization": f"Bearer {hf_token}", "Content-Type": "audio/mpeg"},
+            )
+            with _urllib_req.urlopen(req, timeout=60) as r:
+                return _json.loads(r.read())
+
+        resp_json = _hf_request()
+
+        # Handle cold-start: model may be loading
+        if isinstance(resp_json, dict) and "error" in resp_json:
+            err_msg = str(resp_json["error"])
+            if "loading" in err_msg.lower() or "currently" in err_msg.lower():
+                estimated = resp_json.get("estimated_time", 20)
+                wait = min(int(estimated) + 2, 25)
+                time.sleep(wait)
+                resp_json = _hf_request()  # one retry
+
+        if isinstance(resp_json, dict) and "error" in resp_json:
+            return jsonify({"error": f"HuggingFace: {str(resp_json['error'])[:300]}"}), 502
+
+        content = (resp_json.get("text") or "").strip() if isinstance(resp_json, dict) else ""
+        if not content:
+            return jsonify({"error": "Whisper n'a rien transcrit"}), 404
+
+        return jsonify({"content": content, "lang": "en", "method": "whisper"})
+
+    except _urllib_req.HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace")
+        return jsonify({"error": f"HuggingFace HTTP {e.code}: {body[:300]}"}), 502
+    except subprocess.TimeoutExpired:
+        return jsonify({"error": "Timeout téléchargement audio"}), 500
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+    finally:
+        shutil.rmtree(audio_dir, ignore_errors=True)
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
