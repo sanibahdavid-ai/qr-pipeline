@@ -182,12 +182,23 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
     setSilenceStatus("loading");
     try {
       const blobRes = await fetch(audioState.audioUrl);
+      if (!blobRes.ok) {
+        console.error("[remove-silence] could not fetch local audio URL:", blobRes.status);
+        setSilenceStatus("error");
+        return;
+      }
       const blob = await blobRes.blob();
+      console.log("[remove-silence] blob size:", blob.size, "type:", blob.type);
       const form = new FormData();
       form.append("audio", blob, audioState.filename ?? "audio.mp3");
 
       const res = await fetch("/api/tts/remove-silence", { method: "POST", body: form });
-      if (!res.ok) { setSilenceStatus("error"); return; }
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        console.error("[remove-silence] server error:", errBody);
+        setSilenceStatus("error");
+        return;
+      }
 
       const dur = res.headers.get("X-Duration");
       const processedBlob = await res.blob();
@@ -195,7 +206,8 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
       setProcessedUrl(url);
       setProcessedDuration(dur || null);
       setSilenceStatus("done");
-    } catch {
+    } catch (e) {
+      console.error("[remove-silence] unexpected error:", e);
       setSilenceStatus("error");
     }
   }

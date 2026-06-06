@@ -17,7 +17,7 @@ const PROVIDERS_UI: { id: Provider; label: string; group: string }[] = [
   { id: "google-tts",      label: "Google Cloud", group: "Free" },
 ];
 
-const DURATION_OPTIONS = ["10s", "15s", "30s", "45s", "1min", "1min30", "2min"] as const;
+const DURATION_OPTIONS = ["10s", "15s", "30s", "45s", "1min30", "2min"] as const;
 type DurationOption = (typeof DURATION_OPTIONS)[number];
 
 type Props = {

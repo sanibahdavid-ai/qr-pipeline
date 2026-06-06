@@ -48,7 +48,7 @@ function insertCTA(text: string, lang: string, position: number): string {
   const insertAfter = Math.min(target, Math.max(0, midpoint - 1), parts.length - 2);
   return [...parts.slice(0, insertAfter + 1), cta, ...parts.slice(insertAfter + 1)].join(" ");
 }
-const ADJUST_DURATIONS = ["10s", "15s", "30s", "45s", "1min", "1min30", "2min"] as const;
+const ADJUST_DURATIONS = ["10s", "15s", "30s", "45s", "1min30", "2min"] as const;
 type AdjustDuration = (typeof ADJUST_DURATIONS)[number];
 
 const HISTORY_KEY = "qr_pipeline_history";
@@ -96,6 +96,7 @@ export default function Home() {
   const [adjusting, setAdjusting] = useState<Section | null>(null);
   const [transcriptText, setTranscriptText] = useState("");
   const [copiedTranscript, setCopiedTranscript] = useState(false);
+  const [manualText, setManualText] = useState("");
   const [targetDuration, setTargetDuration] = useState<AdjustDuration | "original">("original");
   const [customSeconds, setCustomSeconds] = useState<number | null>(null);
 
@@ -282,6 +283,7 @@ export default function Home() {
 
   function reset() {
     setUrl("");
+    setManualText("");
     setStep("idle");
     setVideoTitle("");
     setQrText("");
@@ -328,7 +330,6 @@ export default function Home() {
     if (d === "15s") return 15;
     if (d === "30s") return 30;
     if (d === "45s") return 45;
-    if (d === "1min") return 60;
     if (d === "1min30") return 90;
     if (d === "2min") return 120;
     return "original";
