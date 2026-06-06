@@ -29,6 +29,8 @@ async function fetchVideoTitle(videoId: string): Promise<string> {
   }
 }
 
+// ── Supadata ──────────────────────────────────────────────────────────────────
+
 type SupadataResponse = {
   content?: string;
   lang?: string;
@@ -61,74 +63,187 @@ async function pollJob(jobId: string, apiKey: string): Promise<{ content: string
   return null;
 }
 
+async function fetchTranscriptViaSupadata(url: string, apiKey: string): Promise<{ content: string; lang?: string }> {
+  let res = await supadataCall(url, "native", apiKey);
+  console.log("[transcript] supadata native:", res.status);
+
+  if (res.status === 206 || res.status === 404) {
+    res = await supadataCall(url, "generate", apiKey);
+    console.log("[transcript] supadata generate:", res.status);
+  }
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`supadata:${res.status}:${body.slice(0, 120)}`);
+  }
+
+  const data = (await res.json()) as SupadataResponse;
+
+  if (data.jobId) {
+    const result = await pollJob(data.jobId, apiKey);
+    if (!result) throw new Error("supadata:job_failed");
+    return result;
+  }
+
+  const content = data.content?.trim();
+  if (!content) throw new Error("supadata:empty");
+  return { content, lang: data.lang };
+}
+
+// ── Fallback 1: yt-dlp via Flask ─────────────────────────────────────────────
+
 async function fetchTranscriptViaYtDlp(url: string): Promise<{ content: string; lang?: string }> {
   const flaskUrl = process.env.FLASK_INTERNAL_URL ?? "http://localhost:5757";
-  console.log("[transcript] calling yt-dlp fallback at", flaskUrl);
+  console.log("[transcript] yt-dlp fallback →", flaskUrl);
   const res = await fetch(`${flaskUrl}/transcript`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ url }),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: "Erreur yt-dlp" })) as { error?: string };
-    throw new Error(err.error ?? "Transcript indisponible via yt-dlp");
+    const err = await res.json().catch(() => ({ error: "yt-dlp error" })) as { error?: string };
+    throw new Error(err.error ?? "yt-dlp: transcript unavailable");
   }
   const data = (await res.json()) as { content?: string; lang?: string };
-  if (!data.content) throw new Error("Transcript vide pour cette vidéo.");
+  if (!data.content) throw new Error("yt-dlp: empty transcript");
   return { content: data.content, lang: data.lang };
 }
 
-async function fetchTranscriptContent(url: string, apiKey: string): Promise<{ content: string; lang?: string }> {
-  try {
-    // Try native captions first (1 credit), fallback to AI generation (2 credits/min)
-    let res = await supadataCall(url, "native", apiKey);
-    console.log("[transcript] native status:", res.status);
+// ── Fallback 2: YouTube page → captionTracks → timedtext XML ─────────────────
 
-    // 206 = no native captions available
-    if (res.status === 206 || res.status === 404) {
-      console.log("[transcript] no native captions, trying AI generation");
-      res = await supadataCall(url, "generate", apiKey);
-      console.log("[transcript] generate status:", res.status);
-    }
+type CaptionTrack = { languageCode: string; baseUrl: string; kind?: string };
 
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => "");
-      console.error("[transcript] Supadata error:", res.status, errBody.slice(0, 200));
-      throw new Error("supadata_error");
-    }
-
-    const data = (await res.json()) as SupadataResponse;
-
-    // Async job (HTTP 202)
-    if (data.jobId) {
-      console.log("[transcript] async job started:", data.jobId);
-      const result = await pollJob(data.jobId, apiKey);
-      if (!result) throw new Error("supadata_error");
-      return result;
-    }
-
-    const content = data.content?.trim();
-    if (!content) throw new Error("supadata_error");
-    return { content, lang: data.lang };
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "";
-    // Fall back to yt-dlp for any Supadata failure (limit exceeded, timeout, etc.)
-    console.log("[transcript] Supadata unavailable, falling back to yt-dlp:", msg);
-    return fetchTranscriptViaYtDlp(url);
+/**
+ * Scan `str` starting at `start` (must be `{` or `[`) and return the index of
+ * the matching closing delimiter, properly skipping over JSON strings.
+ */
+function findJsonEnd(str: string, start: number): number {
+  const open  = str[start];
+  const close = open === "{" ? "}" : "]";
+  let depth = 0;
+  let inStr  = false;
+  let esc    = false;
+  for (let i = start; i < str.length; i++) {
+    const c = str[i];
+    if (esc)            { esc = false; continue; }
+    if (c === "\\" && inStr) { esc = true;  continue; }
+    if (c === '"')      { inStr = !inStr;   continue; }
+    if (inStr)          { continue; }
+    if (c === open)     { depth++;  }
+    else if (c === close) { depth--; if (depth === 0) return i; }
   }
+  return -1;
 }
+
+function decodeXmlEntities(s: string): string {
+  return s
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/&amp;/g,  "&")
+    .replace(/&lt;/g,   "<")
+    .replace(/&gt;/g,   ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g,  "'")
+    .replace(/&apos;/g, "'");
+}
+
+async function fetchTranscriptViaYouTubePage(url: string): Promise<{ content: string; lang?: string }> {
+  const videoId = extractVideoId(url);
+  if (!videoId) throw new Error("YouTube video ID not found");
+
+  const pageRes = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+    headers: {
+      "User-Agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "Accept-Language": "en-US,en;q=0.9",
+      // bypass EU consent gate
+      "Cookie":          "CONSENT=YES+cb; SOCS=CAI",
+    },
+  });
+  if (!pageRes.ok) throw new Error(`YouTube page returned ${pageRes.status}`);
+  const html = await pageRes.text();
+
+  // ── locate captionTracks array inside ytInitialPlayerResponse ──
+  const captionsIdx = html.indexOf('"captions":');
+  if (captionsIdx === -1) throw new Error("no captions key in page");
+
+  const tracksKey = '"captionTracks":';
+  const tracksIdx = html.indexOf(tracksKey, captionsIdx);
+  if (tracksIdx === -1) throw new Error("no captionTracks in page");
+
+  const arrayStart = html.indexOf("[", tracksIdx + tracksKey.length);
+  if (arrayStart === -1) throw new Error("captionTracks array not found");
+
+  const arrayEnd = findJsonEnd(html, arrayStart);
+  if (arrayEnd === -1) throw new Error("captionTracks array not closed");
+
+  const tracks = JSON.parse(html.slice(arrayStart, arrayEnd + 1)) as CaptionTrack[];
+  if (!tracks.length) throw new Error("captionTracks is empty");
+
+  console.log("[transcript] captionTracks found:", tracks.map(t => `${t.languageCode}(${t.kind ?? "manual"})`).join(", "));
+
+  // Prefer manual English → auto-generated English → any English → first available
+  const pick =
+    tracks.find(t => t.languageCode === "en"           && t.kind !== "asr") ??
+    tracks.find(t => t.languageCode === "en"                               ) ??
+    tracks.find(t => t.languageCode.startsWith("en")                       ) ??
+    tracks[0];
+
+  if (!pick.baseUrl) throw new Error("captionTrack has no baseUrl");
+
+  const xmlRes = await fetch(pick.baseUrl);
+  if (!xmlRes.ok) throw new Error(`timedtext fetch returned ${xmlRes.status}`);
+  const xml = await xmlRes.text();
+
+  const matches = [...xml.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g)];
+  if (!matches.length) throw new Error("timedtext XML has no <text> elements");
+
+  const content = matches
+    .map(m => decodeXmlEntities(m[1].replace(/<[^>]+>/g, "")).trim())
+    .filter(Boolean)
+    .join(" ");
+
+  if (!content) throw new Error("timedtext parsed content is empty");
+  return { content, lang: pick.languageCode };
+}
+
+// ── Main orchestrator (tier 1 → 2 → 3) ──────────────────────────────────────
+
+async function fetchTranscriptContent(url: string, apiKey: string): Promise<{ content: string; lang?: string }> {
+  // Tier 1: Supadata
+  try {
+    const result = await fetchTranscriptViaSupadata(url, apiKey);
+    console.log("[transcript] tier1 (supadata) ok");
+    return result;
+  } catch (e) {
+    console.log("[transcript] tier1 failed:", (e as Error).message);
+  }
+
+  // Tier 2: yt-dlp via Flask /transcript
+  try {
+    const result = await fetchTranscriptViaYtDlp(url);
+    console.log("[transcript] tier2 (yt-dlp) ok");
+    return result;
+  } catch (e) {
+    console.log("[transcript] tier2 failed:", (e as Error).message);
+  }
+
+  // Tier 3: YouTube page → captionTracks → timedtext XML
+  console.log("[transcript] tier3 (youtube-page) attempt");
+  const result = await fetchTranscriptViaYouTubePage(url);
+  console.log("[transcript] tier3 ok");
+  return result;
+}
+
+// ── Route handler ─────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
-  console.log("[transcript] POST received, url:", body?.url ?? "none");
+  console.log("[transcript] POST url:", body?.url ?? "none");
 
   if (!body?.url) {
     return NextResponse.json({ error: "URL manquante" }, { status: 400 });
   }
 
   const platform = detectPlatform(body.url);
-  console.log("[transcript] platform:", platform);
-
   if (!platform) {
     return NextResponse.json(
       { error: "URL non supportée. Colle un lien YouTube, TikTok ou Instagram." },
@@ -136,31 +251,32 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const apiKey = process.env.SUPADATA_API_KEY;
-  if (!apiKey) {
-    console.error("[transcript] SUPADATA_API_KEY missing");
-    return NextResponse.json({ error: "Configuration serveur manquante" }, { status: 500 });
-  }
+  // apiKey may be empty (quota exceeded) — fallback tiers don't need it
+  const apiKey = process.env.SUPADATA_API_KEY ?? "";
+  if (!apiKey) console.warn("[transcript] SUPADATA_API_KEY missing — tier1 skipped");
 
   try {
     const { content, lang } = await fetchTranscriptContent(body.url, apiKey);
 
-    // Fetch title for YouTube only (oEmbed doesn't support TikTok/Instagram)
     let title = "";
     if (platform === "youtube") {
       const videoId = extractVideoId(body.url);
       if (videoId) title = await fetchVideoTitle(videoId);
     }
     if (!title) {
-      // Generic title fallback
-      title = platform === "tiktok" ? "Vidéo TikTok" : platform === "instagram" ? "Vidéo Instagram" : "Vidéo YouTube";
+      title = platform === "tiktok" ? "Vidéo TikTok"
+            : platform === "instagram" ? "Vidéo Instagram"
+            : "Vidéo YouTube";
     }
 
-    console.log("[transcript] success, title:", title, "chars:", content.length, "lang:", lang);
+    console.log("[transcript] success — title:", title, "chars:", content.length, "lang:", lang);
     return NextResponse.json({ text: content, title, platform, lang });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error("[transcript] error:", msg);
-    return NextResponse.json({ error: msg }, { status: 422 });
+    console.error("[transcript] all tiers failed:", msg);
+    return NextResponse.json(
+      { error: "Transcript indisponible pour cette vidéo." },
+      { status: 422 }
+    );
   }
 }

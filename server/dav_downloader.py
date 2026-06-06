@@ -1099,31 +1099,43 @@ def get_transcript():
     sub_dir.mkdir(parents=True, exist_ok=True)
 
     try:
-        cmd = [
+        base_cmd = [
             "yt-dlp",
             "--extractor-args", "youtube:player_client=android",
-            "--write-auto-subs",
-            "--write-subs",
-            "--sub-langs", "en,fr",
             "--skip-download",
             "--convert-subs", "vtt",
             "-o", str(sub_dir / "%(id)s"),
             "--no-playlist",
             url,
         ]
-        subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-
+        # Pass 1: manually uploaded subtitles (higher quality, works for many videos)
+        subprocess.run(
+            base_cmd[:3] + ["--write-subs", "--sub-langs", "en,en-US,en-GB"] + base_cmd[3:],
+            capture_output=True, text=True, timeout=60,
+        )
         vtt_files = list(sub_dir.glob("*.vtt"))
+
+        # Pass 2: auto-generated subtitles (covers Shorts and most YouTube videos)
+        if not vtt_files:
+            subprocess.run(
+                base_cmd[:3] + ["--write-auto-subs", "--sub-langs", "en,en-US,en-GB,a.en"] + base_cmd[3:],
+                capture_output=True, text=True, timeout=60,
+            )
+            vtt_files = list(sub_dir.glob("*.vtt"))
+
         if not vtt_files:
             return jsonify({"error": "Aucun sous-titre disponible pour cette vidéo"}), 404
 
-        en_files = [f for f in vtt_files if ".en." in f.name]
-        vtt_file = en_files[0] if en_files else vtt_files[0]
+        # Prefer exact English match, then any English variant
+        en_exact = [f for f in vtt_files if re.search(r"\.(en)\.", f.name)]
+        en_any   = [f for f in vtt_files if re.search(r"\.(en[-.])", f.name)]
+        vtt_file = (en_exact or en_any or vtt_files)[0]
 
+        # Extract lang tag from filename: "ID.en.vtt" → "en", "ID.a.en.vtt" → "a.en"
         lang = "unknown"
-        name_parts = vtt_file.stem.split(".")
-        if len(name_parts) >= 2:
-            lang = name_parts[-1]
+        stem_parts = vtt_file.name.split(".")  # ["ID", "en", "vtt"] or ["ID", "a", "en", "vtt"]
+        if len(stem_parts) >= 3:
+            lang = ".".join(stem_parts[1:-1])  # everything between ID and extension
 
         content = _parse_vtt(vtt_file.read_text(encoding="utf-8", errors="replace"))
         if not content:
