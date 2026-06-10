@@ -18,6 +18,8 @@ export type AudioState = {
   status: "loading" | "done" | "error";
   label: string;
   audioUrl?: string;
+  /** Original remote (e.g. AI33) http(s) URL — used for server-side processing like remove-silence. Absent for locally-generated blobs (edge/google). */
+  originalUrl?: string;
   filename?: string;
 };
 

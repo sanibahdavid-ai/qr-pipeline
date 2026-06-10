@@ -76,7 +76,7 @@ function AudioPlayer({ audioUrl, filename }: { audioUrl: string; filename?: stri
 
   return (
     <div
-      className="flex items-center gap-3 px-3 py-2 border border-[#1e1e2e]"
+      className="w-full flex items-center gap-4 px-4 py-2.5 border border-[#1e1e2e]"
       style={{ background: "#111118", borderRadius: "2px" }}
     >
       <audio
@@ -91,18 +91,18 @@ function AudioPlayer({ audioUrl, filename }: { audioUrl: string; filename?: stri
       {/* Play / Pause */}
       <button
         onClick={toggle}
-        className="shrink-0 w-8 h-8 flex items-center justify-center border border-[#2a2a3e] text-[#a0a0b8] hover:border-[#00e5ff] hover:text-[#00e5ff] transition-none"
+        className="shrink-0 w-9 h-9 flex items-center justify-center border border-[#2a2a3e] text-[#a0a0b8] hover:border-[#00e5ff] hover:text-[#00e5ff] transition-none"
         style={{ borderRadius: "2px" }}
         aria-label={playing ? "Pause" : "Play"}
       >
-        {playing ? <Pause size={13} /> : <Play size={13} />}
+        {playing ? <Pause size={14} /> : <Play size={14} />}
       </button>
 
       {/* Progress bar */}
       <div
         ref={barRef}
         onClick={seek}
-        className="flex-1 relative h-2 cursor-pointer group"
+        className="flex-1 min-w-0 relative h-2 cursor-pointer group"
         style={{ borderRadius: "2px" }}
         title="Cliquer pour naviguer"
       >
@@ -122,8 +122,8 @@ function AudioPlayer({ audioUrl, filename }: { audioUrl: string; filename?: stri
 
       {/* Time */}
       <span
-        className="shrink-0 text-[10px] text-[#555577] tabular-nums"
-        style={{ fontFamily: "var(--font-space-mono, monospace)", minWidth: "72px", textAlign: "center" }}
+        className="shrink-0 text-[11px] text-[#a0a0b8] tabular-nums"
+        style={{ fontFamily: "var(--font-space-mono, monospace)", minWidth: "84px", textAlign: "center" }}
       >
         {fmt(currentTime)} / {fmt(duration)}
       </span>
@@ -133,11 +133,11 @@ function AudioPlayer({ audioUrl, filename }: { audioUrl: string; filename?: stri
         <a
           href={audioUrl}
           download={filename}
-          className="shrink-0 w-7 h-7 flex items-center justify-center border border-[#1e1e2e] text-[#555577] hover:border-[#00e5ff] hover:text-[#00e5ff] transition-none"
+          className="shrink-0 w-9 h-9 flex items-center justify-center border border-[#1e1e2e] text-[#555577] hover:border-[#00e5ff] hover:text-[#00e5ff] transition-none"
           style={{ borderRadius: "2px" }}
           title="Télécharger"
         >
-          <Download size={12} />
+          <Download size={14} />
         </a>
       )}
     </div>
@@ -181,18 +181,33 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
     if (!audioState?.audioUrl) return;
     setSilenceStatus("loading");
     try {
-      const blobRes = await fetch(audioState.audioUrl);
-      if (!blobRes.ok) {
-        console.error("[remove-silence] could not fetch local audio URL:", blobRes.status);
-        setSilenceStatus("error");
-        return;
-      }
-      const blob = await blobRes.blob();
-      console.log("[remove-silence] blob size:", blob.size, "type:", blob.type);
-      const form = new FormData();
-      form.append("audio", blob, audioState.filename ?? "audio.mp3");
+      const filename = audioState.filename ?? "audio.mp3";
+      let res: Response;
 
-      const res = await fetch("/api/tts/remove-silence", { method: "POST", body: form });
+      // Prefer the original remote (AI33) URL: the server fetches the real audio
+      // itself, avoiding CORS/blob issues with the client-side object URL.
+      if (audioState.originalUrl && audioState.originalUrl.startsWith("http")) {
+        console.log("[remove-silence] using original URL:", audioState.originalUrl);
+        res = await fetch("/api/tts/remove-silence", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ audioUrl: audioState.originalUrl, filename }),
+        });
+      } else {
+        // Fallback (edge/google/elevenlabs): upload the locally-generated blob.
+        const blobRes = await fetch(audioState.audioUrl);
+        if (!blobRes.ok) {
+          console.error("[remove-silence] could not fetch local audio URL:", blobRes.status);
+          setSilenceStatus("error");
+          return;
+        }
+        const blob = await blobRes.blob();
+        console.log("[remove-silence] blob size:", blob.size, "type:", blob.type);
+        const form = new FormData();
+        form.append("audio", blob, filename);
+        res = await fetch("/api/tts/remove-silence", { method: "POST", body: form });
+      }
+
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
         console.error("[remove-silence] server error:", errBody);

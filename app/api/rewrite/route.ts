@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
+import Groq from "groq-sdk";
+import { ReadableStream } from "stream/web";
 
 export const runtime = "nodejs";
 
@@ -116,24 +117,30 @@ export async function POST(req: NextRequest) {
 
   const userContent = durationInstruction + transcript;
 
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const client = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-  const anthropicStream = await client.messages.stream({
-    model: "claude-sonnet-4-6",
-    max_tokens: 4096,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: userContent }],
+  const chatCompletion = await client.chat.completions.create({
+    messages: [
+      {
+        role: "system",
+        content: SYSTEM_PROMPT,
+      },
+      {
+        role: "user",
+        content: userContent,
+      }
+    ],
+    model: "llama-3.3-70b-versatile",
+    temperature: 0.7,
+    stream: true,
   });
 
   const readable = new ReadableStream({
     async start(controller) {
       const encoder = new TextEncoder();
-      for await (const chunk of anthropicStream) {
-        if (
-          chunk.type === "content_block_delta" &&
-          chunk.delta.type === "text_delta"
-        ) {
-          controller.enqueue(encoder.encode(chunk.delta.text));
+      for await (const chunk of chatCompletion) {
+        if (chunk.choices && chunk.choices[0] && chunk.choices[0].delta && chunk.choices[0].delta.content) {
+          controller.enqueue(encoder.encode(chunk.choices[0].delta.content));
         }
       }
       controller.close();

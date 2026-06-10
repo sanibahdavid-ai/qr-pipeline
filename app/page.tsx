@@ -323,6 +323,19 @@ export default function Home() {
     await handleRewrite(data.text, data.title);
   }
 
+  // ── Manual transcript ───────────────────────────────────────────────────────
+  // Paste text directly and skip URL extraction — go straight to rewriting.
+  async function handleManualSubmit() {
+    const text = manualText.trim();
+    if (!text || isLoading) return;
+    setError("");
+    setQrText("");
+    const title = "Transcript manuel";
+    setVideoTitle(title);
+    setTranscriptText(text);
+    await handleRewrite(text, title);
+  }
+
   // ── Rewrite ───────────────────────────────────────────────────────────────
   function durationToSeconds(d: AdjustDuration | "original"): number | "original" {
     if (d === "original") return "original";
@@ -481,12 +494,12 @@ export default function Home() {
               if (proxyRes.ok) {
                 const blob = await proxyRes.blob();
                 const localUrl = URL.createObjectURL(blob);
-                setAudio((s) => ({ ...s, [language]: { status: "done", label: "Prêt", audioUrl: localUrl, filename } }));
+                setAudio((s) => ({ ...s, [language]: { status: "done", label: "Prêt", audioUrl: localUrl, originalUrl: audioUrl, filename } }));
                 return;
               }
             } catch {}
             // Fallback: direct URL if proxy fails
-            setAudio((s) => ({ ...s, [language]: { status: "done", label: "Prêt", audioUrl, filename } }));
+            setAudio((s) => ({ ...s, [language]: { status: "done", label: "Prêt", audioUrl, originalUrl: audioUrl, filename } }));
             return;
           }
         }
@@ -673,6 +686,9 @@ export default function Home() {
               onSubmit={handleExtract}
               isLoading={step === "extracting"}
               error={error}
+              manualText={manualText}
+              onManualChange={setManualText}
+              onManualSubmit={handleManualSubmit}
             />
             {step === "extracting" && (
               <p className="text-[12px] font-mono text-[#555577]">Extraction du transcript…</p>

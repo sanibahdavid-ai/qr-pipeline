@@ -11,16 +11,51 @@ function mkHash(): string {
 
 export async function POST(req: NextRequest) {
   let audioFile: File | null = null;
-  try {
-    const form = await req.formData();
-    audioFile = form.get("audio") as File | null;
-  } catch (e) {
-    console.error("[remove-silence] formData parse error:", e);
-    return Response.json({ error: "Impossible de lire le formulaire" }, { status: 400 });
+  const contentType = req.headers.get("content-type") ?? "";
+
+  if (contentType.includes("application/json")) {
+    // Real remote (AI33) URL — fetch the audio server-side (no CORS/blob limits).
+    let audioUrl: string | undefined;
+    let filename = "audio.mp3";
+    try {
+      const body = await req.json();
+      audioUrl = body?.audioUrl;
+      if (typeof body?.filename === "string" && body.filename) filename = body.filename;
+    } catch (e) {
+      console.error("[remove-silence] json parse error:", e);
+      return Response.json({ error: "Corps JSON invalide" }, { status: 400 });
+    }
+
+    if (!audioUrl || !/^https?:\/\//.test(audioUrl)) {
+      console.error("[remove-silence] invalid audioUrl:", audioUrl);
+      return Response.json({ error: "URL audio manquante ou invalide" }, { status: 400 });
+    }
+
+    console.log("[remove-silence] fetching source audio from:", audioUrl);
+    const srcRes = await fetch(audioUrl).catch((e) => {
+      console.error("[remove-silence] source fetch error:", e);
+      return null;
+    });
+    if (!srcRes?.ok) {
+      console.error(`[remove-silence] source download failed: status=${srcRes?.status}`);
+      return Response.json({ error: `Téléchargement audio source échoué (${srcRes?.status ?? "network"})` }, { status: 502 });
+    }
+    const srcBuf = await srcRes.arrayBuffer();
+    const srcType = srcRes.headers.get("Content-Type") ?? "audio/mpeg";
+    audioFile = new File([srcBuf], filename, { type: srcType });
+  } else {
+    // Fallback: multipart upload of a locally-generated blob.
+    try {
+      const form = await req.formData();
+      audioFile = form.get("audio") as File | null;
+    } catch (e) {
+      console.error("[remove-silence] formData parse error:", e);
+      return Response.json({ error: "Impossible de lire le formulaire" }, { status: 400 });
+    }
   }
 
   if (!audioFile) {
-    console.error("[remove-silence] no audio file in form");
+    console.error("[remove-silence] no audio file resolved");
     return Response.json({ error: "Fichier audio manquant" }, { status: 400 });
   }
 

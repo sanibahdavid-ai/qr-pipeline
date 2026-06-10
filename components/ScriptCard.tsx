@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import { Play, Pause, Download } from "lucide-react";
 import type { Section, AudioState } from "../types";
 
-type AdjustDuration = "10s" | "15s" | "30s" | "45s" | "1min" | "1min30" | "2min";
+type AdjustDuration = "10s" | "15s" | "30s" | "45s" | "1min30" | "2min";
 
 function AudioPlayer({ audioUrl, filename }: { audioUrl: string; filename?: string }) {
   const audioRef = useRef<HTMLAudioElement>(null);
