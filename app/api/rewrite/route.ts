@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import Groq from "groq-sdk";
-import { ReadableStream } from "stream/web";
+// Removed: import { ReadableStream } from "stream/web"; - Relying on global ReadableStream
 
 export const runtime = "nodejs";
 
@@ -135,7 +135,8 @@ export async function POST(req: NextRequest) {
     stream: true,
   });
 
-  const readable = new ReadableStream({
+  // Create a ReadableStream from the Groq SDK's stream
+  const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const encoder = new TextEncoder();
       for await (const chunk of chatCompletion) {
@@ -147,7 +148,9 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  return new Response(readable, {
+  // Return the stream directly, allowing TypeScript to infer the type or cast if necessary
+  // The global ReadableStream should be compatible, or the cast to Uint8Array handles it.
+  return new Response(stream, {
     headers: { "Content-Type": "text/plain; charset=utf-8" },
   });
 }
