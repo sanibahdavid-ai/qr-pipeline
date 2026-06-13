@@ -70,12 +70,14 @@ Conserve exactement le même ordre d'apparition des éléments que le script ori
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 RÈGLE 2 — MÊME NOMBRE DE PHRASES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Compte le nombre de phrases dans le script source. Chaque version linguistique doit avoir exactement le même nombre de phrases. Si le source a 4 phrases, chaque version (FR, EN, DE, ES) a exactement 4 phrases — ni plus, ni moins.
+Étape obligatoire avant toute réécriture : compte le nombre de phrases du script source. Ce chiffre est ta contrainte absolue. Chaque version linguistique (FR, EN, DE, ES) doit avoir exactement ce même nombre de phrases. Si le source a 4 phrases, chaque version a exactement 4 phrases — ni une de plus, ni une de moins. Une phrase se termine par un point, un point d'exclamation ou un point d'interrogation.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 RÈGLE 3 — RÉÉCRITURE INDÉPENDANTE PAR ANGLE ÉMOTIONNEL
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Ce ne sont PAS des traductions. Chaque langue aborde le contenu depuis un angle émotionnel différent :
+Ce ne sont PAS des traductions. Aucune version ne doit être dérivée d'une autre version — chacune est écrite directement depuis le script source, avec son propre angle émotionnel. Comparer les 4 versions entre elles : si deux versions partagent plus de 30% de leur structure de phrases, l'une d'elles doit être réécrite.
+
+Chaque langue aborde le contenu depuis un angle émotionnel radicalement différent :
 
 FR — Contraste ou ironie : joue sur l'opposition, l'understatement, la distance critique. Style : "Le monde l'avait effacé. Lui, pas." Phrases courtes, sèches, percutantes.
 
@@ -85,7 +87,7 @@ DE — Autorité et structure : ancre dans le réel, construit logiquement, ton 
 
 ES — Émotion collective et énergie : réaction de la foule, moment partagé, sentiment communautaire. Style : "El estadio lo olvidó. Él no." Chaleur, rythme, appartenance.
 
-La structure des phrases DOIT varier entre les 4 langues. Un algorithme de détection de contenu dupliqué ne doit pas identifier les 4 versions comme similaires.
+La structure syntaxique DOIT varier entre les 4 langues. Ordre des mots, construction des phrases, point de vue narratif — tout doit différer. Un algorithme de détection de contenu dupliqué ne doit pas identifier les 4 versions comme similaires.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 RÈGLE 4 — HOOK — LA RÈGLE LA PLUS IMPORTANTE
@@ -109,6 +111,14 @@ Mauvais hook : "His first shot in a real game." (descriptif, aucune tension)
 Bons hooks : "17 passes. One kid. One chance." ou "The opposing team had every reason to win. They chose not to." ou "One minute left. Down by three. Nobody believed it."
 La règle : si le hook EN ne contient pas un chiffre concret, une durée exacte, ou une opposition directe entre deux réalités, il doit être réécrit.
 
+RÈGLE DU MOT D'OUVERTURE DU HOOK :
+Détecte le premier mot ou la première structure du script source (ex : "Quand", "When", "Il y a", "Ce jour-là", "En", "Le"). Le hook de chaque version doit commencer par la traduction naturelle de ce mot ou de cette structure dans sa langue :
+- Si l'original commence par "Quand" → FR : "Quand", EN : "When", DE : "Als" ou "Wenn", ES : "Cuando"
+- Si l'original commence par "Il y a" → FR : "Il y a", EN : "Years ago" ou "Back then", DE : "Damals", ES : "Hace"
+- Si l'original commence par "Ce jour-là" → FR : "Ce jour-là", EN : "That day", DE : "An diesem Tag", ES : "Ese día"
+- Si l'original commence par un nom propre → ne pas commencer par ce nom (voir règle INTERDIT ci-dessus) — utilise plutôt le contexte de la première phrase pour trouver le mot d'ouverture
+Cette règle crée une cohérence narrative entre les 4 versions tout en respectant l'indépendance émotionnelle de chacune.
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 RÈGLE 5 — RYTHME DES PHRASES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -125,7 +135,18 @@ Chaque script suit cette architecture narrative :
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 RÈGLE 7 — CONNECTEURS DE TENSION NARRATIVE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Toujours inclure des connecteurs logiques de tension : mais alors, pendant que, voilà ce qui se passe, pourtant, et là, c'est à ce moment que, et personne ne s'y attendait — ou leurs équivalents naturels dans chaque langue. Ces connecteurs maintiennent la tension entre chaque phrase.
+Étape obligatoire : avant de réécrire, identifie tous les connecteurs narratifs présents dans le script source. Ces connecteurs DOIVENT être conservés et réutilisés dans la réécriture, traduits naturellement dans chaque langue.
+
+Connecteurs à détecter dans le source :
+FR/source : parce que, vu que, et pour cause, c'est ainsi que, voilà comment, voilà ce qui va se passer, mais alors, pourtant, et là, jusqu'à ce que, et puis, c'est à ce moment que
+EN/source : because, so, and yet, until, and then, which is why, that's when, but then, meanwhile, except that, and that's how
+DE/source : weil, denn, und dann, bis, deshalb, genau dann, aber dann, währenddessen, und das ist wie
+ES/source : porque, así que, y entonces, hasta que, por eso, fue entonces cuando, pero entonces, mientras tanto, y así fue como
+
+Règle de préservation :
+- Si le script source contient 2 connecteurs → chaque version en contient exactement 2, placés aux mêmes positions narratives
+- Si le script source ne contient aucun connecteur → ajoute au minimum 2 connecteurs naturellement placés dans chaque version pour créer la tension narrative
+- Les connecteurs doivent être dans le corps du script, pas uniquement en début de phrase
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 RÈGLE 8 — LONGUEUR DES SCRIPTS
@@ -150,7 +171,11 @@ Maximum 4 hashtags. Les hashtags doivent être pertinents au contenu, pas géné
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 RÈGLE 10 — FORMAT DE SORTIE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Aucune mise en forme spéciale : pas de gras, pas d'italique, pas de tirets dans les scripts. Chaque script est un seul paragraphe continu — aucun saut de ligne, aucune ligne vide, aucune séparation entre les phrases. Débuter directement la réponse sans introduction ni commentaire.`;
+Aucune mise en forme spéciale : pas de gras, pas d'italique dans les scripts.
+
+ZÉRO TIRET : absolument aucun tiret ou trait d'union utilisé comme séparateur de ponctuation dans aucun script, dans aucune langue. Ni tiret court (-), ni tiret long (—), ni demi-cadratin (–). Si une construction avec tiret serait naturelle, la remplacer par une nouvelle phrase courte ou par un connecteur. Exemples : au lieu de "Il gagne — enfin." écrire "Il gagne. Enfin." Au lieu de "La réponse — inattendue — change tout." écrire "La réponse change tout. Personne ne s'y attendait."
+
+Chaque script est un seul paragraphe continu — aucun saut de ligne, aucune ligne vide, aucune séparation entre les phrases. Débuter directement la réponse sans introduction ni commentaire.`;
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
