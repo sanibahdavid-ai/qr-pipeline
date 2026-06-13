@@ -9,14 +9,15 @@ type VoiceConfig = {
 };
 
 const DEFAULTS: Record<Provider, Record<string, VoiceConfig>> = {
-  "ai33-minimax":    { FR: { voice: "273587280617675", speed: 1.0 }, EN: { voice: "273587280617675", speed: 1.0 }, DE: { voice: "273587280617675", speed: 1.0 }, ES: { voice: "273587280617675", speed: 1.0 } },
-  "ai33-elevenlabs": { FR: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, EN: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, DE: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, ES: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 } },
+  "ai33-minimax":    { FR: { voice: "clone_2608233", speed: 1.0 }, EN: { voice: "clone_2608233", speed: 1.0 }, DE: { voice: "clone_2608233", speed: 1.0 }, ES: { voice: "clone_2608233", speed: 1.0 } },
+  "ai33-elevenlabs": { FR: { voice: "elevenlabs_CwhRBWXzGAHq8TQ4Fs17", speed: 1.0 }, EN: { voice: "elevenlabs_CwhRBWXzGAHq8TQ4Fs17", speed: 1.0 }, DE: { voice: "elevenlabs_CwhRBWXzGAHq8TQ4Fs17", speed: 1.0 }, ES: { voice: "elevenlabs_CwhRBWXzGAHq8TQ4Fs17", speed: 1.0 } },
   "elevenlabs":      { FR: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, EN: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, DE: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, ES: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 } },
   "edge-tts":        { FR: { voice: "fr-FR-HenriNeural", speed: 0 }, EN: { voice: "en-US-GuyNeural", speed: 0 }, DE: { voice: "de-DE-KillianNeural", speed: 0 }, ES: { voice: "es-ES-AlvaroNeural", speed: 0 } },
   "google-tts":      { FR: { voice: "fr-FR-Neural2-B", speed: 1.0 }, EN: { voice: "en-US-Neural2-D", speed: 1.0 }, DE: { voice: "de-DE-Neural2-B", speed: 1.0 }, ES: { voice: "es-ES-Neural2-B", speed: 1.0 } },
 };
 
-const STORAGE_KEY = "qr_voice_config_v2";
+// Bumped to v3 so new defaults take effect for existing users
+const STORAGE_KEY = "qr_voice_config_v3";
 
 type AllConfigs = Partial<Record<string, VoiceConfig>>;
 

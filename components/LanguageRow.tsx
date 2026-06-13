@@ -1,6 +1,6 @@
 "use client";
 
-import { Play, RefreshCw, Loader2, Pause, X, Scissors, CheckCircle2, AlertCircle, Download } from "lucide-react";
+import { Play, RefreshCw, Loader2, Pause, X, Download } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
 import { useVoiceConfig } from "../hooks/useVoiceConfig";
 import type { Provider, AudioState } from "../types";
@@ -21,13 +21,28 @@ const EDGE_RATE_MAX = 200;
 const SPEED_MIN = 0.5;
 const SPEED_MAX = 2.0;
 
-type SilenceStatus = "idle" | "loading" | "done" | "error";
+const AI33_VOICES: { id: string; label: string }[] = [
+  { id: "clone_2608233",                   label: "ALEX CLONED" },
+  { id: "clone_2607201",                   label: "NARATEUR ANIME" },
+  { id: "clone_2606818",                   label: "Arnold sama" },
+  { id: "elevenlabs_CwhRBWXzGAHq8TQ4Fs17", label: "Brian (ElevenLabs)" },
+  { id: "kokoro_am_liam",                  label: "Liam — American EN ♂" },
+  { id: "kokoro_am_puck",                  label: "Puck — American EN ♂" },
+  { id: "kokoro_af_heart",                 label: "Heart — American EN ♀ ★" },
+  { id: "kokoro_bm_george",                label: "George — British EN ♂" },
+];
+
+const EL_MODELS: { id: string; label: string }[] = [
+  { id: "eleven_multilingual_v3", label: "Eleven v3 — Most Expressive" },
+  { id: "eleven_multilingual_v2", label: "Multilingual v2 — Studio" },
+  { id: "eleven_flash_v2_5",      label: "Flash v2.5 — Fastest" },
+];
 
 type Props = {
   lang: LangCode;
   provider: Provider;
   audioState?: AudioState;
-  onGenerate: (lang: LangCode, voice: string, speed: number) => void;
+  onGenerate: (lang: LangCode, voice: string, speed: number, modelId?: string) => void;
 };
 
 function StatusDot({ state }: { state?: AudioState }) {
@@ -88,7 +103,6 @@ function AudioPlayer({ audioUrl, filename }: { audioUrl: string; filename?: stri
         onEnded={() => { setPlaying(false); setCurrentTime(0); }}
       />
 
-      {/* Play / Pause */}
       <button
         onClick={toggle}
         className="shrink-0 w-9 h-9 flex items-center justify-center border border-[#2a2a3e] text-[#a0a0b8] hover:border-[#00e5ff] hover:text-[#00e5ff] transition-none"
@@ -98,7 +112,6 @@ function AudioPlayer({ audioUrl, filename }: { audioUrl: string; filename?: stri
         {playing ? <Pause size={14} /> : <Play size={14} />}
       </button>
 
-      {/* Progress bar */}
       <div
         ref={barRef}
         onClick={seek}
@@ -106,21 +119,17 @@ function AudioPlayer({ audioUrl, filename }: { audioUrl: string; filename?: stri
         style={{ borderRadius: "2px" }}
         title="Cliquer pour naviguer"
       >
-        {/* Track */}
         <div className="absolute inset-0 bg-[#1e1e2e]" style={{ borderRadius: "2px" }} />
-        {/* Fill */}
         <div
           className="absolute inset-y-0 left-0 bg-[#00e5ff]"
           style={{ width: `${progress}%`, borderRadius: "2px" }}
         />
-        {/* Thumb dot */}
         <div
           className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-[#00e5ff] opacity-0 group-hover:opacity-100 transition-opacity"
           style={{ left: `calc(${progress}% - 5px)`, borderRadius: "50%" }}
         />
       </div>
 
-      {/* Time */}
       <span
         className="shrink-0 text-[11px] text-[#a0a0b8] tabular-nums"
         style={{ fontFamily: "var(--font-space-mono, monospace)", minWidth: "84px", textAlign: "center" }}
@@ -128,7 +137,6 @@ function AudioPlayer({ audioUrl, filename }: { audioUrl: string; filename?: stri
         {fmt(currentTime)} / {fmt(duration)}
       </span>
 
-      {/* Download */}
       {filename && (
         <a
           href={audioUrl}
@@ -147,100 +155,49 @@ function AudioPlayer({ audioUrl, filename }: { audioUrl: string; filename?: stri
 export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
   const { config, update } = useVoiceConfig(provider, lang);
 
-  const [silenceStatus, setSilenceStatus] = useState<SilenceStatus>("idle");
-  const [processedUrl, setProcessedUrl] = useState<string | null>(null);
-  const [processedDuration, setProcessedDuration] = useState<string | null>(null);
+  const [modelId, setModelId] = useState("eleven_multilingual_v3");
 
   useEffect(() => {
-    setSilenceStatus("idle");
-    setProcessedUrl(null);
-    setProcessedDuration(null);
-  }, [audioState?.audioUrl]);
+    try {
+      const saved = localStorage.getItem(`el_model_${lang}`);
+      if (saved) setModelId(saved);
+    } catch {}
+  }, [lang]);
+
+  function handleModelChange(id: string) {
+    setModelId(id);
+    try { localStorage.setItem(`el_model_${lang}`, id); } catch {}
+  }
 
   const isEdge = provider === "edge-tts";
   const isGoogle = provider === "google-tts";
+  const isAi33 = provider === "ai33-minimax" || provider === "ai33-elevenlabs";
+  const isDirect = provider === "elevenlabs";
 
   const voices: { id: string; label: string }[] = (() => {
     if (isEdge) return [...EDGE_TTS_VOICES[EDGE_LANG_MAP[lang]]];
     if (isGoogle) return [...GOOGLE_TTS_VOICES[GOOGLE_LANG_MAP[lang]].voices];
+    if (isAi33) return AI33_VOICES;
     return [];
   })();
 
   const hasVoiceSelect = voices.length > 0;
+  const showModelSelect = config.voice.startsWith("elevenlabs_") || isDirect;
+
   const isLoading = audioState?.status === "loading";
   const isDone = audioState?.status === "done";
   const isError = audioState?.status === "error";
 
-  const currentAudioUrl = processedUrl ?? audioState?.audioUrl;
+  const currentAudioUrl = audioState?.audioUrl;
 
   function handleGenerate() {
-    onGenerate(lang, config.voice, config.speed);
-  }
-
-  async function handleRemoveSilence() {
-    const srcUrl = currentAudioUrl ?? audioState?.audioUrl;
-    if (!srcUrl) return;
-    setSilenceStatus("loading");
-    try {
-      // Fetch the audio blob client-side first
-      console.log("[remove-silence] fetching audio blob from:", srcUrl.slice(0, 60));
-      const blobRes = await fetch(srcUrl);
-      if (!blobRes.ok) {
-        console.error("[remove-silence] blob fetch failed:", blobRes.status);
-        setSilenceStatus("error");
-        return;
-      }
-      const blob = await blobRes.blob();
-      const mimeType = blob.type || "audio/mpeg";
-      console.log(`[remove-silence] blob: size=${blob.size} type=${mimeType}`);
-
-      // Convert blob to base64
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const result = reader.result as string;
-          resolve(result.split(",")[1] ?? "");
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
-      console.log(`[remove-silence] base64 length: ${base64.length}`);
-
-      // Send JSON to server
-      const res = await fetch("/api/tts/remove-silence", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ audioBase64: base64, mimeType }),
-      });
-
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-        console.error("[remove-silence] server error:", errBody);
-        setSilenceStatus("error");
-        return;
-      }
-
-      const data: { processedUrl?: string; duration?: string; error?: string } = await res.json();
-      if (!data.processedUrl) {
-        console.error("[remove-silence] no processedUrl in response:", data);
-        setSilenceStatus("error");
-        return;
-      }
-
-      console.log("[remove-silence] processedUrl:", data.processedUrl);
-      setProcessedUrl(data.processedUrl);
-      setProcessedDuration(data.duration ?? null);
-      setSilenceStatus("done");
-    } catch (e) {
-      console.error("[remove-silence] unexpected error:", e);
-      setSilenceStatus("error");
-    }
+    onGenerate(lang, config.voice, config.speed, showModelSelect ? modelId : undefined);
   }
 
   return (
     <div className="flex flex-col py-2 gap-1.5">
 
-      {/* ── Controls row ────────────────────────────────────────────── */}
+      {/* ── Controls row ────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-2">
 
         {/* Lang badge */}
@@ -265,7 +222,7 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
             className="flex-1 min-w-0 text-[11px] font-mono text-[#555577] px-2 py-1 border border-[#1e1e2e] truncate"
             style={{ borderRadius: "2px" }}
           >
-            {provider === "ai33-minimax" ? "Minimax Speech-2.6" : "ElevenLabs Multilingual v2"}
+            ElevenLabs Direct
           </span>
         )}
 
@@ -288,7 +245,7 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
           </span>
         </div>
 
-        {/* Action button — Générer / loading / error / Régénérer */}
+        {/* Generate / Régénérer */}
         {isDone ? (
           <button
             onClick={handleGenerate}
@@ -334,53 +291,30 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
         </div>
       </div>
 
-      {/* ── Audio player ─────────────────────────────────────────────── */}
+      {/* ── Model dropdown (ElevenLabs voices only) ──────────────────────── */}
+      {showModelSelect && (
+        <div className="flex items-center gap-2 ml-8">
+          <select
+            value={modelId}
+            onChange={(e) => handleModelChange(e.target.value)}
+            className="w-full bg-[#0d0d15] border border-[#1e1e2e] text-[10px] font-mono text-[#a0a0b8] px-2 py-1 focus:outline-none focus:border-[#00e5ff] cursor-pointer"
+            style={{ borderRadius: "2px" }}
+            title="ElevenLabs model"
+          >
+            {EL_MODELS.map((m) => (
+              <option key={m.id} value={m.id}>{m.label}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* ── Audio player ─────────────────────────────────────────────────── */}
       {isDone && currentAudioUrl && (
         <AudioPlayer
           key={currentAudioUrl}
           audioUrl={currentAudioUrl}
           filename={audioState?.filename}
         />
-      )}
-
-      {/* ── Remove Silence button ────────────────────────────────────── */}
-      {isDone && audioState?.audioUrl && (
-        <button
-          onClick={silenceStatus === "loading" ? undefined : handleRemoveSilence}
-          disabled={silenceStatus === "loading"}
-          className="w-full flex items-center justify-center gap-2 px-3 py-1.5 text-[11px] font-mono border transition-none disabled:opacity-60"
-          style={{
-            borderRadius: "2px",
-            fontFamily: "var(--font-space-mono, monospace)",
-            background: "#0a0a10",
-            borderColor:
-              silenceStatus === "done" ? "#00ffaa"
-              : silenceStatus === "error" ? "#ff4466"
-              : "#00e5ff",
-            color:
-              silenceStatus === "done" ? "#00ffaa"
-              : silenceStatus === "error" ? "#ff4466"
-              : "#00e5ff",
-          }}
-        >
-          {silenceStatus === "loading" && (
-            <><Loader2 size={11} className="animate-spin shrink-0" /><span>Traitement en cours...</span></>
-          )}
-          {silenceStatus === "done" && (
-            <><CheckCircle2 size={11} className="shrink-0" />
-              <span>
-                Silences supprimés ✓
-                {processedDuration && <span className="ml-2 opacity-70">{processedDuration}</span>}
-              </span>
-            </>
-          )}
-          {silenceStatus === "error" && (
-            <><AlertCircle size={11} className="shrink-0" /><span>Erreur — réessayer</span></>
-          )}
-          {silenceStatus === "idle" && (
-            <><Scissors size={11} className="shrink-0" /><span>Supprimer les silences</span></>
-          )}
-        </button>
       )}
     </div>
   );

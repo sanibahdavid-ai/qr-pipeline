@@ -2,7 +2,7 @@
   "project": {
     "name": "qr-pipeline",
     "title": "DAV Pipeline",
-    "version": "2.9",
+    "version": "3.1",
     "description": "Content creation pipeline for social media creators. Extracts transcripts from YouTube/TikTok/Instagram videos, rewrites them into multilingual QR-format scripts (FR/EN/DE/ES), generates TTS audio in multiple languages, and provides a separate video downloader tab powered by yt-dlp and Cloudflare R2.",
     "urls": {
       "live": "https://qr-pipeline.onrender.com",
@@ -26,9 +26,11 @@
       "runtime": "Node.js / Edge (per-route)",
       "ai": "Anthropic Claude Sonnet 4.6 (@anthropic-ai/sdk)",
       "tts_providers": [
-        "AI33Pro proxy → ElevenLabs eleven_multilingual_v2",
-        "AI33Pro proxy → Minimax speech-2.6-hd",
-        "ElevenLabs direct (@elevenlabs/elevenlabs-js)",
+        "AI33Pro proxy → ElevenLabs (elevenlabs_* voices, model selectable: v3/v2/flash)",
+        "AI33Pro proxy → Clone voices (clone_2608233 ALEX CLONED, clone_2607201 NARATEUR ANIME, clone_2606818 Arnold sama)",
+        "AI33Pro proxy → Kokoro (kokoro_am_liam, kokoro_am_puck, kokoro_af_heart, kokoro_bm_george)",
+        "AI33Pro proxy → Minimax speech-2.6-hd (legacy digit voice IDs)",
+        "ElevenLabs direct (@elevenlabs/elevenlabs-js, model selectable)",
         "Microsoft Edge TTS (edge-tts-universal)",
         "Google Cloud Text-to-Speech"
       ],
@@ -297,7 +299,7 @@
   "types": {
     "file": "types.ts",
     "definitions": [
-      { "name": "Provider", "type": "union", "values": ["ai33-minimax", "ai33-elevenlabs", "elevenlabs", "edge-tts", "google-tts"] },
+      { "name": "Provider", "type": "union", "values": ["ai33-minimax", "ai33-elevenlabs", "elevenlabs", "edge-tts", "google-tts"], "note": "ai33-minimax is default provider; routing per-request is by voice_id prefix (clone_/elevenlabs_/kokoro_/digit)" },
       { "name": "Section", "type": "union", "values": ["SCRIPT FR", "SCRIPT EN", "SCRIPT DE", "SCRIPT ES", "SEARCH KEYWORDS EN", "TITRE ET HASHTAGS FR", "TITRE ET HASHTAGS EN", "TITRE ET HASHTAGS DE", "TITRE ET HASHTAGS ES"] },
       { "name": "SECTIONS", "type": "const array", "description": "All 9 QR script sections" },
       { "name": "AudioState", "type": "object", "fields": ["status: loading|done|error", "label: string", "audioUrl?: string", "filename?: string"] },
@@ -341,10 +343,6 @@
       "description": "Scripts scoring < 80 are automatically sent to /api/correct-script for targeted correction using Claude Sonnet 4.6. Up to 2 retry attempts per language. Shows 'Correction…' indicator on the card while in progress. Health score updates after each attempt."
     },
     {
-      "name": "Remove Silence (fixed v2.9)",
-      "description": "Removes silence from TTS audio using the NeuralFalcon HuggingFace Space. Client fetches audio blob, converts to base64, sends JSON {audioBase64, mimeType}. Server pings HF Space to wake it up, uploads, polls SSE, returns {processedUrl}."
-    },
-    {
       "name": "Copy URL Button (v2.8+)",
       "description": "Small 🔗 button next to the video title that copies the source URL to clipboard. Shows 'Copié !' for 1 second."
     },
@@ -359,6 +357,18 @@
     {
       "name": "Keywords Client-Side Filter (v2.9)",
       "description": "Keywords from the SEARCH KEYWORDS EN section are filtered client-side: any line with more than 4 words is truncated to 4 words before display."
+    },
+    {
+      "name": "AI33 V3 Migration + Voice Routing (v3.1)",
+      "description": "All AI33 TTS requests now route by voice_id prefix: clone_* and kokoro_* go to /v1/text-to-speech/{voice_id}, elevenlabs_* also use /v1/ with model_id param, legacy digit minimax IDs use /v1m/. Default voice changed to ALEX CLONED (clone_2608233) with default provider ai33-minimax."
+    },
+    {
+      "name": "ElevenLabs Model Selector (v3.1)",
+      "description": "When an elevenlabs_* voice is selected (or provider is direct ElevenLabs), a model dropdown appears below the voice selector: Eleven v3 (eleven_multilingual_v3, default), Multilingual v2, Flash v2.5. Selection persisted to localStorage key el_model_{lang}."
+    },
+    {
+      "name": "New Voices: Clones + Kokoro (v3.1)",
+      "description": "Added to AI33 voice selector: clone_2608233 (ALEX CLONED), clone_2607201 (NARATEUR ANIME), clone_2606818 (Arnold sama), kokoro_am_liam, kokoro_am_puck, kokoro_af_heart, kokoro_bm_george, elevenlabs_CwhRBWXzGAHq8TQ4Fs17 (Brian)."
     },
     {
       "name": "Transcript Extraction",
@@ -473,6 +483,7 @@
     { "key": "cta_enabled", "description": "'1' or '0' — CTA injection toggle" },
     { "key": "cta_position", "description": "2, 3, or 4 — sentence position for CTA insertion" },
     { "key": "dav_active_tab", "description": "'scripts' or 'download' — last active tab" },
-    { "key": "qr_voice_config_v2", "description": "JSON map of {provider__LANG: {voice, speed}} for TTS voice settings" }
+    { "key": "qr_voice_config_v3", "description": "JSON map of {provider__LANG: {voice, speed}} for TTS voice settings (v3 resets defaults to ALEX CLONED)" },
+    { "key": "el_model_{lang}", "description": "ElevenLabs model ID per language: eleven_multilingual_v3 (default), eleven_multilingual_v2, eleven_flash_v2_5" }
   ]
 }

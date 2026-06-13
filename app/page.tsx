@@ -107,7 +107,7 @@ export default function Home() {
   const [videoTitle, setVideoTitle] = useState("");
   const [qrText, setQrText] = useState("");
   const [error, setError] = useState("");
-  const [provider, setProvider] = useState<Provider>("ai33-elevenlabs");
+  const [provider, setProvider] = useState<Provider>("ai33-minimax");
   const [audio, setAudio] = useState<Record<string, AudioState>>({});
   const [copied, setCopied] = useState<string | null>(null);
   const [copiedUrl, setCopiedUrl] = useState(false);
@@ -495,7 +495,7 @@ export default function Home() {
   }
 
   // ── TTS ───────────────────────────────────────────────────────────────────
-  async function handleTTS(language: "EN" | "DE" | "FR" | "ES", voice: string, speed: number) {
+  async function handleTTS(language: "EN" | "DE" | "FR" | "ES", voice: string, speed: number, modelId?: string) {
     const sectionKey = `SCRIPT ${language}` as Section;
     const rawText = getContent(sectionKey);
     if (!rawText) return;
@@ -557,7 +557,7 @@ export default function Home() {
         const res = await fetch("/api/tts/elevenlabs", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text, speed, pitch: 0, volume: 1.0 }),
+          body: JSON.stringify({ text, model_id: modelId }),
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
@@ -578,7 +578,7 @@ export default function Home() {
     const res = await fetch("/api/tts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, language, provider, title: videoTitle, speed, pitch: 0, volume: 1.0 }),
+      body: JSON.stringify({ text, language, provider, title: videoTitle, speed, voice, model_id: modelId }),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -621,13 +621,12 @@ export default function Home() {
     setAudio((a) => ({ ...a, [language]: { status: "error", label: "Timeout" } }));
   }
 
-  function handleGenerateLang(lang: "FR" | "EN" | "DE" | "ES", voice: string, speed: number) {
-    handleTTS(lang, voice, speed);
+  function handleGenerateLang(lang: "FR" | "EN" | "DE" | "ES", voice: string, speed: number, modelId?: string) {
+    handleTTS(lang, voice, speed, modelId);
   }
 
   async function handleGenerateAll() {
-    // Read current voice configs from localStorage
-    const raw = typeof window !== "undefined" ? localStorage.getItem("qr_voice_config_v2") : null;
+    const raw = typeof window !== "undefined" ? localStorage.getItem("qr_voice_config_v3") : null;
     const configs = raw ? JSON.parse(raw) : {};
 
     function getVoiceConfig(lang: string) {
@@ -635,18 +634,22 @@ export default function Home() {
       return configs[key] ?? getDefaultVoiceConfig(provider, lang);
     }
 
+    function getModelId(lang: string): string | undefined {
+      try { return localStorage.getItem(`el_model_${lang}`) ?? undefined; } catch { return undefined; }
+    }
+
     await Promise.allSettled([
-      handleTTS("FR", getVoiceConfig("FR").voice, getVoiceConfig("FR").speed),
-      handleTTS("EN", getVoiceConfig("EN").voice, getVoiceConfig("EN").speed),
-      handleTTS("DE", getVoiceConfig("DE").voice, getVoiceConfig("DE").speed),
-      handleTTS("ES", getVoiceConfig("ES").voice, getVoiceConfig("ES").speed),
+      handleTTS("FR", getVoiceConfig("FR").voice, getVoiceConfig("FR").speed, getModelId("FR")),
+      handleTTS("EN", getVoiceConfig("EN").voice, getVoiceConfig("EN").speed, getModelId("EN")),
+      handleTTS("DE", getVoiceConfig("DE").voice, getVoiceConfig("DE").speed, getModelId("DE")),
+      handleTTS("ES", getVoiceConfig("ES").voice, getVoiceConfig("ES").speed, getModelId("ES")),
     ]);
   }
 
   function getDefaultVoiceConfig(p: Provider, lang: string): { voice: string; speed: number } {
     const defaults: Record<string, Record<string, { voice: string; speed: number }>> = {
-      "ai33-minimax":    { FR: { voice: "273587280617675", speed: 1.0 }, EN: { voice: "273587280617675", speed: 1.0 }, DE: { voice: "273587280617675", speed: 1.0 }, ES: { voice: "273587280617675", speed: 1.0 } },
-      "ai33-elevenlabs": { FR: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, EN: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, DE: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, ES: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 } },
+      "ai33-minimax":    { FR: { voice: "clone_2608233", speed: 1.0 }, EN: { voice: "clone_2608233", speed: 1.0 }, DE: { voice: "clone_2608233", speed: 1.0 }, ES: { voice: "clone_2608233", speed: 1.0 } },
+      "ai33-elevenlabs": { FR: { voice: "elevenlabs_CwhRBWXzGAHq8TQ4Fs17", speed: 1.0 }, EN: { voice: "elevenlabs_CwhRBWXzGAHq8TQ4Fs17", speed: 1.0 }, DE: { voice: "elevenlabs_CwhRBWXzGAHq8TQ4Fs17", speed: 1.0 }, ES: { voice: "elevenlabs_CwhRBWXzGAHq8TQ4Fs17", speed: 1.0 } },
       "elevenlabs":      { FR: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, EN: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, DE: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, ES: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 } },
       "edge-tts":        { FR: { voice: "fr-FR-HenriNeural", speed: 0 }, EN: { voice: "en-US-GuyNeural", speed: 0 }, DE: { voice: "de-DE-KillianNeural", speed: 0 }, ES: { voice: "es-ES-AlvaroNeural", speed: 0 } },
       "google-tts":      { FR: { voice: "fr-FR-Neural2-B", speed: 1.0 }, EN: { voice: "en-US-Neural2-D", speed: 1.0 }, DE: { voice: "de-DE-Neural2-B", speed: 1.0 }, ES: { voice: "es-ES-Neural2-B", speed: 1.0 } },
@@ -720,7 +723,7 @@ export default function Home() {
   }
 
   function getVoiceConfigForLang(lang: string) {
-    const raw = typeof window !== "undefined" ? localStorage.getItem("qr_voice_config_v2") : null;
+    const raw = typeof window !== "undefined" ? localStorage.getItem("qr_voice_config_v3") : null;
     const configs = raw ? (JSON.parse(raw) as Record<string, { voice: string; speed: number }>) : {};
     return configs[`${provider}__${lang}`] ?? getDefaultVoiceConfig(provider, lang);
   }

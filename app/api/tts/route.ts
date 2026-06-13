@@ -1,30 +1,9 @@
-﻿import { NextRequest } from "next/server";
+import { NextRequest } from "next/server";
 
 export const runtime = "nodejs";
 
 const API_KEY = process.env.MINIMAX_API_KEY;
-
-const PROVIDERS = {
-  "ai33-elevenlabs": {
-    url: "https://api.ai33.pro/v1/text-to-speech/aTTiK3YzK3dXETpuDE2h",
-    body: (text: string) => ({
-      text,
-      model_id: "eleven_multilingual_v2",
-    }),
-  },
-  "ai33-minimax": {
-    url: "https://api.ai33.pro/v1m/task/text-to-speech",
-    body: (text: string) => ({
-      text,
-      model: "speech-2.6-hd",
-      voice_setting: {
-        voice_id: "273587280617675",
-      },
-    }),
-  },
-} as const;
-
-type Provider = keyof typeof PROVIDERS;
+const BASE = "https://api.ai33.pro";
 
 function sanitizeFilename(title: string): string {
   return title
@@ -37,8 +16,7 @@ function sanitizeFilename(title: string): string {
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
-
-  const { text, language, provider, title } = body ?? {};
+  const { text, language, provider, title, speed, voice, model_id } = body ?? {};
 
   if (!text || !language || !provider || !title) {
     return Response.json(
@@ -47,22 +25,51 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!(provider in PROVIDERS)) {
-    return Response.json(
-      { error: `Provider inconnu : ${provider}` },
-      { status: 400 }
-    );
+  const apiKey = API_KEY ?? "";
+  const voiceId: string = voice ?? "";
+
+  let url: string;
+  let requestBody: Record<string, unknown>;
+
+  if (voiceId.startsWith("elevenlabs_")) {
+    // ElevenLabs voices via AI33 v1 proxy
+    url = `${BASE}/v1/text-to-speech/${voiceId}`;
+    requestBody = {
+      text,
+      model_id: model_id ?? "eleven_multilingual_v3",
+    };
+  } else if (voiceId.startsWith("kokoro_")) {
+    // Kokoro voices via AI33 v1 proxy (no model_id, no language, no similarity)
+    url = `${BASE}/v1/text-to-speech/${voiceId}`;
+    requestBody = { text };
+  } else if (voiceId.startsWith("clone_")) {
+    // Clone voices use Minimax /v1m/ infrastructure; voice_id is the numeric part only
+    const numericId = voiceId.slice("clone_".length);
+    url = `${BASE}/v1m/task/text-to-speech`;
+    requestBody = {
+      text,
+      model: "speech-2.6-hd",
+      voice_setting: { voice_id: numericId },
+    };
+  } else {
+    // Legacy Minimax digit IDs
+    url = `${BASE}/v1m/task/text-to-speech`;
+    requestBody = {
+      text,
+      model: "speech-2.6-hd",
+      voice_setting: { voice_id: voiceId || "273587280617675" },
+    };
   }
 
-  const cfg = PROVIDERS[provider as Provider];
+  console.log(`[TTS submit] voice=${voiceId} url=${url} speed=${speed}`);
 
-  const res = await fetch(cfg.url, {
+  const res = await fetch(url, {
     method: "POST",
     headers: {
-      "xi-api-key": API_KEY ?? "",
+      "xi-api-key": apiKey,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(cfg.body(text)),
+    body: JSON.stringify(requestBody),
   });
 
   if (!res.ok) {
@@ -74,7 +81,6 @@ export async function POST(req: NextRequest) {
   console.log("[TTS submit] raw response:", JSON.stringify(data));
 
   const taskId = data.task_id ?? data.id ?? data.taskId;
-
   if (!taskId) {
     return Response.json(
       { error: "Pas de task_id dans la reponse", raw: data },
@@ -84,7 +90,5 @@ export async function POST(req: NextRequest) {
   console.log("[TTS submit] taskId:", taskId);
 
   const filename = `${sanitizeFilename(title)}_${language.toUpperCase()}.mp3`;
-
-  // apiKey renvoyé pour que le client puisse poller AI33pro directement (évite timeout Vercel)
-  return Response.json({ taskId, filename, apiKey: API_KEY });
+  return Response.json({ taskId, filename, apiKey });
 }
