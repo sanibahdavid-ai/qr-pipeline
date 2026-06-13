@@ -92,11 +92,14 @@ type Props = {
   onCopy: () => void;
   onAdjust: (dur: AdjustDuration) => void;
   onRestore: () => void;
+  healthScore?: number;
+  healthFeedback?: string | null;
 };
 
 export function ScriptCard({
   section, content, stats, adjustDurations, isAdjusting, hasOverride,
   adjusting, audioState, isCopied, onCopy, onAdjust, onRestore,
+  healthScore, healthFeedback,
 }: Props) {
   return (
     <div className="bg-[#111118] border border-[#1e1e2e] overflow-hidden flex flex-col" style={{ borderRadius: "4px" }}>
@@ -148,6 +151,32 @@ export function ScriptCard({
       {audioState?.status === "done" && audioState.audioUrl && (
         <div className="px-3 py-2.5 border-t border-[#1e1e2e]">
           <AudioPlayer audioUrl={audioState.audioUrl} filename={audioState.filename} />
+        </div>
+      )}
+
+      {/* Health score bar */}
+      {healthScore !== undefined && (
+        <div className="px-3 py-2 border-t border-[#1e1e2e]">
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-1 bg-[#1e1e2e] overflow-hidden" style={{ borderRadius: "1px" }}>
+              <div
+                className="h-full transition-all duration-500"
+                style={{
+                  width: `${healthScore}%`,
+                  background: healthScore >= 80 ? "#22c55e" : healthScore >= 60 ? "#f59e0b" : "#ef4444",
+                }}
+              />
+            </div>
+            <span
+              className="text-[10px] font-mono shrink-0 tabular-nums"
+              style={{ color: healthScore >= 80 ? "#22c55e" : healthScore >= 60 ? "#f59e0b" : "#ef4444" }}
+            >
+              {healthScore}
+            </span>
+          </div>
+          {healthFeedback && (
+            <p className="text-[10px] font-mono text-[#f59e0b] mt-1 leading-snug">{healthFeedback}</p>
+          )}
         </div>
       )}
 

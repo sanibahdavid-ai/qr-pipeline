@@ -43,6 +43,7 @@ Rules:
 - Describe concrete visual scenes, actions or objects (never sport-specific unless the script is about sport)
 - No adjectives like 'amazing' or 'incredible' — describe what the camera sees, not how it feels
 - Adapt to the actual topic of the script
+VALIDATION OBLIGATOIRE : Avant de finaliser, recompte chaque ligne. Toute ligne avec 5 mots ou plus est invalide — coupe-la.
 Example output (for a script about a city transformation):
 empty street dawn
 construction workers excavating
@@ -232,7 +233,7 @@ export async function POST(req: NextRequest) {
   const targetChars =
     targetSeconds === "original"
       ? transcriptChars
-      : Math.round(targetSeconds * 30);
+      : Math.round(targetSeconds * 22);
 
   const durationInstruction =
     `[INSTRUCTION DURÉE] The script must be exactly ${targetChars} characters long (spaces included). Count carefully.\n\n`;

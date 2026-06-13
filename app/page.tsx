@@ -42,10 +42,9 @@ function insertCTA(text: string, lang: string, position: number): string {
   if (pos < text.length) { const tail = text.slice(pos).trim(); if (tail) parts.push(tail); }
   if (parts.length < 2) return `${text.trim()} ${cta}`;
   // position is 2, 3, or 4 — insert after that sentence (0-based: position - 1).
-  // Never past the script midpoint.
   const target = position - 1;
-  const midpoint = Math.floor(parts.length / 2);
-  const insertAfter = Math.min(target, Math.max(0, midpoint), parts.length - 2);
+  const insertAfter = Math.min(target, parts.length - 2);
+  console.log("[insertCTA]", { position, partsLength: parts.length, target, insertAfter });
   return [...parts.slice(0, insertAfter + 1), cta, ...parts.slice(insertAfter + 1)].join(" ");
 }
 const ADJUST_DURATIONS = ["10s", "15s", "30s", "45s", "1min30", "2min"] as const;
@@ -92,6 +91,7 @@ export default function Home() {
   const [provider, setProvider] = useState<Provider>("ai33-elevenlabs");
   const [audio, setAudio] = useState<Record<string, AudioState>>({});
   const [copied, setCopied] = useState<string | null>(null);
+  const [copiedUrl, setCopiedUrl] = useState(false);
   const [overrides, setOverrides] = useState<Partial<Record<Section, string>>>({});
   const [adjusting, setAdjusting] = useState<Section | null>(null);
   const [transcriptText, setTranscriptText] = useState("");
@@ -112,6 +112,7 @@ export default function Home() {
   // Auth + cloud history
   const [user, setUser] = useState<AuthUser | null>(null);
   const [cloudHistory, setCloudHistory] = useState<GenerationRow[]>([]);
+  const [healthScores, setHealthScores] = useState<Record<string, { score: number; feedback?: string | null }>>({});
 
   // Command palette
   const [showPalette, setShowPalette] = useState(false);
@@ -290,6 +291,8 @@ export default function Home() {
     setError("");
     setAudio({});
     setCopied(null);
+    setCopiedUrl(false);
+    setHealthScores({});
     setOverrides({});
     setAdjusting(null);
     setTranscriptText("");
@@ -336,6 +339,26 @@ export default function Home() {
     await handleRewrite(text, title);
   }
 
+  async function runHealthCheck(scripts: Record<string, string>, transcript: string) {
+    setHealthScores({});
+    try {
+      const res = await fetch("/api/health-check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scripts, transcript }),
+      });
+      if (!res.ok) return;
+      const data: { scores?: Record<string, number>; feedback?: Record<string, string | null> } = await res.json();
+      if (data.scores) {
+        const merged: Record<string, { score: number; feedback?: string | null }> = {};
+        for (const lang of ["FR", "EN", "DE", "ES"]) {
+          merged[lang] = { score: data.scores[lang] ?? 0, feedback: data.feedback?.[lang] ?? null };
+        }
+        setHealthScores(merged);
+      }
+    } catch {}
+  }
+
   // ── Rewrite ───────────────────────────────────────────────────────────────
   function durationToSeconds(d: AdjustDuration | "original"): number | "original" {
     if (d === "original") return "original";
@@ -374,6 +397,16 @@ export default function Home() {
       setQrText(accumulated);
     }
     setStep("done");
+    const parsed = parseQR(accumulated);
+    void runHealthCheck(
+      {
+        FR: parsed["SCRIPT FR"] ?? "",
+        EN: parsed["SCRIPT EN"] ?? "",
+        DE: parsed["SCRIPT DE"] ?? "",
+        ES: parsed["SCRIPT ES"] ?? "",
+      },
+      text
+    );
     const finalTitle = title ?? videoTitle;
     if (finalTitle) {
       saveToHistory(finalTitle, url, accumulated);
@@ -590,7 +623,7 @@ export default function Home() {
     await navigator.clipboard.writeText(formatted);
     setCopied(key);
     toast.success("Copié !");
-    setTimeout(() => setCopied(null), 2000);
+    setTimeout(() => setCopied(null), 1500);
   }
 
   function getVoiceConfigForLang(lang: string) {
@@ -672,9 +705,24 @@ export default function Home() {
 
         {/* Video title */}
         {videoTitle && (
-          <p className="text-[12px] font-mono text-[#555577] truncate">
-            <span className="text-[#2a2a3e]">▸ </span>{videoTitle}
-          </p>
+          <div className="flex items-center gap-2 min-w-0">
+            <p className="text-[12px] font-mono text-[#555577] truncate min-w-0 flex-1">
+              <span className="text-[#2a2a3e]">▸ </span>{videoTitle}
+            </p>
+            {url && (
+              <button
+                onClick={async () => {
+                  await navigator.clipboard.writeText(url);
+                  setCopiedUrl(true);
+                  setTimeout(() => setCopiedUrl(false), 1000);
+                }}
+                className="shrink-0 text-[10px] font-mono text-[#555577] hover:text-[#00e5ff] transition-none"
+                title="Copier le lien"
+              >
+                {copiedUrl ? "Copié !" : "🔗"}
+              </button>
+            )}
+          </div>
         )}
 
         {/* URL input (idle or extracting) */}
@@ -821,6 +869,8 @@ export default function Home() {
                     onCopy={() => copySection(section, displayContent)}
                     onAdjust={(dur) => handleAdjust(section, dur)}
                     onRestore={() => setOverrides((o) => { const n = { ...o }; delete n[section]; return n; })}
+                    healthScore={healthScores[lang]?.score}
+                    healthFeedback={healthScores[lang]?.feedback}
                   />
                 );
               })}
