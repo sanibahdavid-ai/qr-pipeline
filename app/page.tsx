@@ -127,6 +127,7 @@ export default function Home() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const historyPanelRef = useRef<HTMLDivElement>(null);
+  const latestHistoryIdRef = useRef<string | null>(null);
 
   // Auth + cloud history
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -143,7 +144,14 @@ export default function Home() {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(HISTORY_KEY);
-      if (raw) setHistory(JSON.parse(raw));
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          setHistory((parsed as unknown[]).filter((e): e is HistoryEntry =>
+            typeof e === "object" && e !== null && typeof (e as Record<string, unknown>).id === "string"
+          ));
+        }
+      }
       if (localStorage.getItem("cta_enabled") === "1") setCtaEnabled(true);
       const savedTab = localStorage.getItem(TAB_KEY) as Tab | null;
       if (savedTab === "scripts" || savedTab === "download") setActiveTab(savedTab);
@@ -187,14 +195,32 @@ export default function Home() {
   useHotkeys("3", () => { const a = audio["DE"] ?? audio["EDGE_DE"] ?? audio["GTTS_DE"]; if (a?.audioUrl) playAudio(a.audioUrl); }, { enabled: step === "done" });
   useHotkeys("4", () => { const a = audio["ES"] ?? audio["EDGE_ES"] ?? audio["GTTS_ES"]; if (a?.audioUrl) playAudio(a.audioUrl); }, { enabled: step === "done" });
 
-  function saveToHistory(title: string, currentUrl: string, text: string) {
+  function saveToHistory(title: string, currentUrl: string, text: string, transcript: string) {
+    const id = Date.now().toString();
+    latestHistoryIdRef.current = id;
     const entry: HistoryEntry = {
-      id: Date.now().toString(),
+      id,
       date: new Date().toISOString(),
-      title, url: currentUrl, qrText: text, provider,
+      title,
+      url: currentUrl,
+      qrText: text,
+      provider,
+      transcriptText: transcript,
     };
     setHistory((prev) => {
       const updated = [entry, ...prev].slice(0, MAX_HISTORY);
+      try { localStorage.setItem(HISTORY_KEY, JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+  }
+
+  function updateHistoryHealthScores(id: string, scores: Record<string, { score: number; feedback?: string | null }>) {
+    const simpleScores: Record<string, number> = {};
+    for (const [lang, data] of Object.entries(scores)) {
+      simpleScores[lang] = data.score;
+    }
+    setHistory((prev) => {
+      const updated = prev.map((h) => h.id === id ? { ...h, healthScores: simpleScores } : h);
       try { localStorage.setItem(HISTORY_KEY, JSON.stringify(updated)); } catch {}
       return updated;
     });
@@ -207,6 +233,14 @@ export default function Home() {
       setUrl(entry.url);
       setQrText(entry.qrText);
       setProvider(entry.provider);
+      if (entry.transcriptText) setTranscriptText(entry.transcriptText);
+      if (entry.healthScores) {
+        const restored: Record<string, { score: number }> = {};
+        for (const [lang, score] of Object.entries(entry.healthScores)) {
+          restored[lang] = { score };
+        }
+        setHealthScores(restored);
+      }
       setStep("done");
       setShowHistory(false);
     }, 50);
@@ -429,6 +463,9 @@ export default function Home() {
           merged[lang] = { score: data.scores[lang] ?? 0, feedback: data.feedback?.[lang] ?? null };
         }
         setHealthScores(merged);
+        if (latestHistoryIdRef.current) {
+          updateHistoryHealthScores(latestHistoryIdRef.current, merged);
+        }
         // Auto-correct any language scoring below 80
         for (const lang of ["FR", "EN", "DE", "ES"]) {
           if ((data.scores[lang] ?? 100) < 80 && scripts[lang]) {
@@ -489,7 +526,7 @@ export default function Home() {
     );
     const finalTitle = title ?? videoTitle;
     if (finalTitle) {
-      saveToHistory(finalTitle, url, accumulated);
+      saveToHistory(finalTitle, url, accumulated, text);
       saveToCloud(accumulated, finalTitle);
     }
   }

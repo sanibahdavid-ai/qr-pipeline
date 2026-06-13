@@ -6,7 +6,7 @@ import type { HistoryEntry, AuthUser } from "../types";
 import type { GenerationRow } from "../lib/supabase";
 import { formatDate } from "../lib/format";
 
-const APP_VERSION = "3.1";
+const APP_VERSION = "3.2";
 const CTA_POSITIONS = [2, 3, 4] as const;
 
 type Props = {
@@ -39,6 +39,8 @@ export function Header({
 }: Props) {
   const [showCtaPopover, setShowCtaPopover] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [copiedUrlId, setCopiedUrlId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const ctaPopoverRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -189,7 +191,7 @@ export function Header({
 
             {showHistory && (
               <div
-                className="absolute right-0 top-9 w-80 bg-[#111118] border border-[#1e1e2e] shadow-2xl z-50 overflow-hidden"
+                className="absolute right-0 top-9 w-96 bg-[#111118] border border-[#1e1e2e] shadow-2xl z-50 overflow-hidden"
                 style={{ borderRadius: "4px" }}
               >
                 <div className="h-[2px] w-full" style={{ background: "linear-gradient(90deg, #00e5ff, #ff3cac)" }} />
@@ -243,26 +245,93 @@ export function Header({
                       Aucune vidéo générée
                     </div>
                   ) : (
-                    <div className="max-h-80 overflow-y-auto divide-y divide-[#1e1e2e]">
+                    <div className="max-h-[32rem] overflow-y-auto divide-y divide-[#1e1e2e]">
                       {history.map((entry) => (
-                        <div
-                          key={entry.id}
-                          onClick={() => onRestoreHistory(entry)}
-                          className="group flex items-start gap-2 px-4 py-2.5 hover:bg-[#16161f] cursor-pointer transition-none"
-                        >
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[12px] text-[#e0e0f0] truncate font-medium leading-snug">
-                              {entry.title || "Sans titre"}
-                            </p>
-                            <p className="text-[10px] text-[#555577] font-mono mt-0.5">
-                              {formatDate(entry.date)} · {entry.provider}
-                            </p>
+                        <div key={entry.id} className="flex flex-col px-4 py-3 hover:bg-[#16161f] transition-none">
+                          {/* Title + URL copy + delete */}
+                          <div className="flex items-start gap-2 min-w-0">
+                            <button
+                              onClick={() => onRestoreHistory(entry)}
+                              className="flex-1 min-w-0 text-left"
+                            >
+                              <p className="text-[12px] text-[#e0e0f0] truncate font-medium leading-snug">
+                                {entry.title || "Sans titre"}
+                              </p>
+                            </button>
+                            {entry.url && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigator.clipboard.writeText(entry.url).then(() => {
+                                    setCopiedUrlId(entry.id);
+                                    setTimeout(() => setCopiedUrlId(null), 1000);
+                                  });
+                                }}
+                                className="shrink-0 text-[11px] font-mono text-[#555577] hover:text-[#00e5ff] transition-none"
+                                title="Copier le lien"
+                              >
+                                {copiedUrlId === entry.id ? "✓" : "🔗"}
+                              </button>
+                            )}
+                            <button
+                              onClick={(e) => onDeleteHistory(entry.id, e)}
+                              className="shrink-0 text-[#555577] hover:text-[#ff4466] transition-none"
+                            >
+                              <span className="text-xs">×</span>
+                            </button>
                           </div>
+
+                          {/* Date + provider */}
+                          <p className="text-[10px] text-[#555577] font-mono mt-0.5">
+                            {formatDate(entry.date)} · {entry.provider}
+                          </p>
+
+                          {/* Health score badges */}
+                          {entry.healthScores && Object.keys(entry.healthScores).length > 0 && (
+                            <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                              {(["FR", "EN", "DE", "ES"] as const).map((lang) => {
+                                const score = entry.healthScores?.[lang];
+                                if (score === undefined) return null;
+                                const color = score >= 80 ? "#00ffaa" : score >= 60 ? "#F59E0B" : "#ff4466";
+                                return (
+                                  <span
+                                    key={lang}
+                                    className="text-[9px] font-mono px-1 py-px border"
+                                    style={{ borderRadius: "2px", borderColor: color, color }}
+                                  >
+                                    {lang} {score}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {/* Transcript preview */}
+                          {entry.transcriptText && (
+                            <div className="mt-1.5">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setExpandedId(expandedId === entry.id ? null : entry.id);
+                                }}
+                                className="text-[9px] font-mono text-[#555577] hover:text-[#a0a0b8] transition-none"
+                              >
+                                {expandedId === entry.id ? "▾ transcript" : "▸ transcript"}
+                              </button>
+                              {expandedId === entry.id && (
+                                <p className="mt-1 text-[10px] font-mono text-[#a0a0b8] leading-relaxed max-h-24 overflow-y-auto whitespace-pre-wrap">
+                                  {entry.transcriptText}
+                                </p>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Restore */}
                           <button
-                            onClick={(e) => onDeleteHistory(entry.id, e)}
-                            className="opacity-0 group-hover:opacity-100 text-[#555577] hover:text-[#ff4466] transition-none shrink-0 mt-0.5"
+                            onClick={() => onRestoreHistory(entry)}
+                            className="mt-2 text-left text-[10px] font-mono text-[#555577] hover:text-[#00e5ff] transition-none"
                           >
-                            <span className="text-xs">×</span>
+                            Restaurer →
                           </button>
                         </div>
                       ))}
