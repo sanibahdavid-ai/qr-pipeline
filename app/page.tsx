@@ -147,9 +147,20 @@ export default function Home() {
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
-          setHistory((parsed as unknown[]).filter((e): e is HistoryEntry =>
-            typeof e === "object" && e !== null && typeof (e as Record<string, unknown>).id === "string"
-          ));
+          setHistory(
+            (parsed as unknown[])
+              .filter((e): e is HistoryEntry =>
+                typeof e === "object" && e !== null && typeof (e as Record<string, unknown>).id === "string"
+              )
+              .map((e) => {
+                const entry = e as Record<string, unknown>;
+                // Migrate old entries: date → createdAt, add step
+                if (!entry.createdAt && entry.date) entry.createdAt = entry.date;
+                if (!entry.step) entry.step = "done";
+                if (!entry.healthScores) entry.healthScores = {};
+                return entry as unknown as HistoryEntry;
+              })
+          );
         }
       }
       if (localStorage.getItem("cta_enabled") === "1") setCtaEnabled(true);
@@ -200,12 +211,14 @@ export default function Home() {
     latestHistoryIdRef.current = id;
     const entry: HistoryEntry = {
       id,
-      date: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
       title,
       url: currentUrl,
       qrText: text,
       provider,
+      step: "done",
       transcriptText: transcript,
+      healthScores: {},
     };
     setHistory((prev) => {
       const updated = [entry, ...prev].slice(0, MAX_HISTORY);
@@ -227,23 +240,27 @@ export default function Home() {
   }
 
   function restoreFromHistory(entry: HistoryEntry) {
-    reset();
-    setTimeout(() => {
-      setVideoTitle(entry.title);
-      setUrl(entry.url);
-      setQrText(entry.qrText);
-      setProvider(entry.provider);
-      if (entry.transcriptText) setTranscriptText(entry.transcriptText);
-      if (entry.healthScores) {
-        const restored: Record<string, { score: number }> = {};
-        for (const [lang, score] of Object.entries(entry.healthScores)) {
-          restored[lang] = { score };
-        }
-        setHealthScores(restored);
-      }
-      setStep("done");
-      setShowHistory(false);
-    }, 50);
+    // Reset transient state
+    setError("");
+    setAudio({});
+    setOverrides({});
+    setAdjusting(null);
+    setCorrectingLangs({});
+    setCopied(null);
+    setCopiedTranscript(false);
+    // Restore entry state
+    setUrl(entry.url);
+    setVideoTitle(entry.title);
+    setQrText(entry.qrText);
+    setProvider(entry.provider);
+    setTranscriptText(entry.transcriptText ?? "");
+    setHealthScores(
+      Object.fromEntries(
+        Object.entries(entry.healthScores ?? {}).map(([lang, score]) => [lang, { score }])
+      )
+    );
+    setStep("done");
+    setShowHistory(false);
   }
 
   function deleteHistoryEntry(id: string, e: React.MouseEvent) {
@@ -535,6 +552,7 @@ export default function Home() {
   async function handleTTS(language: "EN" | "DE" | "FR" | "ES", voice: string, speed: number, modelId?: string) {
     const sectionKey = `SCRIPT ${language}` as Section;
     const rawText = getContent(sectionKey);
+    console.log(`[handleTTS] lang=${language} sectionKey=${sectionKey} textLength=${rawText?.length ?? 0} step=${step}`);
     if (!rawText) return;
     const text = ctaEnabled ? insertCTA(rawText, language, ctaPosition) : rawText;
 
@@ -663,7 +681,7 @@ export default function Home() {
   }
 
   async function handleGenerateAll() {
-    const raw = typeof window !== "undefined" ? localStorage.getItem("qr_voice_config_v3") : null;
+    const raw = typeof window !== "undefined" ? localStorage.getItem("qr_voice_config_v4") : null;
     const configs = raw ? JSON.parse(raw) : {};
 
     function getVoiceConfig(lang: string) {
@@ -685,8 +703,8 @@ export default function Home() {
 
   function getDefaultVoiceConfig(p: Provider, lang: string): { voice: string; speed: number } {
     const defaults: Record<string, Record<string, { voice: string; speed: number }>> = {
-      "ai33-minimax":    { FR: { voice: "clone_2608233", speed: 1.0 }, EN: { voice: "clone_2608233", speed: 1.0 }, DE: { voice: "clone_2608233", speed: 1.0 }, ES: { voice: "clone_2608233", speed: 1.0 } },
-      "ai33-elevenlabs": { FR: { voice: "elevenlabs_CwhRBWXzGAHq8TQ4Fs17", speed: 1.0 }, EN: { voice: "elevenlabs_CwhRBWXzGAHq8TQ4Fs17", speed: 1.0 }, DE: { voice: "elevenlabs_CwhRBWXzGAHq8TQ4Fs17", speed: 1.0 }, ES: { voice: "elevenlabs_CwhRBWXzGAHq8TQ4Fs17", speed: 1.0 } },
+      "ai33-minimax":    { FR: { voice: "clone_2580971", speed: 1.0 }, EN: { voice: "clone_2608233", speed: 1.0 }, DE: { voice: "clone_2608233", speed: 1.0 }, ES: { voice: "clone_2608233", speed: 1.0 } },
+      "ai33-elevenlabs": { FR: { voice: "elevenlabs_CwhRBWXzGAHq8TQ4Fs17", speed: 1.0 }, EN: { voice: "elevenlabs_CwhRBWXzGAHq8TQ4Fs17", speed: 1.0 }, DE: { voice: "elevenlabs_CwhRBWXzGAHq8TQ4Fs17", speed: 1.0 }, ES: { voice: "elevenlabs_JBFqnCBsd6RMkjVDRZzb", speed: 1.0 } },
       "elevenlabs":      { FR: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, EN: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, DE: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, ES: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 } },
       "edge-tts":        { FR: { voice: "fr-FR-HenriNeural", speed: 0 }, EN: { voice: "en-US-GuyNeural", speed: 0 }, DE: { voice: "de-DE-KillianNeural", speed: 0 }, ES: { voice: "es-ES-AlvaroNeural", speed: 0 } },
       "google-tts":      { FR: { voice: "fr-FR-Neural2-B", speed: 1.0 }, EN: { voice: "en-US-Neural2-D", speed: 1.0 }, DE: { voice: "de-DE-Neural2-B", speed: 1.0 }, ES: { voice: "es-ES-Neural2-B", speed: 1.0 } },
@@ -760,7 +778,7 @@ export default function Home() {
   }
 
   function getVoiceConfigForLang(lang: string) {
-    const raw = typeof window !== "undefined" ? localStorage.getItem("qr_voice_config_v3") : null;
+    const raw = typeof window !== "undefined" ? localStorage.getItem("qr_voice_config_v4") : null;
     const configs = raw ? (JSON.parse(raw) as Record<string, { voice: string; speed: number }>) : {};
     return configs[`${provider}__${lang}`] ?? getDefaultVoiceConfig(provider, lang);
   }

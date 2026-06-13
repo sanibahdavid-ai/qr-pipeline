@@ -23,9 +23,11 @@ const SPEED_MAX = 2.0;
 
 const AI33_VOICES: { id: string; label: string }[] = [
   { id: "clone_2608233",                   label: "ALEX CLONED" },
+  { id: "clone_2580971",                   label: "Foot French" },
   { id: "clone_2607201",                   label: "NARATEUR ANIME" },
   { id: "clone_2606818",                   label: "Arnold sama" },
   { id: "elevenlabs_CwhRBWXzGAHq8TQ4Fs17", label: "Brian (ElevenLabs)" },
+  { id: "elevenlabs_JBFqnCBsd6RMkjVDRZzb", label: "George — Storyteller EN ♂" },
   { id: "kokoro_am_liam",                  label: "Liam — American EN ♂" },
   { id: "kokoro_am_puck",                  label: "Puck — American EN ♂" },
   { id: "kokoro_af_heart",                 label: "Heart — American EN ♀ ★" },

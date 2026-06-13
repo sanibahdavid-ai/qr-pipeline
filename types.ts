@@ -27,11 +27,12 @@ export type DurationSelection = "15s" | "30s" | "60s" | "custom" | "original";
 
 export type HistoryEntry = {
   id: string;
-  date: string;
+  createdAt: string;
   title: string;
   url: string;
   qrText: string;
   provider: Provider;
+  step: "done";
   transcriptText?: string;
   healthScores?: Record<string, number>;
 };

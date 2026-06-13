@@ -6,7 +6,7 @@ import type { HistoryEntry, AuthUser } from "../types";
 import type { GenerationRow } from "../lib/supabase";
 import { formatDate } from "../lib/format";
 
-const APP_VERSION = "3.2";
+const APP_VERSION = "3.3";
 const CTA_POSITIONS = [2, 3, 4] as const;
 
 type Props = {
@@ -283,7 +283,7 @@ export function Header({
 
                           {/* Date + provider */}
                           <p className="text-[10px] text-[#555577] font-mono mt-0.5">
-                            {formatDate(entry.date)} · {entry.provider}
+                            {formatDate(entry.createdAt)} · {entry.provider}
                           </p>
 
                           {/* Health score badges */}
