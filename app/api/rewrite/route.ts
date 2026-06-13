@@ -51,13 +51,25 @@ SCRIPT ES
 [version espagnole réécrite]
 
 SECTION 5 — SEARCH KEYWORDS EN
-Generate exactly 8 keywords. Each keyword is a standalone 2-4 word noun phrase. Hard rules:
-- MAXIMUM 4 WORDS PER KEYWORD. 5 words = invalid, rewrite it.
-- No verbs, no articles (a, the, an), no prepositions (of, in, on, at, for), no conjunctions
-- Each keyword must work as a direct search query on Pexels or Getty
-Bad: 'youth basketball game court kid' (5 words), 'teammates passing ball opposing' (4 words but meaningless)
-Good: 'youth basketball court', 'teammates passing ball', 'opposing team reaction', 'gymnasium crowd', 'young player celebrating', 'coach sideline', 'basketball hoop close', 'kids group hug'
-INTERDIT : aucune numérotation (1. 2. 3.), aucun tiret (-), aucune puce (•), aucun astérisque (*), aucun marqueur de liste. Une ligne = un keyword brut, rien d'autre.
+Generate exactly 8 keywords that follow the CHRONOLOGICAL ORDER of scenes in the video. Each keyword describes a specific visual moment from the script, in the exact order it appears.
+
+Rules:
+- Follow the narrative order of the script — keyword 1 = first scene, keyword 8 = last scene
+- Each keyword describes ONE specific visual moment, action or person shown on screen
+- MAXIMUM 4 WORDS PER KEYWORD — strictly enforced
+- No articles (a, the, an), no prepositions (of, in, on, at), no conjunctions
+- No numbering, no bullets, no dashes, no markers of any kind
+- Each keyword must work as a direct stock footage search query on Pexels or Getty
+
+Example for a football script (in scene order):
+Haaland dribble fail
+Neymar injury bench
+Mbappé missed free kick
+Vinicius failed chance
+Messi Ronaldo comparison
+legendary player reveal
+keyboard autocomplete phone
+favorite player typing
 
 SECTION 6
 TITRE ET HASHTAGS FR
@@ -186,9 +198,9 @@ RÈGLES ABSOLUES pour les titres :
 - Le titre doit coller au sujet réel de la vidéo — jamais un titre générique qui pourrait s'appliquer à n'importe quelle vidéo
 - Si la vidéo parle de Haaland, Anthony, Curry, etc. → le nom doit être dans le titre ou clairement sous-entendu
 - Minimum 1 emoji pertinent au contenu (pas juste décoratif)
-- Maximum 80 caractères titre + hashtags ensemble
-- Zéro points de suspension (...)
 - Maximum 4 hashtags pertinents au contenu réel
+- Maximum 80 caractères titre + hashtags ensemble (espaces inclus) — si dépasse, raccourcir le titre ou réduire les hashtags
+- Zéro points de suspension (...)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 RÈGLE 10 — FORMAT DE SORTIE
