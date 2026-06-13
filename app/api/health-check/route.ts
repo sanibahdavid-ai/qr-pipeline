@@ -33,7 +33,7 @@ SCORING CRITERIA — score each script 0 to 100 points total:
 3. No dashes — zero dashes (-, —, –) used in the script (15 pts)
 4. Connectors — narrative connectors from original are preserved (15 pts)
 5. Independence — script uses different content/angles, not a direct translation of another version (15 pts)
-6. No banned words — none of: incroyable, dingue, fou, amazing, insane, unbelievable, incredible, wahnsinnig, unglaublich, increíble, locura, impresionante (15 pts)
+6. No banned words — ONLY these exact words are banned: incroyable, dingue, fou, amazing, insane, unbelievable, incredible, wahnsinnig, unglaublich, increíble, locura, impresionante. Words like "extraordinaire", "unexpected", "extraordinary", "inesperado" are NOT banned — only the literal words above lose points. (15 pts)
 
 Respond ONLY with valid JSON, no markdown, no extra text:
 {"scores":{"FR":0,"EN":0,"DE":0,"ES":0},"feedback":{"FR":null,"EN":null,"DE":null,"ES":null}}

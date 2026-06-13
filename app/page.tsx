@@ -40,7 +40,7 @@ function filterKeywords(text: string): string {
       clean = clean.replace(/[.,:;!?]+$/, "").trim();
       // Truncate to 4 words max
       const words = clean.split(/\s+/).filter(Boolean);
-      return words.length > 4 ? words.slice(0, 4).join(" ") : clean;
+      return words.slice(0, 4).join(" ");
     })
     .filter((line) => line.length > 0)
     .join("\n");
@@ -248,6 +248,7 @@ export default function Home() {
     setCorrectingLangs({});
     setCopied(null);
     setCopiedTranscript(false);
+    setCopiedUrl(false);
     // Restore entry state
     setUrl(entry.url);
     setVideoTitle(entry.title);
@@ -681,7 +682,7 @@ export default function Home() {
   }
 
   async function handleGenerateAll() {
-    const raw = typeof window !== "undefined" ? localStorage.getItem("qr_voice_config_v4") : null;
+    const raw = typeof window !== "undefined" ? localStorage.getItem("qr_voice_config_v5") : null;
     const configs = raw ? JSON.parse(raw) : {};
 
     function getVoiceConfig(lang: string) {
@@ -778,7 +779,7 @@ export default function Home() {
   }
 
   function getVoiceConfigForLang(lang: string) {
-    const raw = typeof window !== "undefined" ? localStorage.getItem("qr_voice_config_v4") : null;
+    const raw = typeof window !== "undefined" ? localStorage.getItem("qr_voice_config_v5") : null;
     const configs = raw ? (JSON.parse(raw) as Record<string, { voice: string; speed: number }>) : {};
     return configs[`${provider}__${lang}`] ?? getDefaultVoiceConfig(provider, lang);
   }
@@ -913,7 +914,7 @@ export default function Home() {
             <summary className="flex items-center justify-between px-4 py-2.5 cursor-pointer list-none select-none hover:bg-[#121f19] transition-none">
               <span className="text-[10px] font-mono font-semibold text-[#8aaa98] tracking-widest uppercase flex items-center gap-2">
                 <span className="group-open:rotate-90 inline-block transition-none">▸</span>
-                Transcript · {transcriptText.split(/\s+/).filter(Boolean).length} mots
+                Transcript · {transcriptText.trim().split(/\s+/).filter(Boolean).length} mots
               </span>
               <button
                 onClick={async (e) => {

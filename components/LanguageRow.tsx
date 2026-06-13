@@ -27,11 +27,11 @@ const AI33_VOICES: { id: string; label: string }[] = [
   { id: "clone_2607201",                   label: "NARATEUR ANIME" },
   { id: "clone_2606818",                   label: "Arnold sama" },
   { id: "elevenlabs_CwhRBWXzGAHq8TQ4Fs17", label: "Brian (ElevenLabs)" },
-  { id: "elevenlabs_JBFqnCBsd6RMkjVDRZzb", label: "George — Storyteller EN ♂" },
+  { id: "elevenlabs_JBFqnCBsd6RMkjVDRZzb", label: "George — Storyteller (ElevenLabs)" },
   { id: "kokoro_am_liam",                  label: "Liam — American EN ♂" },
   { id: "kokoro_am_puck",                  label: "Puck — American EN ♂" },
   { id: "kokoro_af_heart",                 label: "Heart — American EN ♀ ★" },
-  { id: "kokoro_bm_george",                label: "George — British EN ♂" },
+  { id: "kokoro_bm_george",                label: "George — British (Kokoro)" },
 ];
 
 const EL_MODELS: { id: string; label: string }[] = [

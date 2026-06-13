@@ -16,8 +16,8 @@ const DEFAULTS: Record<Provider, Record<string, VoiceConfig>> = {
   "google-tts":      { FR: { voice: "fr-FR-Neural2-B", speed: 1.0 }, EN: { voice: "en-US-Neural2-D", speed: 1.0 }, DE: { voice: "de-DE-Neural2-B", speed: 1.0 }, ES: { voice: "es-ES-Neural2-B", speed: 1.0 } },
 };
 
-// Bumped to v4 so new per-lang defaults take effect for existing users
-const STORAGE_KEY = "qr_voice_config_v4";
+// Bumped to v5 so new ES default (George ElevenLabs) takes effect for existing users
+const STORAGE_KEY = "qr_voice_config_v5";
 
 type AllConfigs = Partial<Record<string, VoiceConfig>>;
 
