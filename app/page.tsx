@@ -31,8 +31,16 @@ function filterKeywords(text: string): string {
   return text
     .split("\n")
     .map((line) => {
-      const words = line.trim().split(/\s+/).filter(Boolean);
-      return words.length > 4 ? words.slice(0, 4).join(" ") : line.trim();
+      // Strip leading markers: "1.", "2)", bullets •, dashes -, asterisks *
+      let clean = line.trim()
+        .replace(/^\d+[.)]\s*/, "")
+        .replace(/^[•\-\*]\s*/, "")
+        .trim();
+      // Strip trailing punctuation
+      clean = clean.replace(/[.,:;!?]+$/, "").trim();
+      // Truncate to 4 words max
+      const words = clean.split(/\s+/).filter(Boolean);
+      return words.length > 4 ? words.slice(0, 4).join(" ") : clean;
     })
     .filter((line) => line.length > 0)
     .join("\n");
