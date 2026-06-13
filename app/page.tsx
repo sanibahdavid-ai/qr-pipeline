@@ -59,7 +59,7 @@ type Tab = "scripts" | "download";
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function cleanContent(raw: string): string {
   return raw
-    .replace(/\n*SECTION\s+\d+\s*$/i, "")
+    .replace(/\n*SECTION\s+\d+[^\n]*$/i, "")
     .replace(/\n*Prêt pour le prochain script\s*!?\s*$/i, "")
     .trim();
 }
@@ -854,9 +854,6 @@ export default function Home() {
               })}
             </div>
 
-            <p className="text-center text-[#555577] text-[10px] font-mono py-4">
-              Prêt pour le prochain script !
-            </p>
           </div>
         )}
       </main>

@@ -26,22 +26,21 @@ SCRIPT ES
 SECTION 5 — SEARCH KEYWORDS EN
 Generate 8-10 visual search keywords to help a video editor find stock footage on Pexels, Unsplash or Getty.
 Rules:
-- Short: 2-4 words max per keyword
+- MAXIMUM 4 WORDS PER KEYWORD — strictly enforced. Never write a sentence. Never use articles (a, the, an), prepositions (of, in, on, at), or conjunctions (and, but, or). Each line is a standalone 2-4 word noun phrase usable directly as a stock search query.
 - Describe concrete visual scenes, actions or objects (never sport-specific unless the script is about sport)
 - No adjectives like 'amazing' or 'incredible' — describe what the camera sees, not how it feels
-- Each keyword must be immediately usable as a stock footage search query
 - Adapt to the actual topic of the script
 Example output (for a script about a city transformation):
-empty street before dawn
+empty street dawn
 construction workers excavating
 city skyline time-lapse
 crowded square celebration
-before and after city block
-urban renewal aerial view
-people watching change happen
+city block comparison
+urban renewal aerial
+people watching crowd
 historic building facade
-crowd gathering open space
-architect blueprint close-up
+architect blueprint desk
+open space gathering
 
 SECTION 6
 TITRE ET HASHTAGS FR
@@ -103,6 +102,12 @@ Le hook doit créer immédiatement de la tension, du contraste ou de la curiosit
 INTERDIT dans le hook :
 - Commencer par le nom propre du sujet directement (ex : "Cristiano Ronaldo a fait...")
 - Utiliser ces mots en toute langue : incroyable, dingue, fou, amazing, insane, unbelievable, incredible, wahnsinnig, unglaublich, increíble, locura, impresionante. Ces mots DISENT au lieu de MONTRER — ils sont interdits dans tout le script, pas seulement dans le hook.
+
+RÈGLE SPÉCIFIQUE AU HOOK EN :
+Le hook anglais doit utiliser un chiffre précis, une référence temporelle, ou un contraste fort — jamais une phrase descriptive générique.
+Mauvais hook : "His first shot in a real game." (descriptif, aucune tension)
+Bons hooks : "17 passes. One kid. One chance." ou "The opposing team had every reason to win. They chose not to." ou "One minute left. Down by three. Nobody believed it."
+La règle : si le hook EN ne contient pas un chiffre concret, une durée exacte, ou une opposition directe entre deux réalités, il doit être réécrit.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 RÈGLE 5 — RYTHME DES PHRASES
