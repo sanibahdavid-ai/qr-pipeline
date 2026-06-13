@@ -17,6 +17,7 @@ const LANG_NAMES: Record<string, string> = {
   FR: "français",
   EN: "anglais",
   DE: "allemand",
+  ES: "espagnol",
 };
 
 export async function POST(req: NextRequest) {

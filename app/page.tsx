@@ -45,7 +45,7 @@ function insertCTA(text: string, lang: string, position: number): string {
   // Never past the script midpoint.
   const target = position - 1;
   const midpoint = Math.floor(parts.length / 2);
-  const insertAfter = Math.min(target, Math.max(0, midpoint - 1), parts.length - 2);
+  const insertAfter = Math.min(target, Math.max(0, midpoint), parts.length - 2);
   return [...parts.slice(0, insertAfter + 1), cta, ...parts.slice(insertAfter + 1)].join(" ");
 }
 const ADJUST_DURATIONS = ["10s", "15s", "30s", "45s", "1min30", "2min"] as const;
