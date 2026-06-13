@@ -1,8 +1,7 @@
 import { NextRequest } from "next/server";
-import Groq from "groq-sdk";
-// Removed: import { ReadableStream } from "stream/web"; - Relying on global ReadableStream
+import Anthropic from "@anthropic-ai/sdk";
 
-export const runtime = "nodejs";
+export const runtime = "edge";
 
 const SYSTEM_PROMPT = `Tu es expert en création de contenu ultra viral et en référencement SEO.
 
@@ -117,40 +116,42 @@ export async function POST(req: NextRequest) {
 
   const userContent = durationInstruction + transcript;
 
-  const client = new Groq({ apiKey: process.env.GROQ_API_KEY });
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-  const chatCompletion = await client.chat.completions.create({
-    messages: [
-      {
-        role: "system",
-        content: SYSTEM_PROMPT,
-      },
-      {
-        role: "user",
-        content: userContent,
-      }
-    ],
-    model: "llama-3.3-70b-versatile",
-    temperature: 0.7,
-    stream: true,
-  });
+  let stream: Awaited<ReturnType<typeof client.messages.stream>>;
+  try {
+    stream = await client.messages.stream({
+      model: "claude-sonnet-4-6",
+      max_tokens: 4096,
+      system: SYSTEM_PROMPT,
+      messages: [{ role: "user", content: userContent }],
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return new Response(JSON.stringify({ error: msg }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 
-  // Create a ReadableStream from the Groq SDK's stream
-  const stream = new ReadableStream<Uint8Array>({
+  const readable = new ReadableStream<Uint8Array>({
     async start(controller) {
       const encoder = new TextEncoder();
-      for await (const chunk of chatCompletion) {
-        if (chunk.choices && chunk.choices[0] && chunk.choices[0].delta && chunk.choices[0].delta.content) {
-          controller.enqueue(encoder.encode(chunk.choices[0].delta.content));
+      try {
+        for await (const chunk of stream) {
+          if (chunk.type === "content_block_delta" && chunk.delta.type === "text_delta") {
+            controller.enqueue(encoder.encode(chunk.delta.text));
+          }
         }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        controller.enqueue(encoder.encode(`\n[ERROR] ${msg}`));
       }
       controller.close();
     },
   });
 
-  // Return the stream directly, allowing TypeScript to infer the type or cast if necessary
-  // The global ReadableStream should be compatible, or the cast to Uint8Array handles it.
-  return new Response(stream, {
+  return new Response(readable, {
     headers: { "Content-Type": "text/plain; charset=utf-8" },
   });
 }
