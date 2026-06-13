@@ -48,9 +48,9 @@ type Props = {
 };
 
 function StatusDot({ state }: { state?: AudioState }) {
-  if (!state) return <span className="w-2 h-2 rounded-full border border-[#2a2a3e] inline-block" title="idle" />;
-  if (state.status === "loading") return <Loader2 size={12} className="text-[#a0a0b8] animate-spin" />;
-  if (state.status === "done") return <span className="w-2 h-2 rounded-full bg-[#00ffaa] inline-block" title="ready" />;
+  if (!state) return <span className="w-2 h-2 rounded-full border border-[#223a2f] inline-block" title="idle" />;
+  if (state.status === "loading") return <Loader2 size={12} className="text-[#8aaa98] animate-spin" />;
+  if (state.status === "done") return <span className="w-2 h-2 rounded-full bg-[#00ff88] inline-block" title="ready" />;
   return <span className="w-2 h-2 rounded-full bg-[#ff4466] inline-block" title="error" />;
 }
 
@@ -93,8 +93,8 @@ function AudioPlayer({ audioUrl, filename }: { audioUrl: string; filename?: stri
 
   return (
     <div
-      className="w-full flex items-center gap-4 px-4 py-2.5 border border-[#1e1e2e]"
-      style={{ background: "#111118", borderRadius: "2px" }}
+      className="w-full flex items-center gap-4 px-4 py-2.5 border border-[#1a2e25]"
+      style={{ background: "#0d1512", borderRadius: "2px" }}
     >
       <audio
         ref={audioRef}
@@ -107,7 +107,7 @@ function AudioPlayer({ audioUrl, filename }: { audioUrl: string; filename?: stri
 
       <button
         onClick={toggle}
-        className="shrink-0 w-9 h-9 flex items-center justify-center border border-[#2a2a3e] text-[#a0a0b8] hover:border-[#00e5ff] hover:text-[#00e5ff] transition-none"
+        className="shrink-0 w-9 h-9 flex items-center justify-center border border-[#223a2f] text-[#8aaa98] hover:border-[#00e5a0] hover:text-[#00e5a0] transition-none"
         style={{ borderRadius: "2px" }}
         aria-label={playing ? "Pause" : "Play"}
       >
@@ -121,19 +121,19 @@ function AudioPlayer({ audioUrl, filename }: { audioUrl: string; filename?: stri
         style={{ borderRadius: "2px" }}
         title="Cliquer pour naviguer"
       >
-        <div className="absolute inset-0 bg-[#1e1e2e]" style={{ borderRadius: "2px" }} />
+        <div className="absolute inset-0 bg-[#1a2e25]" style={{ borderRadius: "2px" }} />
         <div
-          className="absolute inset-y-0 left-0 bg-[#00e5ff]"
+          className="absolute inset-y-0 left-0 bg-[#00e5a0]"
           style={{ width: `${progress}%`, borderRadius: "2px" }}
         />
         <div
-          className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-[#00e5ff] opacity-0 group-hover:opacity-100 transition-opacity"
+          className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-[#00e5a0] opacity-0 group-hover:opacity-100 transition-opacity"
           style={{ left: `calc(${progress}% - 5px)`, borderRadius: "50%" }}
         />
       </div>
 
       <span
-        className="shrink-0 text-[11px] text-[#a0a0b8] tabular-nums"
+        className="shrink-0 text-[11px] text-[#8aaa98] tabular-nums"
         style={{ fontFamily: "var(--font-space-mono, monospace)", minWidth: "84px", textAlign: "center" }}
       >
         {fmt(currentTime)} / {fmt(duration)}
@@ -143,7 +143,7 @@ function AudioPlayer({ audioUrl, filename }: { audioUrl: string; filename?: stri
         <a
           href={audioUrl}
           download={filename}
-          className="shrink-0 w-9 h-9 flex items-center justify-center border border-[#1e1e2e] text-[#555577] hover:border-[#00e5ff] hover:text-[#00e5ff] transition-none"
+          className="shrink-0 w-9 h-9 flex items-center justify-center border border-[#1a2e25] text-[#4a6a58] hover:border-[#00e5a0] hover:text-[#00e5a0] transition-none"
           style={{ borderRadius: "2px" }}
           title="Télécharger"
         >
@@ -203,7 +203,7 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
       <div className="flex items-center gap-2">
 
         {/* Lang badge */}
-        <span className="text-[11px] font-mono font-semibold text-[#a0a0b8] w-6 shrink-0 uppercase tracking-wider">
+        <span className="text-[11px] font-mono font-semibold text-[#8aaa98] w-6 shrink-0 uppercase tracking-wider">
           {lang}
         </span>
 
@@ -212,7 +212,7 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
           <select
             value={config.voice}
             onChange={(e) => update({ voice: e.target.value })}
-            className="flex-1 min-w-0 bg-[#0d0d15] border border-[#1e1e2e] text-[11px] font-mono text-[#e0e0f0] px-2 py-1 focus:outline-none focus:border-[#00e5ff] cursor-pointer"
+            className="flex-1 min-w-0 bg-[#0a1210] border border-[#1a2e25] text-[11px] font-mono text-[#e0f0e8] px-2 py-1 focus:outline-none focus:border-[#00e5a0] cursor-pointer"
             style={{ borderRadius: "2px" }}
           >
             {voices.map((v) => (
@@ -221,7 +221,7 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
           </select>
         ) : (
           <span
-            className="flex-1 min-w-0 text-[11px] font-mono text-[#555577] px-2 py-1 border border-[#1e1e2e] truncate"
+            className="flex-1 min-w-0 text-[11px] font-mono text-[#4a6a58] px-2 py-1 border border-[#1a2e25] truncate"
             style={{ borderRadius: "2px" }}
           >
             ElevenLabs Direct
@@ -237,10 +237,10 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
             step={isEdge ? 5 : 0.05}
             value={config.speed}
             onChange={(e) => update({ speed: parseFloat(e.target.value) })}
-            className="flex-1 h-0.5 bg-[#1e1e2e] cursor-pointer"
-            style={{ accentColor: "#00e5ff" }}
+            className="flex-1 h-0.5 bg-[#1a2e25] cursor-pointer"
+            style={{ accentColor: "#00e5a0" }}
           />
-          <span className="text-[10px] font-mono text-[#555577] w-9 text-right shrink-0">
+          <span className="text-[10px] font-mono text-[#4a6a58] w-9 text-right shrink-0">
             {isEdge
               ? `${config.speed >= 0 ? "+" : ""}${config.speed}%`
               : `×${config.speed.toFixed(2)}`}
@@ -251,7 +251,7 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
         {isDone ? (
           <button
             onClick={handleGenerate}
-            className="shrink-0 w-36 px-3 py-1 text-[11px] font-mono border border-[#1e1e2e] text-[#555577] hover:border-[#00e5ff] hover:text-[#00e5ff] transition-none flex items-center justify-center gap-1.5"
+            className="shrink-0 w-36 px-3 py-1 text-[11px] font-mono border border-[#1a2e25] text-[#4a6a58] hover:border-[#00e5a0] hover:text-[#00e5a0] transition-none flex items-center justify-center gap-1.5"
             style={{ borderRadius: "2px" }}
           >
             <RefreshCw size={10} />
@@ -264,7 +264,7 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
             className={`shrink-0 w-36 px-3 py-1 text-[11px] font-mono font-semibold border transition-none flex items-center justify-center gap-1.5 disabled:opacity-50 ${
               isError
                 ? "bg-transparent border-[#ff4466] text-[#ff4466] hover:bg-[#ff4466] hover:text-black"
-                : "bg-transparent border-[#1e1e2e] text-[#e0e0f0] hover:border-[#00e5ff] hover:text-[#00e5ff]"
+                : "bg-transparent border-[#1a2e25] text-[#e0f0e8] hover:border-[#00e5a0] hover:text-[#00e5a0]"
             }`}
             style={{ borderRadius: "2px" }}
           >
@@ -299,7 +299,7 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
           <select
             value={modelId}
             onChange={(e) => handleModelChange(e.target.value)}
-            className="w-full bg-[#0d0d15] border border-[#1e1e2e] text-[10px] font-mono text-[#a0a0b8] px-2 py-1 focus:outline-none focus:border-[#00e5ff] cursor-pointer"
+            className="w-full bg-[#0a1210] border border-[#1a2e25] text-[10px] font-mono text-[#8aaa98] px-2 py-1 focus:outline-none focus:border-[#00e5a0] cursor-pointer"
             style={{ borderRadius: "2px" }}
             title="ElevenLabs model"
           >

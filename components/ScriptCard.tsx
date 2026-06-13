@@ -50,26 +50,26 @@ function AudioPlayer({ audioUrl, filename }: { audioUrl: string; filename?: stri
       />
       <button
         onClick={toggle}
-        className="shrink-0 w-6 h-6 flex items-center justify-center border border-[#2a2a3e] hover:border-[#00e5ff] hover:text-[#00e5ff] transition-none text-[#555577]"
+        className="shrink-0 w-6 h-6 flex items-center justify-center border border-[#223a2f] hover:border-[#00e5a0] hover:text-[#00e5a0] transition-none text-[#4a6a58]"
         style={{ borderRadius: "2px" }}
       >
         {playing ? <Pause size={10} /> : <Play size={10} />}
       </button>
       <div
-        className="flex-1 h-0.5 bg-[#1e1e2e] relative overflow-hidden cursor-pointer"
+        className="flex-1 h-0.5 bg-[#1a2e25] relative overflow-hidden cursor-pointer"
         style={{ borderRadius: "1px" }}
         onClick={handleSeek}
       >
-        <div className="h-full bg-[#00e5ff]" style={{ width: `${progress}%` }} />
+        <div className="h-full bg-[#00e5a0]" style={{ width: `${progress}%` }} />
       </div>
-      <span className="text-[10px] font-mono text-[#555577] shrink-0 tabular-nums">
+      <span className="text-[10px] font-mono text-[#4a6a58] shrink-0 tabular-nums">
         {formatTime(currentTime)}{duration ? `/${formatTime(duration)}` : ""}
       </span>
       {filename && (
         <a
           href={audioUrl}
           download={filename}
-          className="shrink-0 text-[#555577] hover:text-[#00e5ff] transition-none"
+          className="shrink-0 text-[#4a6a58] hover:text-[#00e5a0] transition-none"
           title="Télécharger"
         >
           <Download size={11} />
@@ -111,37 +111,37 @@ export function ScriptCard({
   }
 
   return (
-    <div className="bg-[#111118] border border-[#1e1e2e] overflow-hidden flex flex-col" style={{ borderRadius: "4px" }}>
+    <div className="bg-[#0d1512] border border-[#1a2e25] overflow-hidden flex flex-col" style={{ borderRadius: "4px" }}>
       {/* Gradient top bar */}
-      <div className="h-[2px] w-full shrink-0" style={{ background: "linear-gradient(90deg, #00e5ff, #ff3cac)" }} />
+      <div className="h-[2px] w-full shrink-0" style={{ background: "linear-gradient(90deg, #00e5a0, #ff3cac)" }} />
 
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[#1e1e2e]">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-[#1a2e25]">
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          <span className="text-[10px] font-mono font-semibold text-[#a0a0b8] tracking-widest uppercase shrink-0">
+          <span className="text-[10px] font-mono font-semibold text-[#8aaa98] tracking-widest uppercase shrink-0">
             {section}
           </span>
           {stats && (
-            <span className="text-[10px] font-mono text-[#555577] shrink-0">
+            <span className="text-[10px] font-mono text-[#4a6a58] shrink-0">
               {stats.words}w · {stats.duration}
             </span>
           )}
           {isAdjusting && (
-            <span className="flex items-center gap-1 text-[10px] font-mono text-[#555577] shrink-0">
+            <span className="flex items-center gap-1 text-[10px] font-mono text-[#4a6a58] shrink-0">
               <span className="w-2 h-2 rounded-full bg-[#F59E0B] animate-pulse" />
               Réécriture…
             </span>
           )}
           {isAutoCorrection && !isAdjusting && (
-            <span className="flex items-center gap-1 text-[10px] font-mono text-[#00e5ff] shrink-0">
-              <span className="w-2 h-2 rounded-full bg-[#00e5ff] animate-pulse" />
+            <span className="flex items-center gap-1 text-[10px] font-mono text-[#00e5a0] shrink-0">
+              <span className="w-2 h-2 rounded-full bg-[#00e5a0] animate-pulse" />
               Correction…
             </span>
           )}
           {hasOverride && !isAdjusting && (
             <button
               onClick={onRestore}
-              className="text-[10px] font-mono text-[#555577] hover:text-[#e0e0f0] transition-none shrink-0"
+              className="text-[10px] font-mono text-[#4a6a58] hover:text-[#e0f0e8] transition-none shrink-0"
             >
               ↩ Original
             </button>
@@ -149,7 +149,7 @@ export function ScriptCard({
         </div>
         <button
           onClick={onCopy}
-          className="text-[10px] font-mono text-[#555577] hover:text-[#00e5ff] transition-none shrink-0 ml-2"
+          className="text-[10px] font-mono text-[#4a6a58] hover:text-[#00e5a0] transition-none shrink-0 ml-2"
         >
           {isCopied ? "Copié ✓" : "Copier"}
         </button>
@@ -157,34 +157,34 @@ export function ScriptCard({
 
       {/* Body */}
       <div className="px-3 py-3 flex-1">
-        <p className="text-[13px] font-mono text-[#e0e0f0] whitespace-pre-wrap leading-[1.7]">
+        <p className="text-[13px] font-mono text-[#e0f0e8] whitespace-pre-wrap leading-[1.7]">
           {content}
         </p>
       </div>
 
       {/* Audio player */}
       {audioState?.status === "done" && audioState.audioUrl && (
-        <div className="px-3 py-2.5 border-t border-[#1e1e2e]">
+        <div className="px-3 py-2.5 border-t border-[#1a2e25]">
           <AudioPlayer audioUrl={audioState.audioUrl} filename={audioState.filename} />
         </div>
       )}
 
       {/* Health score bar */}
       {healthScore !== undefined && (
-        <div className="px-3 py-2 border-t border-[#1e1e2e]">
+        <div className="px-3 py-2 border-t border-[#1a2e25]">
           <div className="flex items-center gap-2">
-            <div className="flex-1 h-1 bg-[#1e1e2e] overflow-hidden" style={{ borderRadius: "1px" }}>
+            <div className="flex-1 h-1 bg-[#1a2e25] overflow-hidden" style={{ borderRadius: "1px" }}>
               <div
                 className="h-full transition-all duration-500"
                 style={{
                   width: `${healthScore}%`,
-                  background: healthScore >= 80 ? "#22c55e" : healthScore >= 60 ? "#f59e0b" : "#ef4444",
+                  background: healthScore >= 80 ? "#00e5a0" : healthScore >= 60 ? "#f59e0b" : "#ff4466",
                 }}
               />
             </div>
             <span
               className="text-[10px] font-mono shrink-0 tabular-nums"
-              style={{ color: healthScore >= 80 ? "#22c55e" : healthScore >= 60 ? "#f59e0b" : "#ef4444" }}
+              style={{ color: healthScore >= 80 ? "#00e5a0" : healthScore >= 60 ? "#f59e0b" : "#ff4466" }}
             >
               {healthScore}
             </span>
@@ -196,13 +196,13 @@ export function ScriptCard({
       )}
 
       {/* Adjust durations + custom seconds */}
-      <div className="px-3 py-2 border-t border-[#1e1e2e] flex flex-wrap gap-1 items-center">
+      <div className="px-3 py-2 border-t border-[#1a2e25] flex flex-wrap gap-1 items-center">
         {adjustDurations.map((d) => (
           <button
             key={d}
             onClick={() => { onAdjust(d); setCustomSec(""); }}
             disabled={adjusting}
-            className="text-[10px] font-mono px-2 py-0.5 border border-[#1e1e2e] text-[#555577] hover:border-[#00e5ff] hover:text-[#00e5ff] disabled:opacity-40 transition-none"
+            className="text-[10px] font-mono px-2 py-0.5 border border-[#1a2e25] text-[#4a6a58] hover:border-[#00e5a0] hover:text-[#00e5a0] disabled:opacity-40 transition-none"
             style={{ borderRadius: "2px" }}
           >
             {d}
@@ -219,7 +219,7 @@ export function ScriptCard({
             onKeyDown={(e) => { if (e.key === "Enter") submitCustom(); }}
             onBlur={submitCustom}
             disabled={adjusting}
-            className="text-[10px] font-mono px-1.5 py-0.5 bg-[#0d0d15] border border-[#1e1e2e] text-[#a0a0b8] focus:outline-none focus:border-[#00e5ff] disabled:opacity-40 transition-none"
+            className="text-[10px] font-mono px-1.5 py-0.5 bg-[#0a1210] border border-[#1a2e25] text-[#8aaa98] focus:outline-none focus:border-[#00e5a0] disabled:opacity-40 transition-none"
             style={{ borderRadius: "2px", width: "52px" }}
           />
         )}

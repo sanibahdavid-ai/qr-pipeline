@@ -122,27 +122,27 @@ export function CommandPalette({
       {/* Panel */}
       <div className="fixed top-[20vh] left-1/2 -translate-x-1/2 z-50 w-full max-w-md" style={{ borderRadius: "4px" }}>
         <Command
-          className="bg-[#111118] border border-[#1e1e2e] overflow-hidden shadow-2xl"
+          className="bg-[#0d1512] border border-[#1a2e25] overflow-hidden shadow-2xl"
           style={{ borderRadius: "4px" }}
         >
           {/* Gradient top bar */}
-          <div className="h-[2px] w-full" style={{ background: "linear-gradient(90deg, #00e5ff, #ff3cac)" }} />
+          <div className="h-[2px] w-full" style={{ background: "linear-gradient(90deg, #00e5a0, #ff3cac)" }} />
 
           {/* Input */}
-          <div className="flex items-center border-b border-[#1e1e2e] px-3 gap-2">
-            <span className="text-[#555577] shrink-0 text-[11px] font-mono">⌘</span>
+          <div className="flex items-center border-b border-[#1a2e25] px-3 gap-2">
+            <span className="text-[#4a6a58] shrink-0 text-[11px] font-mono">⌘</span>
             <Command.Input
               ref={inputRef}
               placeholder="Rechercher une action…"
-              className="flex-1 h-11 bg-transparent text-[13px] font-mono text-[#e0e0f0] placeholder-[#555577] outline-none"
+              className="flex-1 h-11 bg-transparent text-[13px] font-mono text-[#e0f0e8] placeholder-[#4a6a58] outline-none"
             />
-            <button onClick={onClose} className="shrink-0 text-[#555577] hover:text-[#e0e0f0] transition-none">
+            <button onClick={onClose} className="shrink-0 text-[#4a6a58] hover:text-[#e0f0e8] transition-none">
               <X size={13} />
             </button>
           </div>
 
           <Command.List className="max-h-72 overflow-y-auto py-1">
-            <Command.Empty className="py-6 text-center text-[12px] font-mono text-[#555577]">
+            <Command.Empty className="py-6 text-center text-[12px] font-mono text-[#4a6a58]">
               Aucune action trouvée
             </Command.Empty>
 
@@ -152,15 +152,15 @@ export function CommandPalette({
                 value={item.value}
                 disabled={item.disabled}
                 onSelect={item.disabled ? undefined : item.action}
-                className="flex items-center justify-between px-3 py-2.5 cursor-pointer text-[#a0a0b8] data-[selected=true]:bg-[#16161f] data-[selected=true]:text-[#e0e0f0] aria-disabled:opacity-40 aria-disabled:cursor-default transition-none"
+                className="flex items-center justify-between px-3 py-2.5 cursor-pointer text-[#8aaa98] data-[selected=true]:bg-[#121f19] data-[selected=true]:text-[#e0f0e8] aria-disabled:opacity-40 aria-disabled:cursor-default transition-none"
               >
                 <div className="flex items-center gap-2.5">
-                  <span className="text-[#555577]">{item.icon}</span>
+                  <span className="text-[#4a6a58]">{item.icon}</span>
                   <span className="text-[13px] font-mono">{item.label}</span>
                 </div>
                 {item.shortcut && (
                   <span
-                    className="text-[10px] font-mono text-[#555577] border border-[#1e1e2e] px-1.5 py-0.5"
+                    className="text-[10px] font-mono text-[#4a6a58] border border-[#1a2e25] px-1.5 py-0.5"
                     style={{ borderRadius: "2px" }}
                   >
                     {item.shortcut}

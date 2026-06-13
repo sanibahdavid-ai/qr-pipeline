@@ -35,9 +35,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             style: {
               fontFamily: "var(--font-space-mono), monospace",
               fontSize: "12px",
-              background: "#111118",
-              border: "1px solid #1e1e2e",
-              color: "#e0e0f0",
+              background: "#0d1512",
+              border: "1px solid #1a2e25",
+              color: "#e0f0e8",
             },
           }}
         />
