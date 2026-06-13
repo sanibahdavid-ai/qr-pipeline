@@ -22,15 +22,23 @@ const LANG_NAMES: Record<string, string> = {
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
-  const { text, language, targetDuration } = body ?? {};
+  const { text, language, targetDuration, customSeconds } = body ?? {};
 
-  if (!text || !language || !targetDuration) {
+  if (!text || !language || (!targetDuration && !customSeconds)) {
     return new Response(JSON.stringify({ error: "Paramètres manquants" }), { status: 400 });
   }
 
-  const targetWords = DURATION_WORDS[targetDuration];
-  if (!targetWords) {
-    return new Response(JSON.stringify({ error: `Durée invalide : ${targetDuration}` }), { status: 400 });
+  let targetWords: number;
+  let durationLabel: string;
+  if (customSeconds && customSeconds > 0) {
+    targetWords = Math.round((customSeconds * 130) / 60);
+    durationLabel = `${customSeconds}s`;
+  } else {
+    targetWords = DURATION_WORDS[targetDuration];
+    durationLabel = targetDuration;
+    if (!targetWords) {
+      return new Response(JSON.stringify({ error: `Durée invalide : ${targetDuration}` }), { status: 400 });
+    }
   }
 
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -41,7 +49,7 @@ export async function POST(req: NextRequest) {
     max_tokens: 2048,
     messages: [{
       role: "user",
-      content: `Voici un script en ${langName} au format QR (Quad Remix). Réécris-le pour qu'il dure exactement ${targetDuration} à voix haute à 130 mots par minute (environ ${targetWords} mots).
+      content: `Voici un script en ${langName} au format QR (Quad Remix). Réécris-le pour qu'il dure exactement ${durationLabel} à voix haute à 130 mots par minute (environ ${targetWords} mots).
 
 Règles absolues :
 - Conserve les connecteurs de tension narrative naturels en ${langName} (mais alors, pourtant, voilà ce qui se passe, et là, et leurs équivalents)

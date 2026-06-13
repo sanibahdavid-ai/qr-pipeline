@@ -27,6 +27,17 @@ const CTA_TEXTS: Record<string, string> = {
   ES: "¿Sabías que Cristiano sonríe cuando tocas el botón plus?",
 };
 
+function filterKeywords(text: string): string {
+  return text
+    .split("\n")
+    .map((line) => {
+      const words = line.trim().split(/\s+/).filter(Boolean);
+      return words.length > 4 ? words.slice(0, 4).join(" ") : line.trim();
+    })
+    .filter((line) => line.length > 0)
+    .join("\n");
+}
+
 function insertCTA(text: string, lang: string, position: number): string {
   const cta = CTA_TEXTS[lang];
   if (!cta || !text.trim()) return text;
@@ -113,6 +124,7 @@ export default function Home() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [cloudHistory, setCloudHistory] = useState<GenerationRow[]>([]);
   const [healthScores, setHealthScores] = useState<Record<string, { score: number; feedback?: string | null }>>({});
+  const [correctingLangs, setCorrectingLangs] = useState<Record<string, boolean>>({});
 
   // Command palette
   const [showPalette, setShowPalette] = useState(false);
@@ -293,6 +305,7 @@ export default function Home() {
     setCopied(null);
     setCopiedUrl(false);
     setHealthScores({});
+    setCorrectingLangs({});
     setOverrides({});
     setAdjusting(null);
     setTranscriptText("");
@@ -339,6 +352,59 @@ export default function Home() {
     await handleRewrite(text, title);
   }
 
+  async function singleLangHealthCheck(lang: string, script: string, transcript: string): Promise<{ score: number; feedback?: string | null }> {
+    const scripts: Record<string, string> = { FR: "", EN: "", DE: "", ES: "" };
+    scripts[lang] = script;
+    try {
+      const res = await fetch("/api/health-check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scripts, transcript }),
+      });
+      if (!res.ok) return { score: 0 };
+      const data: { scores?: Record<string, number>; feedback?: Record<string, string | null> } = await res.json();
+      return { score: data.scores?.[lang] ?? 0, feedback: data.feedback?.[lang] ?? null };
+    } catch { return { score: 0 }; }
+  }
+
+  async function autoCorrect(lang: string, script: string, feedback: string, transcript: string, attempt: number) {
+    if (attempt >= 2) {
+      setCorrectingLangs((c) => { const n = { ...c }; delete n[lang]; return n; });
+      return;
+    }
+    setCorrectingLangs((c) => ({ ...c, [lang]: true }));
+
+    const res = await fetch("/api/correct-script", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ script, lang, feedback, transcript }),
+    });
+    if (!res.ok || !res.body) {
+      setCorrectingLangs((c) => { const n = { ...c }; delete n[lang]; return n; });
+      return;
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let accumulated = "";
+    const section = `SCRIPT ${lang}` as Section;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      accumulated += decoder.decode(value, { stream: true });
+      setOverrides((o) => ({ ...o, [section]: accumulated }));
+    }
+
+    const newHealth = await singleLangHealthCheck(lang, accumulated, transcript);
+    setHealthScores((h) => ({ ...h, [lang]: newHealth }));
+
+    if (newHealth.score < 80 && attempt < 1) {
+      await autoCorrect(lang, accumulated, newHealth.feedback ?? "", transcript, attempt + 1);
+    } else {
+      setCorrectingLangs((c) => { const n = { ...c }; delete n[lang]; return n; });
+    }
+  }
+
   async function runHealthCheck(scripts: Record<string, string>, transcript: string) {
     setHealthScores({});
     try {
@@ -355,6 +421,12 @@ export default function Home() {
           merged[lang] = { score: data.scores[lang] ?? 0, feedback: data.feedback?.[lang] ?? null };
         }
         setHealthScores(merged);
+        // Auto-correct any language scoring below 80
+        for (const lang of ["FR", "EN", "DE", "ES"]) {
+          if ((data.scores[lang] ?? 100) < 80 && scripts[lang]) {
+            void autoCorrect(lang, scripts[lang], data.feedback?.[lang] ?? "", transcript, 0);
+          }
+        }
       }
     } catch {}
   }
@@ -589,16 +661,14 @@ export default function Home() {
     navigator.clipboard.writeText(parts.join("\n\n"));
   }
 
-  async function handleAdjust(section: Section, dur: AdjustDuration) {
-    const text = getContent(section);
-    if (!text || adjusting) return;
+  async function handleAdjustCore(section: Section, body: Record<string, unknown>) {
     const language = section.split(" ")[1];
     setAdjusting(section);
     setOverrides((o) => ({ ...o, [section]: "" }));
     const res = await fetch("/api/adjust", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, language, targetDuration: dur }),
+      body: JSON.stringify({ language, ...body }),
     });
     if (!res.ok || !res.body) {
       setAdjusting(null);
@@ -615,6 +685,21 @@ export default function Home() {
       setOverrides((o) => ({ ...o, [section]: accumulated }));
     }
     setAdjusting(null);
+    void singleLangHealthCheck(language, accumulated, transcriptText).then((h) => {
+      setHealthScores((hs) => ({ ...hs, [language]: h }));
+    });
+  }
+
+  async function handleAdjust(section: Section, dur: AdjustDuration) {
+    const text = getContent(section);
+    if (!text || adjusting) return;
+    await handleAdjustCore(section, { text, targetDuration: dur });
+  }
+
+  async function handleAdjustCustom(section: Section, seconds: number) {
+    const text = getContent(section);
+    if (!text || adjusting) return;
+    await handleAdjustCore(section, { text, customSeconds: seconds });
   }
 
   async function copySection(key: string, text: string) {
@@ -866,8 +951,10 @@ export default function Home() {
                     adjusting={!!adjusting}
                     audioState={audioState}
                     isCopied={copied === section}
+                    isAutoCorrection={!!correctingLangs[lang]}
                     onCopy={() => copySection(section, displayContent)}
                     onAdjust={(dur) => handleAdjust(section, dur)}
+                    onAdjustCustom={(sec) => handleAdjustCustom(section, sec)}
                     onRestore={() => setOverrides((o) => { const n = { ...o }; delete n[section]; return n; })}
                     healthScore={healthScores[lang]?.score}
                     healthFeedback={healthScores[lang]?.feedback}
@@ -881,7 +968,8 @@ export default function Home() {
               {(SECTIONS.filter((s) => !SCRIPT_SECTIONS.includes(s as Section)) as Section[]).map((section) => {
                 const content = getContent(section);
                 if (!content && !sections[section]) return null;
-                const displayContent = content ?? "";
+                const raw = content ?? "";
+                const displayContent = section === "SEARCH KEYWORDS EN" ? filterKeywords(raw) : raw;
                 return (
                   <div key={section} className="bg-[#111118] border border-[#1e1e2e] overflow-hidden" style={{ borderRadius: "4px" }}>
                     <div className="h-[2px] w-full" style={{ background: "linear-gradient(90deg, #00e5ff, #ff3cac)" }} />

@@ -178,35 +178,40 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
   }
 
   async function handleRemoveSilence() {
-    if (!audioState?.audioUrl) return;
+    const srcUrl = currentAudioUrl ?? audioState?.audioUrl;
+    if (!srcUrl) return;
     setSilenceStatus("loading");
     try {
-      const filename = audioState.filename ?? "audio.mp3";
-      let res: Response;
-
-      // Prefer the original remote (AI33) URL: the server fetches the real audio
-      // itself, avoiding CORS/blob issues with the client-side object URL.
-      if (audioState.originalUrl && audioState.originalUrl.startsWith("http")) {
-        console.log("[remove-silence] using original URL:", audioState.originalUrl);
-        res = await fetch("/api/tts/remove-silence", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ audioUrl: audioState.originalUrl, filename }),
-        });
-      } else {
-        // Fallback (edge/google/elevenlabs): upload the locally-generated blob.
-        const blobRes = await fetch(audioState.audioUrl);
-        if (!blobRes.ok) {
-          console.error("[remove-silence] could not fetch local audio URL:", blobRes.status);
-          setSilenceStatus("error");
-          return;
-        }
-        const blob = await blobRes.blob();
-        console.log("[remove-silence] blob size:", blob.size, "type:", blob.type);
-        const form = new FormData();
-        form.append("audio", blob, filename);
-        res = await fetch("/api/tts/remove-silence", { method: "POST", body: form });
+      // Fetch the audio blob client-side first
+      console.log("[remove-silence] fetching audio blob from:", srcUrl.slice(0, 60));
+      const blobRes = await fetch(srcUrl);
+      if (!blobRes.ok) {
+        console.error("[remove-silence] blob fetch failed:", blobRes.status);
+        setSilenceStatus("error");
+        return;
       }
+      const blob = await blobRes.blob();
+      const mimeType = blob.type || "audio/mpeg";
+      console.log(`[remove-silence] blob: size=${blob.size} type=${mimeType}`);
+
+      // Convert blob to base64
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(",")[1] ?? "");
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+      console.log(`[remove-silence] base64 length: ${base64.length}`);
+
+      // Send JSON to server
+      const res = await fetch("/api/tts/remove-silence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audioBase64: base64, mimeType }),
+      });
 
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
@@ -215,11 +220,16 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
         return;
       }
 
-      const dur = res.headers.get("X-Duration");
-      const processedBlob = await res.blob();
-      const url = URL.createObjectURL(processedBlob);
-      setProcessedUrl(url);
-      setProcessedDuration(dur || null);
+      const data: { processedUrl?: string; duration?: string; error?: string } = await res.json();
+      if (!data.processedUrl) {
+        console.error("[remove-silence] no processedUrl in response:", data);
+        setSilenceStatus("error");
+        return;
+      }
+
+      console.log("[remove-silence] processedUrl:", data.processedUrl);
+      setProcessedUrl(data.processedUrl);
+      setProcessedDuration(data.duration ?? null);
       setSilenceStatus("done");
     } catch (e) {
       console.error("[remove-silence] unexpected error:", e);

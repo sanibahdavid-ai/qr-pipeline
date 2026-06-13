@@ -2,7 +2,7 @@
   "project": {
     "name": "qr-pipeline",
     "title": "DAV Pipeline",
-    "version": "2.3",
+    "version": "2.9",
     "description": "Content creation pipeline for social media creators. Extracts transcripts from YouTube/TikTok/Instagram videos, rewrites them into multilingual QR-format scripts (FR/EN/DE/ES), generates TTS audio in multiple languages, and provides a separate video downloader tab powered by yt-dlp and Cloudflare R2.",
     "urls": {
       "live": "https://qr-pipeline.onrender.com",
@@ -332,6 +332,34 @@
   },
 
   "features": [
+    {
+      "name": "Health Score System (v2.8+)",
+      "description": "After each rewrite, Claude Haiku scores all 4 scripts on 6 criteria (hook opening, sentence count, no dashes, connector preservation, independence, no banned words) for a 0-100 score per language. Score bar shown in each ScriptCard: green ≥80, amber ≥60, red <80."
+    },
+    {
+      "name": "Auto-Correction on Low Score (v2.9)",
+      "description": "Scripts scoring < 80 are automatically sent to /api/correct-script for targeted correction using Claude Sonnet 4.6. Up to 2 retry attempts per language. Shows 'Correction…' indicator on the card while in progress. Health score updates after each attempt."
+    },
+    {
+      "name": "Remove Silence (fixed v2.9)",
+      "description": "Removes silence from TTS audio using the NeuralFalcon HuggingFace Space. Client fetches audio blob, converts to base64, sends JSON {audioBase64, mimeType}. Server pings HF Space to wake it up, uploads, polls SSE, returns {processedUrl}."
+    },
+    {
+      "name": "Copy URL Button (v2.8+)",
+      "description": "Small 🔗 button next to the video title that copies the source URL to clipboard. Shows 'Copié !' for 1 second."
+    },
+    {
+      "name": "Custom Duration Per Script (v2.9)",
+      "description": "Each ScriptCard has a custom 'sec' input field after the preset duration buttons. Enter any number of seconds and press Enter or blur to trigger adjustment via /api/adjust with customSeconds parameter."
+    },
+    {
+      "name": "Dynamic Health Score Updates (v2.9)",
+      "description": "Health score refreshes after each manual script adjustment (handleAdjust), and after auto-correction completes. Only the adjusted language's score is updated."
+    },
+    {
+      "name": "Keywords Client-Side Filter (v2.9)",
+      "description": "Keywords from the SEARCH KEYWORDS EN section are filtered client-side: any line with more than 4 words is truncated to 4 words before display."
+    },
     {
       "name": "Transcript Extraction",
       "description": "Paste a YouTube, TikTok, or Instagram URL. Fetches transcript via Supadata API — tries native captions first (cheaper), falls back to AI generation. Handles async jobs. Auto-fetches video title via YouTube oEmbed."

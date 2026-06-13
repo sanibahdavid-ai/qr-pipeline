@@ -37,24 +37,12 @@ SCRIPT ES
 [version espagnole réécrite]
 
 SECTION 5 — SEARCH KEYWORDS EN
-Generate 8-10 visual search keywords to help a video editor find stock footage on Pexels, Unsplash or Getty.
-Rules:
-- MAXIMUM 4 WORDS PER KEYWORD — strictly enforced. Never write a sentence. Never use articles (a, the, an), prepositions (of, in, on, at), or conjunctions (and, but, or). Each line is a standalone 2-4 word noun phrase usable directly as a stock search query.
-- Describe concrete visual scenes, actions or objects (never sport-specific unless the script is about sport)
-- No adjectives like 'amazing' or 'incredible' — describe what the camera sees, not how it feels
-- Adapt to the actual topic of the script
-VALIDATION OBLIGATOIRE : Avant de finaliser, recompte chaque ligne. Toute ligne avec 5 mots ou plus est invalide — coupe-la.
-Example output (for a script about a city transformation):
-empty street dawn
-construction workers excavating
-city skyline time-lapse
-crowded square celebration
-city block comparison
-urban renewal aerial
-people watching crowd
-historic building facade
-architect blueprint desk
-open space gathering
+Generate exactly 8 keywords. Each keyword is a standalone 2-4 word noun phrase. Hard rules:
+- MAXIMUM 4 WORDS PER KEYWORD. 5 words = invalid, rewrite it.
+- No verbs, no articles (a, the, an), no prepositions (of, in, on, at, for), no conjunctions
+- Each keyword must work as a direct search query on Pexels or Getty
+Bad: 'youth basketball game court kid' (5 words), 'teammates passing ball opposing' (4 words but meaningless)
+Good: 'youth basketball court', 'teammates passing ball', 'opposing team reaction', 'gymnasium crowd', 'young player celebrating', 'coach sideline', 'basketball hoop close', 'kids group hug'
 
 SECTION 6
 TITRE ET HASHTAGS FR

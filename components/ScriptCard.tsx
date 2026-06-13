@@ -89,8 +89,10 @@ type Props = {
   adjusting: boolean;
   audioState?: AudioState;
   isCopied: boolean;
+  isAutoCorrection?: boolean;
   onCopy: () => void;
   onAdjust: (dur: AdjustDuration) => void;
+  onAdjustCustom?: (seconds: number) => void;
   onRestore: () => void;
   healthScore?: number;
   healthFeedback?: string | null;
@@ -98,9 +100,16 @@ type Props = {
 
 export function ScriptCard({
   section, content, stats, adjustDurations, isAdjusting, hasOverride,
-  adjusting, audioState, isCopied, onCopy, onAdjust, onRestore,
-  healthScore, healthFeedback,
+  adjusting, audioState, isCopied, isAutoCorrection, onCopy, onAdjust,
+  onAdjustCustom, onRestore, healthScore, healthFeedback,
 }: Props) {
+  const [customSec, setCustomSec] = useState("");
+
+  function submitCustom() {
+    const sec = parseFloat(customSec);
+    if (!isNaN(sec) && sec > 0 && onAdjustCustom) onAdjustCustom(sec);
+  }
+
   return (
     <div className="bg-[#111118] border border-[#1e1e2e] overflow-hidden flex flex-col" style={{ borderRadius: "4px" }}>
       {/* Gradient top bar */}
@@ -121,6 +130,12 @@ export function ScriptCard({
             <span className="flex items-center gap-1 text-[10px] font-mono text-[#555577] shrink-0">
               <span className="w-2 h-2 rounded-full bg-[#F59E0B] animate-pulse" />
               Réécriture…
+            </span>
+          )}
+          {isAutoCorrection && !isAdjusting && (
+            <span className="flex items-center gap-1 text-[10px] font-mono text-[#00e5ff] shrink-0">
+              <span className="w-2 h-2 rounded-full bg-[#00e5ff] animate-pulse" />
+              Correction…
             </span>
           )}
           {hasOverride && !isAdjusting && (
@@ -180,12 +195,12 @@ export function ScriptCard({
         </div>
       )}
 
-      {/* Adjust durations */}
-      <div className="px-3 py-2 border-t border-[#1e1e2e] flex flex-wrap gap-1">
+      {/* Adjust durations + custom seconds */}
+      <div className="px-3 py-2 border-t border-[#1e1e2e] flex flex-wrap gap-1 items-center">
         {adjustDurations.map((d) => (
           <button
             key={d}
-            onClick={() => onAdjust(d)}
+            onClick={() => { onAdjust(d); setCustomSec(""); }}
             disabled={adjusting}
             className="text-[10px] font-mono px-2 py-0.5 border border-[#1e1e2e] text-[#555577] hover:border-[#00e5ff] hover:text-[#00e5ff] disabled:opacity-40 transition-none"
             style={{ borderRadius: "2px" }}
@@ -193,6 +208,21 @@ export function ScriptCard({
             {d}
           </button>
         ))}
+        {onAdjustCustom && (
+          <input
+            type="number"
+            min={1}
+            max={600}
+            placeholder="sec"
+            value={customSec}
+            onChange={(e) => setCustomSec(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") submitCustom(); }}
+            onBlur={submitCustom}
+            disabled={adjusting}
+            className="text-[10px] font-mono px-1.5 py-0.5 bg-[#0d0d15] border border-[#1e1e2e] text-[#a0a0b8] focus:outline-none focus:border-[#00e5ff] disabled:opacity-40 transition-none"
+            style={{ borderRadius: "2px", width: "52px" }}
+          />
+        )}
       </div>
     </div>
   );

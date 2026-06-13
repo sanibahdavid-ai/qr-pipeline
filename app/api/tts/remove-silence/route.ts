@@ -10,58 +10,37 @@ function mkHash(): string {
 }
 
 export async function POST(req: NextRequest) {
-  let audioFile: File | null = null;
-  const contentType = req.headers.get("content-type") ?? "";
+  // Accept {audioBase64, mimeType} JSON
+  let audioBase64: string | undefined;
+  let mimeType = "audio/mpeg";
 
-  if (contentType.includes("application/json")) {
-    // Real remote (AI33) URL — fetch the audio server-side (no CORS/blob limits).
-    let audioUrl: string | undefined;
-    let filename = "audio.mp3";
-    try {
-      const body = await req.json();
-      audioUrl = body?.audioUrl;
-      if (typeof body?.filename === "string" && body.filename) filename = body.filename;
-    } catch (e) {
-      console.error("[remove-silence] json parse error:", e);
-      return Response.json({ error: "Corps JSON invalide" }, { status: 400 });
-    }
-
-    if (!audioUrl || !/^https?:\/\//.test(audioUrl)) {
-      console.error("[remove-silence] invalid audioUrl:", audioUrl);
-      return Response.json({ error: "URL audio manquante ou invalide" }, { status: 400 });
-    }
-
-    console.log("[remove-silence] fetching source audio from:", audioUrl);
-    const srcRes = await fetch(audioUrl).catch((e) => {
-      console.error("[remove-silence] source fetch error:", e);
-      return null;
-    });
-    if (!srcRes?.ok) {
-      console.error(`[remove-silence] source download failed: status=${srcRes?.status}`);
-      return Response.json({ error: `Téléchargement audio source échoué (${srcRes?.status ?? "network"})` }, { status: 502 });
-    }
-    const srcBuf = await srcRes.arrayBuffer();
-    const srcType = srcRes.headers.get("Content-Type") ?? "audio/mpeg";
-    audioFile = new File([srcBuf], filename, { type: srcType });
-  } else {
-    // Fallback: multipart upload of a locally-generated blob.
-    try {
-      const form = await req.formData();
-      audioFile = form.get("audio") as File | null;
-    } catch (e) {
-      console.error("[remove-silence] formData parse error:", e);
-      return Response.json({ error: "Impossible de lire le formulaire" }, { status: 400 });
-    }
+  try {
+    const body = await req.json();
+    audioBase64 = body?.audioBase64;
+    if (body?.mimeType) mimeType = body.mimeType;
+  } catch (e) {
+    console.error("[remove-silence] json parse error:", e);
+    return Response.json({ error: "Corps JSON invalide" }, { status: 400 });
   }
 
-  if (!audioFile) {
-    console.error("[remove-silence] no audio file resolved");
-    return Response.json({ error: "Fichier audio manquant" }, { status: 400 });
+  if (!audioBase64) {
+    return Response.json({ error: "audioBase64 manquant" }, { status: 400 });
   }
 
-  console.log(`[remove-silence] file: name=${audioFile.name} size=${audioFile.size} type=${audioFile.type}`);
+  // Decode base64 → File
+  const buf = Buffer.from(audioBase64, "base64");
+  const audioFile = new File([buf], "audio.mp3", { type: mimeType });
+  console.log(`[remove-silence] decoded file: size=${audioFile.size} type=${mimeType}`);
 
-  // 1 — Upload to HF space
+  // Step 0: Wake up HF Space with a GET ping
+  console.log("[remove-silence] pinging HF Space...");
+  const pingRes = await fetch(`${HF_BASE}/`, { method: "GET" }).catch((e) => {
+    console.warn("[remove-silence] ping failed (continuing anyway):", e);
+    return null;
+  });
+  console.log(`[remove-silence] ping status: ${pingRes?.status ?? "failed"}`);
+
+  // Step 1: Upload to HF gradio_api/upload
   const uploadForm = new FormData();
   uploadForm.append("files", audioFile);
 
@@ -69,11 +48,11 @@ export async function POST(req: NextRequest) {
   const uploadRes = await fetch(`${HF_BASE}/gradio_api/upload`, {
     method: "POST",
     body: uploadForm,
-  }).catch((e) => { console.error("[remove-silence] upload fetch error:", e); return null; });
+  }).catch((e) => { console.error("[remove-silence] upload error:", e); return null; });
 
   if (!uploadRes?.ok) {
-    const body = await uploadRes?.text().catch(() => "");
-    console.error(`[remove-silence] upload failed: status=${uploadRes?.status} body=${body}`);
+    const txt = await uploadRes?.text().catch(() => "");
+    console.error(`[remove-silence] upload failed: status=${uploadRes?.status} body=${txt}`);
     return Response.json({ error: `Upload HF échoué (${uploadRes?.status ?? "network"})` }, { status: 502 });
   }
 
@@ -86,11 +65,11 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Chemin HF manquant dans la réponse upload" }, { status: 502 });
   }
 
-  // 2 — Join processing queue
+  // Step 2: Join queue with seconds=0.05
   const hash = mkHash();
   const joinBody = {
     data: [
-      { path: serverPath, orig_name: audioFile.name, mime_type: audioFile.type || "audio/mpeg", meta: { _type: "gradio.FileData" } },
+      { path: serverPath, orig_name: "audio.mp3", mime_type: mimeType, meta: { _type: "gradio.FileData" } },
       0.05,
     ],
     fn_index: 0,
@@ -102,22 +81,22 @@ export async function POST(req: NextRequest) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(joinBody),
-  }).catch((e) => { console.error("[remove-silence] join fetch error:", e); return null; });
+  }).catch((e) => { console.error("[remove-silence] join error:", e); return null; });
 
   if (!joinRes?.ok) {
-    const body = await joinRes?.text().catch(() => "");
-    console.error(`[remove-silence] queue join failed: status=${joinRes?.status} body=${body}`);
+    const txt = await joinRes?.text().catch(() => "");
+    console.error(`[remove-silence] queue join failed: status=${joinRes?.status} body=${txt}`);
     return Response.json({ error: `Queue join échoué (${joinRes?.status ?? "network"})` }, { status: 502 });
   }
 
   const joinData = await joinRes.json().catch(() => null);
   console.log("[remove-silence] join response:", JSON.stringify(joinData));
 
-  // 3 — Stream SSE until process_completed
+  // Step 3: Poll SSE /gradio_api/queue/data until process_completed
   console.log(`[remove-silence] connecting SSE session_hash=${hash}`);
   const sseRes = await fetch(
     `${HF_BASE}/gradio_api/queue/data?session_hash=${hash}`
-  ).catch((e) => { console.error("[remove-silence] SSE fetch error:", e); return null; });
+  ).catch((e) => { console.error("[remove-silence] SSE error:", e); return null; });
 
   if (!sseRes?.ok || !sseRes.body) {
     console.error(`[remove-silence] SSE connection failed: status=${sseRes?.status}`);
@@ -126,23 +105,23 @@ export async function POST(req: NextRequest) {
 
   const reader = sseRes.body.getReader();
   const decoder = new TextDecoder();
-  let buf = "";
+  let sseBuf = "";
   let fileUrl: string | null = null;
   let duration: string | null = null;
 
   outer: while (true) {
     const { done, value } = await reader.read();
     if (done) { console.log("[remove-silence] SSE stream ended"); break; }
-    buf += decoder.decode(value, { stream: true });
-    const lines = buf.split("\n");
-    buf = lines.pop() ?? "";
+    sseBuf += decoder.decode(value, { stream: true });
+    const lines = sseBuf.split("\n");
+    sseBuf = lines.pop() ?? "";
     for (const line of lines) {
       if (!line.startsWith("data: ")) continue;
       try {
         const ev = JSON.parse(line.slice(6));
         console.log("[remove-silence] SSE event:", ev.msg);
         if (ev.msg === "process_completed") {
-          console.log("[remove-silence] process_completed output:", JSON.stringify(ev.output));
+          console.log("[remove-silence] output:", JSON.stringify(ev.output));
           const out = ev.output?.data as unknown[];
           if (Array.isArray(out)) {
             const fd = out[0] as { url?: string; path?: string } | null;
@@ -157,9 +136,9 @@ export async function POST(req: NextRequest) {
         }
         if (ev.msg === "process_errored") {
           console.error("[remove-silence] process_errored:", JSON.stringify(ev));
-          return Response.json({ error: `Erreur traitement HF: ${ev.output?.error ?? "inconnu"}` }, { status: 502 });
+          return Response.json({ error: `Erreur HF: ${ev.output?.error ?? "inconnu"}` }, { status: 502 });
         }
-      } catch { /* malformed SSE line — skip */ }
+      } catch { /* skip malformed line */ }
     }
   }
 
@@ -168,21 +147,6 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Aucun fichier traité reçu" }, { status: 502 });
   }
 
-  console.log("[remove-silence] fetching result:", fileUrl);
-
-  // 4 — Fetch processed audio from HF and stream it back
-  const audioRes = await fetch(fileUrl).catch((e) => { console.error("[remove-silence] result fetch error:", e); return null; });
-  if (!audioRes?.ok) {
-    console.error(`[remove-silence] result download failed: status=${audioRes?.status}`);
-    return Response.json({ error: `Téléchargement du résultat échoué (${audioRes?.status ?? "network"})` }, { status: 502 });
-  }
-
-  const buffer = await audioRes.arrayBuffer();
-  console.log(`[remove-silence] success, returning ${buffer.byteLength} bytes duration=${duration}`);
-  return new Response(buffer, {
-    headers: {
-      "Content-Type": audioRes.headers.get("Content-Type") ?? "audio/wav",
-      "X-Duration": duration ?? "",
-    },
-  });
+  console.log(`[remove-silence] success, processedUrl=${fileUrl} duration=${duration}`);
+  return Response.json({ processedUrl: fileUrl, duration });
 }
