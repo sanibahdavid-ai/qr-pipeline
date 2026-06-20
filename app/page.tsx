@@ -151,6 +151,8 @@ export default function Home() {
   const [cloudHistory, setCloudHistory] = useState<GenerationRow[]>([]);
   const [healthScores, setHealthScores] = useState<Record<string, { score: number; feedback?: string | null }>>({});
   const [correctingLangs, setCorrectingLangs] = useState<Record<string, boolean>>({});
+  const [langTexts, setLangTexts] = useState<Partial<Record<"EN" | "DE" | "ES", string>>>({});
+  const [langLoadingScripts, setLangLoadingScripts] = useState<Partial<Record<"EN" | "DE" | "ES", boolean>>>({});
 
   // Command palette
   const [showPalette, setShowPalette] = useState(false);
@@ -266,6 +268,8 @@ export default function Home() {
     setCopied(null);
     setCopiedTranscript(false);
     setCopiedUrl(false);
+    setLangTexts({});
+    setLangLoadingScripts({});
     // Restore entry state
     setUrl(entry.url);
     setVideoTitle(entry.title);
@@ -364,7 +368,10 @@ export default function Home() {
     })();
   }
 
-  const sections = step === "done" ? parseQR(qrText) : {};
+  const combinedQrText = langTexts && Object.values(langTexts).length > 0
+    ? qrText + "\n\n" + Object.values(langTexts).join("\n\n")
+    : qrText;
+  const sections = step === "done" ? parseQR(combinedQrText) : {};
   const isLoading = step === "extracting" || step === "rewriting";
 
   function getContent(section: Section): string | undefined {
@@ -388,6 +395,8 @@ export default function Home() {
     setTranscriptText("");
     setCopiedTranscript(false);
     setTargetDuration("original");
+    setLangTexts({});
+    setLangLoadingScripts({});
   }
 
   // ── Extract ───────────────────────────────────────────────────────────────
@@ -483,28 +492,30 @@ export default function Home() {
   }
 
   async function runHealthCheck(scripts: Record<string, string>, transcript: string) {
-    setHealthScores({});
+    const activeScripts = Object.fromEntries(
+      Object.entries(scripts).filter(([, v]) => v.trim())
+    );
+    if (Object.keys(activeScripts).length === 0) return;
     try {
       const res = await fetch("/api/health-check", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scripts, transcript }),
+        body: JSON.stringify({ scripts: activeScripts, transcript }),
       });
       if (!res.ok) return;
       const data: { scores?: Record<string, number>; feedback?: Record<string, string | null> } = await res.json();
       if (data.scores) {
         const merged: Record<string, { score: number; feedback?: string | null }> = {};
-        for (const lang of ["FR", "EN", "DE", "ES"]) {
+        for (const lang of Object.keys(activeScripts)) {
           merged[lang] = { score: data.scores[lang] ?? 0, feedback: data.feedback?.[lang] ?? null };
         }
-        setHealthScores(merged);
+        setHealthScores((prev) => ({ ...prev, ...merged }));
         if (latestHistoryIdRef.current) {
           updateHistoryHealthScores(latestHistoryIdRef.current, merged);
         }
-        // Auto-correct any language scoring below 80
-        for (const lang of ["FR", "EN", "DE", "ES"]) {
-          if ((data.scores[lang] ?? 100) < 80 && scripts[lang]) {
-            void autoCorrect(lang, scripts[lang], data.feedback?.[lang] ?? "", transcript, 0);
+        for (const lang of Object.keys(activeScripts)) {
+          if ((data.scores[lang] ?? 100) < 80 && activeScripts[lang]) {
+            void autoCorrect(lang, activeScripts[lang], data.feedback?.[lang] ?? "", transcript, 0);
           }
         }
       }
@@ -550,19 +561,52 @@ export default function Home() {
     }
     setStep("done");
     const parsed = parseQR(accumulated);
-    void runHealthCheck(
-      {
-        FR: parsed["SCRIPT FR"] ?? "",
-        EN: parsed["SCRIPT EN"] ?? "",
-        DE: parsed["SCRIPT DE"] ?? "",
-        ES: parsed["SCRIPT ES"] ?? "",
-      },
-      text
-    );
+    void runHealthCheck({ FR: parsed["SCRIPT FR"] ?? "" }, text);
     const finalTitle = title ?? videoTitle;
     if (finalTitle) {
       saveToHistory(finalTitle, url, accumulated, text);
       saveToCloud(accumulated, finalTitle);
+    }
+  }
+
+  // ── Rewrite per language (on demand) ─────────────────────────────────────
+  async function handleRewriteLang(lang: "EN" | "DE" | "ES") {
+    if (!transcriptText || langLoadingScripts[lang]) return;
+    setLangLoadingScripts((l) => ({ ...l, [lang]: true }));
+    setLangTexts((t) => { const n = { ...t }; delete n[lang]; return n; });
+
+    const targetSeconds = customSeconds !== null ? customSeconds : durationToSeconds(targetDuration);
+
+    const res = await fetch("/api/rewrite-lang", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ transcript: transcriptText, language: lang, targetSeconds }),
+    });
+
+    if (!res.ok || !res.body) {
+      setLangLoadingScripts((l) => { const n = { ...l }; delete n[lang]; return n; });
+      toast.error(`Erreur génération ${lang}`);
+      return;
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let accumulated = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      accumulated += decoder.decode(value, { stream: true });
+      setLangTexts((t) => ({ ...t, [lang]: accumulated }));
+    }
+
+    setLangLoadingScripts((l) => { const n = { ...l }; delete n[lang]; return n; });
+
+    const parsed = parseQR(accumulated);
+    const script = parsed[`SCRIPT ${lang}` as Section] ?? "";
+    if (script) {
+      void singleLangHealthCheck(lang, script, transcriptText).then((h) => {
+        setHealthScores((hs) => ({ ...hs, [lang]: h }));
+      });
     }
   }
 
@@ -738,10 +782,15 @@ export default function Home() {
 
   // ── Copy all QR ───────────────────────────────────────────────────────────
   function copyAllQR() {
-    const parts = SECTIONS.map((section, i) => {
+    const parts: string[] = [];
+    let sectionNum = 1;
+    for (const section of SECTIONS) {
       const content = getContent(section) ?? "";
-      return `SECTION ${i + 1}\n${section}\n${content}`;
-    });
+      if (content) {
+        parts.push(`SECTION ${sectionNum}\n${section}\n${content}`);
+        sectionNum++;
+      }
+    }
     navigator.clipboard.writeText(parts.join("\n\n"));
   }
 
@@ -967,22 +1016,33 @@ export default function Home() {
                 </p>
               )}
             </div>
-            {/* Skeleton script cards */}
+            {/* Skeleton script cards — FR animé + EN/DE/ES en attente */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-              {["FR", "EN", "DE", "ES"].map((lang) => (
-                <div key={lang} className="bg-[#0d1512] border border-[#1a2e25] overflow-hidden flex flex-col" style={{ borderRadius: "4px" }}>
-                  <div className="h-[2px] w-full" style={{ background: "linear-gradient(90deg, #00e5a0, #ff3cac)" }} />
-                  <div className="px-3 py-2 border-b border-[#1a2e25] flex items-center gap-2">
-                    <div className="h-2.5 w-16 bg-[#1a2e25] animate-pulse" style={{ borderRadius: "2px" }} />
-                    <div className="h-2 w-12 bg-[#121f19] animate-pulse" style={{ borderRadius: "2px" }} />
+              {/* FR — skeleton animé */}
+              <div className="bg-[#0d1512] border border-[#1a2e25] overflow-hidden flex flex-col" style={{ borderRadius: "4px" }}>
+                <div className="h-[2px] w-full" style={{ background: "linear-gradient(90deg, #00e5a0, #ff3cac)" }} />
+                <div className="px-3 py-2 border-b border-[#1a2e25] flex items-center gap-2">
+                  <div className="h-2.5 w-16 bg-[#1a2e25] animate-pulse" style={{ borderRadius: "2px" }} />
+                  <div className="h-2 w-12 bg-[#121f19] animate-pulse" style={{ borderRadius: "2px" }} />
+                </div>
+                <div className="px-3 py-3 space-y-2 flex-1">
+                  {[100, 90, 95, 80, 70].map((w, i) => (
+                    <div key={i} className="h-3 bg-[#121f19] animate-pulse" style={{ borderRadius: "2px", width: `${w}%` }} />
+                  ))}
+                </div>
+                <div className="px-3 py-2 border-t border-[#1a2e25]">
+                  <div className="h-2 w-8 bg-[#121f19] animate-pulse" style={{ borderRadius: "2px" }} />
+                </div>
+              </div>
+              {/* EN / DE / ES — placeholders statiques */}
+              {["EN", "DE", "ES"].map((lang) => (
+                <div key={lang} className="bg-[#0d1512] border border-[#1a2e25] overflow-hidden flex flex-col opacity-40" style={{ borderRadius: "4px" }}>
+                  <div className="h-[2px] w-full" style={{ background: "#1a2e25" }} />
+                  <div className="px-3 py-2 border-b border-[#1a2e25]">
+                    <span className="text-[10px] font-mono font-semibold text-[#4a6a58] tracking-widest uppercase">SCRIPT {lang}</span>
                   </div>
-                  <div className="px-3 py-3 space-y-2 flex-1">
-                    {[100, 90, 95, 80, 70].map((w, i) => (
-                      <div key={i} className="h-3 bg-[#121f19] animate-pulse" style={{ borderRadius: "2px", width: `${w}%` }} />
-                    ))}
-                  </div>
-                  <div className="px-3 py-2 border-t border-[#1a2e25]">
-                    <div className="h-2 w-8 bg-[#121f19] animate-pulse" style={{ borderRadius: "2px" }} />
+                  <div className="flex-1 flex items-center justify-center px-3 py-8">
+                    <span className="text-[10px] font-mono text-[#4a6a58]">à générer</span>
                   </div>
                 </div>
               ))}
@@ -1009,12 +1069,43 @@ export default function Home() {
               disabled={isLoading}
             />
 
-            {/* Script cards — grid 4-col on md+ */}
+            {/* Script cards — FR always, EN/DE/ES on demand */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               {SCRIPT_SECTIONS.map((section) => {
                 const content = getContent(section);
-                if (!content && !sections[section]) return null;
                 const lang = section.split(" ")[1];
+                const isLangLoading = langLoadingScripts[lang as "EN" | "DE" | "ES"] ?? false;
+
+                if (!content && !sections[section]) {
+                  if (lang === "FR") return null;
+                  // Placeholder card for EN/DE/ES
+                  return (
+                    <div key={section} className="bg-[#0d1512] border border-[#1a2e25] overflow-hidden flex flex-col" style={{ borderRadius: "4px" }}>
+                      <div className="h-[2px] w-full" style={{ background: "#1a2e25" }} />
+                      <div className="px-3 py-2 border-b border-[#1a2e25]">
+                        <span className="text-[10px] font-mono font-semibold text-[#4a6a58] tracking-widest uppercase">{section}</span>
+                      </div>
+                      <div className="flex-1 flex items-center justify-center px-3 py-8">
+                        {isLangLoading ? (
+                          <div className="w-full space-y-2">
+                            {[100, 90, 95, 80, 70].map((w, i) => (
+                              <div key={i} className="h-3 bg-[#121f19] animate-pulse" style={{ borderRadius: "2px", width: `${w}%` }} />
+                            ))}
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleRewriteLang(lang as "EN" | "DE" | "ES")}
+                            disabled={!transcriptText}
+                            className="text-[11px] font-mono text-[#4a6a58] hover:text-[#00e5a0] transition-none disabled:opacity-40"
+                          >
+                            Générer {lang} →
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+
                 const rawContent = content ?? "";
                 const displayContent = ctaEnabled ? insertCTA(rawContent, lang, ctaPosition) : rawContent;
                 const stats = displayContent ? wordStats(displayContent) : null;
