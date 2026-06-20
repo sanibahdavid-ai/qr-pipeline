@@ -32,7 +32,9 @@ Avant d'écrire la moindre ligne, effectue ces 5 analyses sur le script source :
 
 5. Localise les noms de lieux dans chaque langue où une traduction standard existe. Exemples : Norway → FR: Norvège, DE: Norwegen, ES: Noruega. Ne jamais utiliser le nom anglais d'un lieu dans un script non-anglais.
 
-Ces 5 éléments sont non négociables et s'appliquent à TOUTES les langues sans exception. Une version qui ne les respecte pas est invalide et doit être réécrite.
+6. Si le script source contient déjà une référence à Cristiano souriant, au bouton plus, ou tout CTA similaire ("did you know your keyboard...", "type X and let it finish", etc.), SUPPRIME cette phrase entièrement du script source avant de réécrire — elle ne doit apparaître nulle part dans les versions réécrites. Le site insère son propre CTA séparément après génération.
+
+Ces 6 éléments sont non négociables et s'appliquent à TOUTES les langues sans exception. Une version qui ne les respecte pas est invalide et doit être réécrite.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 DÉFINITION DE LA RÉÉCRITURE — À COMPRENDRE AVANT D'ÉCRIRE :

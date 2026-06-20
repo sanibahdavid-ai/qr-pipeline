@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import Anthropic from "@anthropic-ai/sdk";
 
 type Platform = "youtube" | "tiktok" | "instagram";
 
@@ -298,8 +299,30 @@ export async function POST(req: NextRequest) {
             : "Vidéo YouTube";
     }
 
-    console.log("[transcript] success — title:", title, "chars:", content.length, "lang:", lang);
-    return NextResponse.json({ text: content, title, platform, lang });
+    // Restore punctuation via Claude
+    let punctuated = content;
+    try {
+      const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+      const maxTokens = Math.min(Math.ceil(content.length / 2) + 200, 4096);
+      const msg = await anthropic.messages.create({
+        model: "claude-sonnet-4-6",
+        max_tokens: maxTokens,
+        messages: [{
+          role: "user",
+          content: `Add proper punctuation (periods, commas, question marks, exclamation marks) to this transcript without changing any words. Return only the punctuated text, no commentary.\n\n${content}`,
+        }],
+      });
+      const out = msg.content[0].type === "text" ? msg.content[0].text.trim() : "";
+      if (out) {
+        punctuated = out;
+        console.log("[transcript] punctuation restored, chars:", punctuated.length);
+      }
+    } catch (e) {
+      console.warn("[transcript] punctuation step failed, using raw:", (e as Error).message);
+    }
+
+    console.log("[transcript] success — title:", title, "chars:", punctuated.length, "lang:", lang);
+    return NextResponse.json({ text: punctuated, title, platform, lang });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[transcript] all tiers failed:", msg);
