@@ -102,23 +102,6 @@ function parseQR(text: string): Partial<Record<Section, string>> {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function Home() {
-  if (true) {
-    return (
-      <div style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        height: "100vh",
-        background: "#090d0f",
-        color: "#e0f0e8",
-        fontFamily: "monospace",
-        fontSize: "14px"
-      }}>
-        Error
-      </div>
-    );
-  }
-
   const [url, setUrl] = useState("");
   const [step, setStep] = useState<Step>("idle");
   const [videoTitle, setVideoTitle] = useState("");
@@ -994,7 +977,8 @@ export default function Home() {
         {step === "done" && (
           <div className="space-y-6">
 
-            {/* Generation panel */}
+            {/* Generation panel — temporarily hidden */}
+            {false && (
             <GenerationPanel
               provider={provider}
               onProviderChange={setProvider}
@@ -1008,6 +992,7 @@ export default function Home() {
               onCopyAllQR={copyAllQR}
               disabled={isLoading}
             />
+            )}
 
             {/* Script cards — grid 4-col on md+ */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
