@@ -28,12 +28,26 @@ DE: ${scripts.DE || "(missing)"}
 ES: ${scripts.ES || "(missing)"}
 
 SCORING CRITERIA — score each script 0 to 100 points total:
-1. Hook opening — same opening word/syllable pattern as the original transcript (20 pts)
-2. Sentence count — same number of sentences as the original (20 pts)
-3. No dashes — zero dashes (-, —, –) used in the script (15 pts)
-4. Connectors — narrative connectors from original are preserved (15 pts)
-5. Independence — script uses different content/angles, not a direct translation of another version (15 pts)
-6. No banned words — ONLY these exact words are banned: incroyable, dingue, fou, amazing, insane, unbelievable, incredible, wahnsinnig, unglaublich, increíble, locura, impresionante. Words like "extraordinaire", "unexpected", "extraordinary", "inesperado" are NOT banned — only the literal words above lose points. (15 pts)
+
+1. Factual fidelity — same story, same proper names present, same narrative order as the transcript (25 pts)
+   Full 25 pts if all facts, names, and order are preserved. Deduct proportionally for missing names or reordered events.
+
+2. Rewording quality — sentence structure is meaningfully different from the source transcript; not a near-paraphrase (25 pts)
+   Full 25 pts if the script clearly reformulates sentences (different word order, different constructions, recombined ideas).
+   Deduct 10-20 pts if sentences closely mirror the source phrasing even with synonym swaps.
+   A script that tells the same story with genuinely different phrasing should score 20-25 on this criterion.
+
+3. Sentence count — same number of sentences as the original transcript (20 pts)
+   Full 20 pts if exact match. 0 pts if count differs by more than 1.
+
+4. No dashes — zero dashes (-, —, –) anywhere in the script (15 pts)
+   0 pts if any dash is present, full 15 pts if none.
+
+5. No banned words — ONLY these exact words are banned: incroyable, dingue, fou, amazing, insane, unbelievable, incredible, wahnsinnig, unglaublich, increíble, locura, impresionante.
+   Words like "extraordinaire", "unexpected", "extraordinary", "inesperado", "sensationnel" are NOT banned — only the literal words listed above lose points. (15 pts)
+   Full 15 pts if none of the banned words appear. 0 pts if any banned word appears.
+
+IMPORTANT CALIBRATION: A script that faithfully tells the same story with clearly different phrasing, correct sentence count, no dashes, and no banned words should score 90-98. Reserve scores below 80 for scripts that have actual problems: wrong facts, missing names, reordered events, near-copy phrasing, dashes, or banned words.
 
 Respond ONLY with valid JSON, no markdown, no extra text:
 {"scores":{"FR":0,"EN":0,"DE":0,"ES":0},"feedback":{"FR":null,"EN":null,"DE":null,"ES":null}}

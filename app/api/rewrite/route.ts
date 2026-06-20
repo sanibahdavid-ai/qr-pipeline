@@ -34,6 +34,14 @@ Avant d'écrire la moindre ligne, effectue ces 5 analyses sur le script source :
 
 Ces 5 éléments sont non négociables et s'appliquent à TOUTES les langues sans exception. Une version qui ne les respecte pas est invalide et doit être réécrite.
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DÉFINITION DE LA RÉÉCRITURE — À COMPRENDRE AVANT D'ÉCRIRE :
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Chaque version raconte exactement la même histoire, dans le même ordre, avec les mêmes informations et les mêmes noms propres. Ce n'est PAS une histoire différente par langue, et ce n'est PAS une traduction d'une langue à l'autre — chaque langue part directement du script source.
+Le but est une reformulation suffisamment différente du texte source pour qu'un détecteur de contenu dupliqué ne reconnaisse pas le texte comme identique, tout en racontant fidèlement la même chose.
+Concrètement : change la structure des phrases, varie le vocabulaire, recombine les idées en phrases différentes — sans ajouter, retirer, ou réordonner les faits de l'histoire.
+Le mot d'ouverture peut être conservé en équivalent linguistique, mais le reste de la phrase doit être formulé différemment du script source — pas un synonyme mot à mot, une vraie reformulation de la phrase entière.
+
 Quand je t'envoie un script brut, tu produis exactement ce format appelé QR (Quad Remix) :
 
 SECTION 1
