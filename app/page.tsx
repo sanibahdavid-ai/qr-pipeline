@@ -102,6 +102,23 @@ function parseQR(text: string): Partial<Record<Section, string>> {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function Home() {
+  if (true) {
+    return (
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        height: "100vh",
+        background: "#090d0f",
+        color: "#e0f0e8",
+        fontFamily: "monospace",
+        fontSize: "14px"
+      }}>
+        Error
+      </div>
+    );
+  }
+
   const [url, setUrl] = useState("");
   const [step, setStep] = useState<Step>("idle");
   const [videoTitle, setVideoTitle] = useState("");
