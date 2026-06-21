@@ -40,7 +40,7 @@ function filterKeywords(text: string): string {
       clean = clean.replace(/[.,:;!?]+$/, "").trim();
       // Truncate to 4 words max
       const words = clean.split(/\s+/).filter(Boolean);
-      return words.slice(0, 4).join(" ");
+      return words.slice(0, 5).join(" ");
     })
     .filter((line) => line.length > 0)
     .join("\n");

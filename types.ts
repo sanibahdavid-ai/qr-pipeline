@@ -10,6 +10,10 @@ export const SECTIONS = [
   "TITRE ET HASHTAGS EN",
   "TITRE ET HASHTAGS DE",
   "TITRE ET HASHTAGS ES",
+  "TITRE ET HASHTAGS FR B",
+  "TITRE ET HASHTAGS EN B",
+  "TITRE ET HASHTAGS DE B",
+  "TITRE ET HASHTAGS ES B",
 ] as const;
 
 export type Section = (typeof SECTIONS)[number];

@@ -6,7 +6,7 @@ import type { HistoryEntry, AuthUser } from "../types";
 import type { GenerationRow } from "../lib/supabase";
 import { formatDate } from "../lib/format";
 
-const APP_VERSION = "3.9";
+const APP_VERSION = "4.0";
 const CTA_POSITIONS = [2, 3, 4] as const;
 
 type Props = {

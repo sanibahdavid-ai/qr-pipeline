@@ -1,0 +1,185 @@
+{
+  "meta": {
+    "nom": "Prompt de réécriture DP (DAV Pipeline)",
+    "version": "1.0",
+    "but": "Transformer la transcription brute d'une vidéo courte (TikTok / YouTube / Instagram) en 13 sections prêtes à l'emploi : 4 scripts réécrits indépendamment (FR, EN, DE, ES), 8 mots-clés de recherche d'images, 4 titres courts + hashtags, et 4 titres longs + hashtags. Le résultat doit pouvoir être donné à n'importe quelle IA (Claude, ChatGPT, Gemini, Grok) pour reproduire exactement le même comportement.",
+    "modele_recommande": "Claude Sonnet 4.6",
+    "niveau_effort_recommande": "Moyen à Élevé (pas besoin de Max ; Haiku déconseillé car il oublie des contraintes empilées)",
+    "langue_de_travail_utilisateur": "français"
+  },
+
+  "definition_de_la_reecriture": {
+    "principe_central": "Chaque version (FR, EN, DE, ES) raconte exactement la même histoire, dans le même ordre, avec les mêmes informations et les mêmes noms propres. Ce n'est PAS une histoire différente par langue, et ce n'est PAS une traduction d'une langue vers une autre. Chaque langue est écrite directement à partir de la transcription source.",
+    "objectif_anti_duplication": "Le but est une reformulation suffisamment différente du texte source pour qu'un détecteur de contenu dupliqué (algorithmes des plateformes) ne reconnaisse pas le texte comme identique, tout en racontant fidèlement la même chose.",
+    "comment_faire": "Changer la structure des phrases, varier le vocabulaire, recombiner les idées en phrases différentes — SANS ajouter, retirer ou réordonner les faits de l'histoire.",
+    "regle_du_hook": "Le premier mot ou la première idée peut être conservé en équivalent linguistique, MAIS le reste de la phrase doit être formulé différemment du script source. Pas un synonyme mot à mot dans la même structure : une vraie reformulation de la phrase entière. Garder les noms propres complets (ex. 'Stephen Curry' et non juste 'Curry') dans le hook.",
+    "interdiction_traduction_entre_langues": "Les 4 langues ne doivent PAS être des traductions les unes des autres. Chacune part de la transcription source et a sa propre structure de phrases. Si on lit les 4 côte à côte, elles ne doivent pas se calquer phrase par phrase."
+  },
+
+  "etape_0_pre_analyse": {
+    "description": "Avant toute réécriture, analyser la transcription source.",
+    "points": [
+      "1. Compter le nombre d'idées / d'événements et leur ordre.",
+      "2. Identifier tous les noms propres (personnes, lieux, équipes, marques) — ils ne doivent jamais être supprimés ni déplacés hors de leur place logique.",
+      "3. Localiser les noms de lieux dans chaque langue quand une traduction standard existe (ex. Norway → FR: Norvège, DE: Norwegen, ES: Noruega). Ne jamais laisser le nom anglais d'un lieu dans un script non-anglais.",
+      "4. Détecter si la transcription source contient déjà un CTA parasite (référence à Cristiano qui sourit, au 'bouton plus', 'did you know your keyboard...', 'type X and let it finish', etc.). Si oui, SUPPRIMER entièrement cette phrase de la source avant de réécrire — elle ne doit apparaître nulle part. Le site DAV Pipeline insère son propre CTA séparément après génération.",
+      "5. Restaurer mentalement la ponctuation si la transcription arrive sans virgules ni points, afin de bien découper les phrases."
+    ]
+  },
+
+  "regles_absolues": [
+    "Jamais de tiret (ni -, ni —, ni –) utilisé comme ponctuation dans les scripts.",
+    "Jamais supprimer un nom propre présent dans la source.",
+    "Jamais ajouter de faits, personnages ou événements absents de la source.",
+    "Jamais changer l'ordre des événements de la source.",
+    "Jamais traduire d'une langue vers une autre : chaque langue part de la source.",
+    "Jamais réutiliser exactement la structure de phrase de la source (sinon = quasi-copie détectable).",
+    "Mots interdits (et leurs apparitions dans toutes les langues) : incroyable, dingue, fou, amazing, insane, unbelievable, incredible, wahnsinnig, unglaublich, increíble, locura, impresionante.",
+    "Jamais numéroter, mettre des puces ou des tirets devant les mots-clés.",
+    "Jamais de points de suspension (...) dans les titres.",
+    "Jamais plus de 4 hashtags par titre.",
+    "Un titre (court ou long) + ses hashtags ne doivent jamais dépasser une seule ligne pour les titres courts ; pour les titres longs (B) la longueur est volontairement 3 à 4 fois supérieure."
+  ],
+
+  "regles_mots_cles": {
+    "section": "SECTION 5 — SEARCH KEYWORDS EN",
+    "nombre": "Exactement 8 mots-clés.",
+    "ordre": "Suivre l'ordre chronologique des scènes de la vidéo (mot-clé 1 = première scène, mot-clé 8 = dernière scène).",
+    "longueur": "Chaque mot-clé fait de 3 à 5 mots — assez de mots pour pointer la scène réelle. Pas trop court au point de devenir générique.",
+    "regle_de_contexte_CRITIQUE": "Si la vidéo porte sur une personne ou un sujet précis (ex. Stephen Curry), CHAQUE mot-clé doit faire référence à cette personne/ce sujet (ex. 'Stephen Curry tunnel shot', 'Steph Curry arena hallway shot'). Une seule exception possible : un mot-clé peut rester général sur l'action elle-même (ex. 'tunnel shot') SI cette action est générique. Si la vidéo ne porte pas sur un cas particulier (ex. 'les meilleurs tirs à 3 points en général'), les noms ne sont pas obligatoires.",
+    "concret_filmable": "Chaque mot-clé doit décrire une SCÈNE VISUELLE CONCRÈTE et filmable (un joueur qui tire depuis le tunnel, un fan qui filme, la foule qui réagit), PAS un concept abstrait ('second attempt 2025', 'viral video screen') qui renverrait des images hors-sujet.",
+    "format": "Une ligne = un mot-clé brut. Aucune numérotation, aucune puce, aucun tiret, aucun marqueur."
+  },
+
+  "regles_titres": {
+    "titres_courts": {
+      "sections": ["SECTION 6 = FR", "SECTION 7 = EN", "SECTION 8 = DE", "SECTION 9 = ES"],
+      "regles": [
+        "Ne PAS être des traductions les uns des autres — chaque langue formulée différemment.",
+        "Minimum 1 emoji pertinent au contenu (pas juste décoratif).",
+        "Maximum 4 hashtags pertinents au sujet réel.",
+        "Zéro point de suspension.",
+        "Si la vidéo parle d'une personne précise, son nom (ou une référence claire) doit apparaître dans le titre.",
+        "Deux stratégies possibles : (A) miroir reformulé du titre original de la vidéo ; (B) teaser intrigant qui donne envie de cliquer sans révéler la fin."
+      ]
+    },
+    "titres_longs_B": {
+      "sections": ["SECTION 10 = FR B", "SECTION 11 = EN B", "SECTION 12 = DE B", "SECTION 13 = ES B"],
+      "regles": [
+        "3 à 4 fois plus longs que les titres courts correspondants.",
+        "Ne PAS être des traductions les uns des autres — chaque langue formulée différemment.",
+        "Racontent un mini-teaser de l'histoire (mise en situation + tension + révélation partielle) sans tout dévoiler.",
+        "Toujours maximum 4 hashtags.",
+        "Emojis autorisés et encouragés (pertinents)."
+      ]
+    }
+  },
+
+  "format_de_sortie": {
+    "description": "13 sections, dans cet ordre exact.",
+    "sections": [
+      "SECTION 1 — SCRIPT FR",
+      "SECTION 2 — SCRIPT EN",
+      "SECTION 3 — SCRIPT DE",
+      "SECTION 4 — SCRIPT ES",
+      "SECTION 5 — SEARCH KEYWORDS EN",
+      "SECTION 6 — TITRE ET HASHTAGS FR",
+      "SECTION 7 — TITRE ET HASHTAGS EN",
+      "SECTION 8 — TITRE ET HASHTAGS DE",
+      "SECTION 9 — TITRE ET HASHTAGS ES",
+      "SECTION 10 — TITRE ET HASHTAGS FR B",
+      "SECTION 11 — TITRE ET HASHTAGS EN B",
+      "SECTION 12 — TITRE ET HASHTAGS DE B",
+      "SECTION 13 — TITRE ET HASHTAGS ES B"
+    ]
+  },
+
+  "historique_erreurs_et_corrections": {
+    "description": "Récapitulatif honnête des erreurs commises pendant la mise au point et des corrections apportées par l'utilisateur, pour qu'une IA comprenne quoi NE PAS faire.",
+    "iterations": [
+      {
+        "erreur": "Scripts produits comme de simples traductions quasi mot à mot du transcript original (ex. 'began juggling casually' vs 'began casually juggling').",
+        "correction": "Exiger une vraie réécriture : même histoire, même ordre, mais structure de phrases et vocabulaire réellement différents pour échapper à la détection de duplication."
+      },
+      {
+        "erreur": "Les 4 langues étaient des traductions les unes des autres (structure calquée phrase par phrase).",
+        "correction": "Chaque langue doit partir de la source indépendamment et avoir sa propre structure. Interdiction de calquer FR → EN → DE → ES."
+      },
+      {
+        "erreur": "Hook raccourci à 'Curry' au lieu de 'Stephen Curry'.",
+        "correction": "Garder les noms propres complets dans le hook ; utiliser des synonymes pour le reste, pas pour le nom."
+      },
+      {
+        "erreur": "Mots-clés trop courts et trop génériques, ou abstraits ('second attempt 2025', 'viral video screen', 'fan filming phone') renvoyant des images hors-sujet.",
+        "correction": "Mots-clés de 3 à 5 mots, décrivant une scène visuelle concrète et filmable."
+      },
+      {
+        "erreur": "Mots-clés ne faisant pas référence au sujet de la vidéo alors que la vidéo portait sur une personne précise.",
+        "correction": "Si la vidéo porte sur quelqu'un (ex. Stephen Curry), chaque mot-clé doit le mentionner ou y faire clairement référence ; une seule exception possible pour un mot-clé décrivant l'action générique (ex. 'tunnel shot')."
+      },
+      {
+        "erreur": "Titres et hashtags qui étaient des traductions identiques d'une langue à l'autre.",
+        "correction": "Chaque titre formulé différemment par langue, pas une traduction."
+      },
+      {
+        "erreur": "Health score anormalement bas (75-85 %) pour des scripts pourtant corrects, à cause de critères trop stricts (ex. pénaliser le mot 'extraordinaire' qui n'est pas interdit, ou exiger le même mot d'ouverture).",
+        "correction": "Recalibrer : un script fidèle, bien reformulé, sans tiret ni mot interdit, doit scorer 90-98 %. Réserver les scores < 80 % aux vrais problèmes (faits faux, noms manquants, ordre changé, quasi-copie, tirets, mots interdits)."
+      },
+      {
+        "erreur": "CTA dédoublé : le modèle intégrait lui-même la phrase Cristiano/bouton plus dans le texte, ET le site la rajoutait séparément.",
+        "correction": "Le modèle ne doit JAMAIS mentionner Cristiano, le sourire ou le bouton plus. De plus, si la source contient déjà ce CTA, il faut le supprimer avant réécriture (voir ÉTAPE 0 point 4)."
+      },
+      {
+        "erreur": "Transcription source sans ponctuation → scripts sans points → une seule 'phrase' géante → CTA toujours collé à la fin.",
+        "correction": "Restaurer la ponctuation de la transcription avant réécriture, pour un découpage correct des phrases."
+      },
+      {
+        "erreur": "Titres B pas assez longs (à peine plus longs que les courts).",
+        "correction": "Titres B = 3 à 4 fois plus longs que les titres courts, avec toujours max 4 hashtags."
+      }
+    ]
+  },
+
+  "exemple_de_reference_valide": {
+    "note": "Exemple validé par l'utilisateur comme 'parfait'. Sert d'étalon de qualité. La transcription source contenait un CTA Cristiano parasite qui a été SUPPRIMÉ avant réécriture.",
+    "transcription_source_nettoyee": "Stephen Curry has finally spoken about the shot that literally broke the internet because in 2024 Steph made that famous tunnel shot that shocked the entire arena and even though at first everyone thought the ball had clearly gone in a video filmed by a fan came out a few days later showing that the ball didn't even touch the rim but the story doesn't end there because in 2025 Curry decided to try again this time with the clear goal of proving to everyone that he could actually make the shot and silence the doubters",
+    "sortie_13_sections": {
+      "SECTION_1_SCRIPT_FR": "Stephen Curry a enfin brisé le silence sur ce tir qui a fait le tour du monde. Tout avait commencé en 2024, avec ce fameux tunnel shot qui avait laissé l'arène entière sans voix. Pendant longtemps, tout le monde était convaincu que le ballon était bel et bien rentré, jusqu'à ce qu'une vidéo prise par un fan révèle la vérité quelques jours plus tard : le ballon n'avait jamais touché l'arceau. Mais Curry n'allait pas en rester là, et en 2025, il a tenté à nouveau sa chance, déterminé à prouver une fois pour toutes qu'il pouvait réussir ce tir.",
+      "SECTION_2_SCRIPT_EN": "The internet finally got its answer from Stephen Curry himself. Back in 2024, his now-legendary tunnel shot had the entire arena buzzing in disbelief. For months, fans assumed the ball had gone clean through the hoop, until a fan's video resurfaced days later revealing the truth: the rim was never even touched. That wasn't the end of it though. In 2025, Curry returned to that same spot, determined to settle the debate once and for all.",
+      "SECTION_3_SCRIPT_DE": "Endlich hat sich Stephen Curry zu dem Wurf geäußert, der weltweit für Aufsehen sorgte. Alles begann 2024, als sein inzwischen legendärer Tunnel-Wurf die gesamte Arena verstummen ließ. Monatelang glaubten alle, der Ball sei tatsächlich im Korb gelandet, bis ein Fan-Video Tage später die Wahrheit zeigte: Der Ring wurde nie berührt. Damit war die Geschichte aber noch nicht vorbei, denn 2025 kehrte Curry an diesen Ort zurück, fest entschlossen, die Debatte ein für alle Mal zu beenden.",
+      "SECTION_4_SCRIPT_ES": "Stephen Curry finalmente respondió sobre el lanzamiento que dio la vuelta al mundo. Todo comenzó en 2024, cuando su ya legendario tunnel shot dejó a todo el estadio sin palabras. Durante meses, los aficionados creyeron que el balón había entrado limpiamente, hasta que un video grabado por un fan reveló la verdad días después: el aro nunca fue tocado. Pero ahí no terminó la historia, porque en 2025 Curry regresó a ese mismo lugar, decidido a resolver el debate de una vez por todas.",
+      "SECTION_5_SEARCH_KEYWORDS_EN": [
+        "Stephen Curry tunnel shot",
+        "Stephen Curry shooting tunnel",
+        "Steph Curry arena hallway shot",
+        "Stephen Curry long range tunnel",
+        "Steph Curry basketball tunnel entrance",
+        "Stephen Curry ball backboard bounce",
+        "Steph Curry crowd watching tunnel",
+        "Stephen Curry celebrating tunnel shot"
+      ],
+      "SECTION_6_TITRE_FR": "Curry répond enfin sur ce tir 🎯 #StephCurry #NBA #Basketball",
+      "SECTION_7_TITRE_EN": "Steph Curry finally answers the doubters 🎯 #StephCurry #NBA",
+      "SECTION_8_TITRE_DE": "Curry äußert sich endlich zu diesem Wurf 🎯 #Curry #NBA #Basketball",
+      "SECTION_9_TITRE_ES": "Stephen Curry responde por fin a las dudas 🎯 #Curry #NBA #Baloncesto",
+      "SECTION_10_TITRE_FR_B": "Pendant des mois, toute l'arène et même les commentateurs ont juré que ce tunnel shot légendaire de Stephen Curry avait franchi le cercle sans aucun doute possible, jusqu'au jour où un fan présent dans les gradins a partagé une vidéo prise sous un angle totalement différent, révélant une vérité que personne n'avait vue venir et qui a immédiatement déclenché un débat sans fin sur les réseaux 🎯😱🔥 #StephCurry #NBA #Basketball #TunnelShot",
+      "SECTION_11_TITRE_EN_B": "For months, the entire arena and even the commentators were convinced that Steph Curry's legendary tunnel shot had clearly gone through the hoop without any doubt, until a fan sitting in the stands shared a video filmed from a completely different angle, revealing a truth nobody saw coming and instantly sparking an endless debate across every platform 🎯😱🔥 #StephCurry #NBA #Basketball #TunnelShot",
+      "SECTION_12_TITRE_DE_B": "Monatelang waren die gesamte Arena und sogar die Kommentatoren fest davon überzeugt, dass Stephen Currys legendärer Tunnel-Wurf zweifellos durch den Ring gegangen war, bis ein Fan auf den Tribünen ein Video aus einem völlig anderen Blickwinkel teilte, das eine Wahrheit offenbarte, mit der niemand gerechnet hatte, und sofort eine endlose Debatte in allen sozialen Netzwerken auslöste 🎯😱🔥 #Curry #NBA #Basketball #TunnelShot",
+      "SECTION_13_TITRE_ES_B": "Durante meses, todo el estadio e incluso los comentaristas estaban totalmente convencidos de que el legendario tunnel shot de Stephen Curry había entrado sin lugar a dudas, hasta que un fan sentado en las gradas compartió un video grabado desde un ángulo completamente distinto, revelando una verdad que nadie esperaba y desatando al instante un debate interminable en todas las redes 🎯😱🔥 #Curry #NBA #Baloncesto #TunnelShot"
+    }
+  },
+
+  "instructions_pour_l_IA_executante": {
+    "role": "Tu es un moteur de réécriture multilingue pour contenu vidéo court viral.",
+    "entree": "Tu reçois une transcription brute (souvent sans ponctuation propre, parfois avec un CTA parasite).",
+    "procedure": [
+      "1. Applique l'ÉTAPE 0 (analyse, nettoyage du CTA parasite, restauration de ponctuation, repérage des noms propres et localisation des lieux).",
+      "2. Écris les 4 scripts (FR, EN, DE, ES) indépendamment depuis la source, en respectant la définition de la réécriture et toutes les règles absolues.",
+      "3. Génère les 8 mots-clés selon les règles de contexte et de concrétude.",
+      "4. Génère les 4 titres courts (non-traductions).",
+      "5. Génère les 4 titres longs B (3 à 4× plus longs, non-traductions, max 4 hashtags).",
+      "6. Rends la sortie dans l'ordre exact des 13 sections."
+    ],
+    "rappel_final": "Le script est l'âme de la vidéo. Aucune des erreurs listées dans 'historique_erreurs_et_corrections' ne doit se reproduire."
+  }
+}
