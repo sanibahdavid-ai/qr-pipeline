@@ -123,6 +123,10 @@ export default function Home() {
   const [ctaEnabled, setCtaEnabled] = useState(false);
   const [ctaPosition, setCtaPosition] = useState(2);
 
+  // Per-generation CTA choice (asked after extraction, before rewrite — not persisted)
+  const [showCtaChoice, setShowCtaChoice] = useState(false);
+  const [pendingRewrite, setPendingRewrite] = useState<{ text: string; title: string } | null>(null);
+
   // History
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [showHistory, setShowHistory] = useState(false);
@@ -371,6 +375,8 @@ export default function Home() {
     setTranscriptText("");
     setCopiedTranscript(false);
     setTargetDuration("original");
+    setShowCtaChoice(false);
+    setPendingRewrite(null);
   }
 
   // ── Extract ───────────────────────────────────────────────────────────────
@@ -395,12 +401,13 @@ export default function Home() {
 
     setVideoTitle(data.title);
     setTranscriptText(data.text);
-    // Skip the intermediate transcript step — go straight to rewriting
-    await handleRewrite(data.text, data.title);
+    setPendingRewrite({ text: data.text, title: data.title });
+    setStep("transcript");
+    setShowCtaChoice(true);
   }
 
   // ── Manual transcript ───────────────────────────────────────────────────────
-  // Paste text directly and skip URL extraction — go straight to rewriting.
+  // Paste text directly and skip URL extraction — go straight to the CTA prompt.
   async function handleManualSubmit() {
     const text = manualText.trim();
     if (!text || isLoading) return;
@@ -409,7 +416,25 @@ export default function Home() {
     const title = "Transcript manuel";
     setVideoTitle(title);
     setTranscriptText(text);
-    await handleRewrite(text, title);
+    setPendingRewrite({ text, title });
+    setStep("transcript");
+    setShowCtaChoice(true);
+  }
+
+  // ── CTA choice (per-generation only, not persisted) ─────────────────────────
+  function chooseCta(choice: "none" | "p3" | "p4") {
+    if (choice === "none") {
+      setCtaEnabled(false);
+    } else {
+      setCtaEnabled(true);
+      setCtaPosition(choice === "p3" ? 3 : 4);
+    }
+    setShowCtaChoice(false);
+    if (pendingRewrite) {
+      const { text, title } = pendingRewrite;
+      setPendingRewrite(null);
+      void handleRewrite(text, title);
+    }
   }
 
   async function singleLangHealthCheck(lang: string, script: string, transcript: string): Promise<{ score: number; feedback?: string | null }> {
@@ -935,6 +960,37 @@ export default function Home() {
           </details>
         )}
 
+        {/* CTA choice — asked once per generation, before rewrite */}
+        {showCtaChoice && step === "transcript" && (
+          <div className="bg-[#0d1512] border border-[#1a2e25] p-4 space-y-3" style={{ borderRadius: "4px" }}>
+            <p className="text-[10px] font-mono font-semibold text-[#8aaa98] tracking-widest uppercase">
+              CTA de Ronaldo ?
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => chooseCta("none")}
+                className="px-3 py-1.5 text-[11px] font-mono border border-[#1a2e25] text-[#8aaa98] hover:border-[#00e5a0] hover:text-[#00e5a0] transition-none"
+                style={{ borderRadius: "4px" }}
+              >
+                Sans CTA
+              </button>
+              <button
+                onClick={() => chooseCta("p3")}
+                className="px-3 py-1.5 text-[11px] font-mono border border-[#1a2e25] text-[#8aaa98] hover:border-[#00e5a0] hover:text-[#00e5a0] transition-none"
+                style={{ borderRadius: "4px" }}
+              >
+                CTA Phrase 3
+              </button>
+              <button
+                onClick={() => chooseCta("p4")}
+                className="px-3 py-1.5 text-[11px] font-mono border border-[#1a2e25] text-[#8aaa98] hover:border-[#00e5a0] hover:text-[#00e5a0] transition-none"
+                style={{ borderRadius: "4px" }}
+              >
+                CTA Phrase 4
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Rewriting — streaming preview + skeleton cards */}
         {step === "rewriting" && (
