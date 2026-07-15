@@ -34,11 +34,27 @@ const AI33_VOICES: { id: string; label: string }[] = [
   { id: "kokoro_bm_george",                label: "George — British (Kokoro)" },
 ];
 
-const EL_MODELS: { id: string; label: string }[] = [
-  { id: "eleven_multilingual_v3", label: "Eleven v3 — Most Expressive" },
-  { id: "eleven_multilingual_v2", label: "Multilingual v2 — Studio" },
-  { id: "eleven_flash_v2_5",      label: "Flash v2.5 — Fastest" },
+const ELEVENLABS_DIRECT_VOICES: { id: string; label: string }[] = [
+  { id: "CwhRBWXzGAHq8TQ4Fs17", label: "Brian" },
+  { id: "JBFqnCBsd6RMkjVDRZzb", label: "George - Storyteller" },
+  { id: "21m00Tcm4TlvDq8ikWAM", label: "Rachel" },
+  { id: "TxGEqnHWrfWFTfGW9XjX", label: "Josh" },
 ];
+
+const EL_MODELS: { id: string; label: string }[] = [
+  { id: "eleven_multilingual_v2", label: "Multilingual v2" },
+  { id: "eleven_v3",              label: "Eleven v3 (default)" },
+  { id: "eleven_flash_v2_5",      label: "Flash v2.5" },
+];
+
+const EL_MODEL_DEFAULT = "eleven_v3";
+
+// Real API-enforced speed ranges: ElevenLabs' own voice_settings.speed only
+// accepts 0.7–1.2; AI33 applies its own post-processing on top and accepts 0.5–1.5.
+const EL_SPEED_MIN_DIRECT = 0.7;
+const EL_SPEED_MAX_DIRECT = 1.2;
+const EL_SPEED_MIN_AI33 = 0.5;
+const EL_SPEED_MAX_AI33 = 1.5;
 
 type Props = {
   lang: LangCode;
@@ -157,7 +173,7 @@ function AudioPlayer({ audioUrl, filename }: { audioUrl: string; filename?: stri
 export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
   const { config, update } = useVoiceConfig(provider, lang);
 
-  const [modelId, setModelId] = useState("eleven_multilingual_v3");
+  const [modelId, setModelId] = useState(EL_MODEL_DEFAULT);
 
   useEffect(() => {
     try {
@@ -180,11 +196,14 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
     if (isEdge) return [...EDGE_TTS_VOICES[EDGE_LANG_MAP[lang]]];
     if (isGoogle) return [...GOOGLE_TTS_VOICES[GOOGLE_LANG_MAP[lang]].voices];
     if (isAi33) return AI33_VOICES;
+    if (isDirect) return ELEVENLABS_DIRECT_VOICES;
     return [];
   })();
 
   const hasVoiceSelect = voices.length > 0;
   const showModelSelect = config.voice.startsWith("elevenlabs_") || isDirect;
+  const speedMin = showModelSelect ? (isDirect ? EL_SPEED_MIN_DIRECT : EL_SPEED_MIN_AI33) : SPEED_MIN;
+  const speedMax = showModelSelect ? (isDirect ? EL_SPEED_MAX_DIRECT : EL_SPEED_MAX_AI33) : SPEED_MAX;
 
   const isLoading = audioState?.status === "loading";
   const isDone = audioState?.status === "done";
@@ -232,8 +251,8 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
         <div className="flex items-center gap-1.5 w-28 shrink-0">
           <input
             type="range"
-            min={isEdge ? EDGE_RATE_MIN : SPEED_MIN}
-            max={isEdge ? EDGE_RATE_MAX : SPEED_MAX}
+            min={isEdge ? EDGE_RATE_MIN : speedMin}
+            max={isEdge ? EDGE_RATE_MAX : speedMax}
             step={isEdge ? 5 : 0.05}
             value={config.speed}
             onChange={(e) => update({ speed: parseFloat(e.target.value) })}
@@ -321,3 +340,6 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
     </div>
   );
 }
+
+
+

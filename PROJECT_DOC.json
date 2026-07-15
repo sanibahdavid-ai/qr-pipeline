@@ -359,12 +359,12 @@
       "description": "Keywords from the SEARCH KEYWORDS EN section are filtered client-side: any line with more than 4 words is truncated to 4 words before display."
     },
     {
-      "name": "AI33 V3 Migration + Voice Routing (v3.1)",
-      "description": "All AI33 TTS requests now route by voice_id prefix: clone_* and kokoro_* go to /v1/text-to-speech/{voice_id}, elevenlabs_* also use /v1/ with model_id param, legacy digit minimax IDs use /v1m/. Default voice changed to ALEX CLONED (clone_2608233) with default provider ai33-minimax."
+      "name": "AI33 V3 Migration + Voice Routing (v4.4)",
+      "description": "AI33 deprecated /v1/text-to-speech and /v1m/task/text-to-speech (both now return 'please use api v3 for this endpoint'). All AI33 TTS requests now submit through the single unified POST /v3/text-to-speech endpoint with { text, voice_id, model_id?, speed? } in the body. voice_id must carry a provider prefix (elevenlabs_, minimax_, clone_, edge_, kokoro_, vbee_, fishaudio_); legacy bare-digit Minimax IDs are auto-upgraded to minimax_{id}. Polling still uses GET /v1/task/{taskId} (unchanged, still supported). Default voice remains ALEX CLONED (clone_2608233) with default provider ai33-minimax."
     },
     {
-      "name": "ElevenLabs Model Selector (v3.1)",
-      "description": "When an elevenlabs_* voice is selected (or provider is direct ElevenLabs), a model dropdown appears below the voice selector: Eleven v3 (eleven_multilingual_v3, default), Multilingual v2, Flash v2.5. Selection persisted to localStorage key el_model_{lang}."
+      "name": "ElevenLabs Model Selector (v4.4)",
+      "description": "When an elevenlabs_* voice is selected (or provider is direct ElevenLabs), a model dropdown appears below the voice selector: Multilingual v2 (eleven_multilingual_v2), Eleven v3 (eleven_v3, default), Flash v2.5 (eleven_flash_v2_5). Note: eleven_multilingual_v3 is not a real ElevenLabs model ID (verified against the live API — returns model_not_found); the correct v3 model ID is eleven_v3. Selection persisted to localStorage key el_model_{lang}."
     },
     {
       "name": "New Voices: Clones + Kokoro (v3.1)",

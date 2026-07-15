@@ -5,13 +5,13 @@ export const runtime = "nodejs";
 const API_KEY = process.env.MINIMAX_API_KEY;
 const BASE = "https://api.ai33.pro";
 
-function sanitizeFilename(title: string): string {
-  return title
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
+const VOICE_PREFIXES = ["elevenlabs_", "minimax_", "clone_", "edge_", "kokoro_", "vbee_", "fishaudio_"];
+
+// AI33 v3 requires every voice_id to carry a provider prefix. Legacy bare
+// Minimax digit IDs (pre-v3) need to be upgraded to the minimax_ prefix.
+function normalizeVoiceId(voiceId: string): string {
+  if (VOICE_PREFIXES.some((p) => voiceId.startsWith(p))) return voiceId;
+  return `minimax_${voiceId || "273587280617675"}`;
 }
 
 export async function POST(req: NextRequest) {
@@ -26,44 +26,19 @@ export async function POST(req: NextRequest) {
   }
 
   const apiKey = API_KEY ?? "";
-  const voiceId: string = voice ?? "";
+  const voiceId = normalizeVoiceId(voice ?? "");
 
-  let url: string;
-  let requestBody: Record<string, unknown>;
-
+  const requestBody: Record<string, unknown> = { text, voice_id: voiceId };
   if (voiceId.startsWith("elevenlabs_")) {
-    // ElevenLabs voices via AI33 v1 proxy
-    url = `${BASE}/v1/text-to-speech/${voiceId}`;
-    requestBody = {
-      text,
-      model_id: model_id ?? "eleven_multilingual_v3",
-    };
-  } else if (voiceId.startsWith("kokoro_")) {
-    // Kokoro voices via AI33 v1 proxy (no model_id, no language, no similarity)
-    url = `${BASE}/v1/text-to-speech/${voiceId}`;
-    requestBody = { text };
-  } else if (voiceId.startsWith("clone_")) {
-    // Clone voices use Minimax /v1m/ infrastructure; voice_id is the numeric part only
-    const numericId = voiceId.slice("clone_".length);
-    url = `${BASE}/v1m/task/text-to-speech`;
-    requestBody = {
-      text,
-      model: "speech-2.6-hd",
-      voice_setting: { voice_id: numericId },
-    };
-  } else {
-    // Legacy Minimax digit IDs
-    url = `${BASE}/v1m/task/text-to-speech`;
-    requestBody = {
-      text,
-      model: "speech-2.6-hd",
-      voice_setting: { voice_id: voiceId || "273587280617675" },
-    };
+    requestBody.model_id = model_id ?? "eleven_v3";
+  }
+  if (typeof speed === "number" && !Number.isNaN(speed)) {
+    requestBody.speed = Math.min(1.5, Math.max(0.5, speed));
   }
 
-  console.log(`[TTS submit] voice=${voiceId} url=${url} speed=${speed}`);
+  console.log(`[TTS submit] voice_id=${voiceId} speed=${requestBody.speed ?? "default"}`);
 
-  const res = await fetch(url, {
+  const res = await fetch(`${BASE}/v3/text-to-speech`, {
     method: "POST",
     headers: {
       "xi-api-key": apiKey,
@@ -89,6 +64,5 @@ export async function POST(req: NextRequest) {
   }
   console.log("[TTS submit] taskId:", taskId);
 
-  const filename = `${sanitizeFilename(title)}_${language.toUpperCase()}.mp3`;
-  return Response.json({ taskId, filename, apiKey });
+  return Response.json({ taskId });
 }

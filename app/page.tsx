@@ -582,7 +582,7 @@ export default function Home() {
     if (!rawText) return;
     const text = ctaEnabled ? insertCTA(rawText, language, ctaPosition) : rawText;
 
-    const filename = `${sanitizeTitle(videoTitle)}_${language}.mp3`;
+    const filename = `DAV_${language}_${Date.now()}.mp3`;
 
     if (provider === "edge-tts") {
       const audioKey = `EDGE_${language}`;
@@ -638,7 +638,7 @@ export default function Home() {
         const res = await fetch("/api/tts/elevenlabs", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text, model_id: modelId }),
+          body: JSON.stringify({ text, voice_id: voice, model_id: modelId, speed }),
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
@@ -666,7 +666,7 @@ export default function Home() {
       setAudio((a) => ({ ...a, [language]: { status: "error", label: data.error ?? "Erreur" } }));
       return;
     }
-    const { taskId, apiKey } = data;
+    const { taskId } = data;
     if (!taskId) {
       setAudio((a) => ({ ...a, [language]: { status: "error", label: "Pas de taskId" } }));
       return;
@@ -1033,8 +1033,7 @@ export default function Home() {
         {step === "done" && (
           <div className="space-y-6">
 
-            {/* Generation panel — temporarily hidden */}
-            {false && (
+            {/* Generation panel */}
             <GenerationPanel
               provider={provider}
               onProviderChange={setProvider}
@@ -1048,7 +1047,6 @@ export default function Home() {
               onCopyAllQR={copyAllQR}
               disabled={isLoading}
             />
-            )}
 
             {/* Script cards — grid 4-col on md+ */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">

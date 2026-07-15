@@ -10,11 +10,11 @@ const LANGS = ["FR", "EN", "DE", "ES"] as const;
 type LangCode = (typeof LANGS)[number];
 
 const PROVIDERS_UI: { id: Provider; label: string; group: string }[] = [
-  { id: "ai33-minimax",    label: "Minimax",      group: "AI33" },
-  { id: "ai33-elevenlabs", label: "ElevenLabs",   group: "AI33" },
-  { id: "elevenlabs",      label: "ElevenLabs",   group: "Direct" },
-  { id: "edge-tts",        label: "Edge TTS",     group: "Free" },
-  { id: "google-tts",      label: "Google Cloud", group: "Free" },
+  { id: "ai33-elevenlabs", label: "AI33 — ElevenLabs", group: "AI33" },
+  { id: "ai33-minimax",    label: "Minimax",           group: "AI33" },
+  { id: "elevenlabs",      label: "ElevenLabs Direct", group: "Direct" },
+  { id: "edge-tts",        label: "Edge TTS",          group: "Free" },
+  { id: "google-tts",      label: "Google Cloud",      group: "Free" },
 ];
 
 const DURATION_OPTIONS = ["10s", "15s", "30s", "45s", "1min30", "2min"] as const;
