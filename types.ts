@@ -1,4 +1,4 @@
-export type Provider = "ai33-minimax" | "ai33-elevenlabs" | "elevenlabs" | "edge-tts" | "google-tts";
+export type Provider = "ai33-minimax" | "ai33-elevenlabs" | "elevenlabs" | "edge-tts" | "google-tts" | "google-ai-studio";
 
 export const SECTIONS = [
   "SCRIPT FR",

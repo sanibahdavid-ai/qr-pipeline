@@ -6,6 +6,15 @@ import { useVoiceConfig } from "../hooks/useVoiceConfig";
 import type { Provider, AudioState } from "../types";
 import { EDGE_TTS_VOICES } from "../lib/edge-tts-voices";
 import { GOOGLE_TTS_VOICES } from "../lib/google-tts-voices";
+import {
+  GEMINI_TTS_VOICES,
+  GEMINI_STYLES,
+  GEMINI_PACES,
+  GEMINI_ACCENTS,
+  GEMINI_STYLE_DEFAULT,
+  GEMINI_PACE_DEFAULT,
+  GEMINI_ACCENT_DEFAULT,
+} from "../lib/gemini-tts-voices";
 
 type LangCode = "FR" | "EN" | "DE" | "ES";
 
@@ -20,8 +29,11 @@ const EDGE_RATE_MIN = -50;
 const EDGE_RATE_MAX = 200;
 const SPEED_MIN = 0.5;
 const SPEED_MAX = 2.0;
+const GEMINI_SPEED_MIN = 0.5;
+const GEMINI_SPEED_MAX = 1.5;
 
 const AI33_VOICES: { id: string; label: string }[] = [
+  { id: "elevenlabs_6DsgX00trsI64jl83WWS", label: "Alex Upbeat (ElevenLabs) ⭐" },
   { id: "clone_2608233",                   label: "ALEX CLONED" },
   { id: "clone_2580971",                   label: "Foot French" },
   { id: "clone_2607201",                   label: "NARATEUR ANIME" },
@@ -35,6 +47,7 @@ const AI33_VOICES: { id: string; label: string }[] = [
 ];
 
 const ELEVENLABS_DIRECT_VOICES: { id: string; label: string }[] = [
+  { id: "6DsgX00trsI64jl83WWS", label: "Alex Upbeat ⭐" },
   { id: "CwhRBWXzGAHq8TQ4Fs17", label: "Brian" },
   { id: "JBFqnCBsd6RMkjVDRZzb", label: "George - Storyteller" },
   { id: "21m00Tcm4TlvDq8ikWAM", label: "Rachel" },
@@ -56,11 +69,13 @@ const EL_SPEED_MAX_DIRECT = 1.2;
 const EL_SPEED_MIN_AI33 = 0.5;
 const EL_SPEED_MAX_AI33 = 1.5;
 
+type GeminiParams = { style: string; pace: string; accent: string };
+
 type Props = {
   lang: LangCode;
   provider: Provider;
   audioState?: AudioState;
-  onGenerate: (lang: LangCode, voice: string, speed: number, modelId?: string) => void;
+  onGenerate: (lang: LangCode, voice: string, speed: number, modelId?: string, geminiParams?: GeminiParams) => void;
 };
 
 function StatusDot({ state }: { state?: AudioState }) {
@@ -191,19 +206,21 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
   const isGoogle = provider === "google-tts";
   const isAi33 = provider === "ai33-minimax" || provider === "ai33-elevenlabs";
   const isDirect = provider === "elevenlabs";
+  const isGemini = provider === "google-ai-studio";
 
   const voices: { id: string; label: string }[] = (() => {
     if (isEdge) return [...EDGE_TTS_VOICES[EDGE_LANG_MAP[lang]]];
     if (isGoogle) return [...GOOGLE_TTS_VOICES[GOOGLE_LANG_MAP[lang]].voices];
     if (isAi33) return AI33_VOICES;
     if (isDirect) return ELEVENLABS_DIRECT_VOICES;
+    if (isGemini) return GEMINI_TTS_VOICES;
     return [];
   })();
 
   const hasVoiceSelect = voices.length > 0;
   const showModelSelect = config.voice.startsWith("elevenlabs_") || isDirect;
-  const speedMin = showModelSelect ? (isDirect ? EL_SPEED_MIN_DIRECT : EL_SPEED_MIN_AI33) : SPEED_MIN;
-  const speedMax = showModelSelect ? (isDirect ? EL_SPEED_MAX_DIRECT : EL_SPEED_MAX_AI33) : SPEED_MAX;
+  const speedMin = isGemini ? GEMINI_SPEED_MIN : showModelSelect ? (isDirect ? EL_SPEED_MIN_DIRECT : EL_SPEED_MIN_AI33) : SPEED_MIN;
+  const speedMax = isGemini ? GEMINI_SPEED_MAX : showModelSelect ? (isDirect ? EL_SPEED_MAX_DIRECT : EL_SPEED_MAX_AI33) : SPEED_MAX;
 
   const isLoading = audioState?.status === "loading";
   const isDone = audioState?.status === "done";
@@ -212,7 +229,14 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
   const currentAudioUrl = audioState?.audioUrl;
 
   function handleGenerate() {
-    onGenerate(lang, config.voice, config.speed, showModelSelect ? modelId : undefined);
+    const geminiParams: GeminiParams | undefined = isGemini
+      ? {
+          style: config.style ?? GEMINI_STYLE_DEFAULT,
+          pace: config.pace ?? GEMINI_PACE_DEFAULT,
+          accent: config.accent ?? GEMINI_ACCENT_DEFAULT,
+        }
+      : undefined;
+    onGenerate(lang, config.voice, config.speed, showModelSelect ? modelId : undefined, geminiParams);
   }
 
   return (
@@ -324,6 +348,45 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
           >
             {EL_MODELS.map((m) => (
               <option key={m.id} value={m.id}>{m.label}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* ── Style / Pace / Accent (Google AI Studio only) ─────────────────── */}
+      {isGemini && (
+        <div className="flex items-center gap-2 ml-8">
+          <select
+            value={config.style ?? GEMINI_STYLE_DEFAULT}
+            onChange={(e) => update({ style: e.target.value })}
+            className="flex-1 bg-[#0a1210] border border-[#1a2e25] text-[10px] font-mono text-[#8aaa98] px-2 py-1 focus:outline-none focus:border-[#00e5a0] cursor-pointer"
+            style={{ borderRadius: "2px" }}
+            title="Style"
+          >
+            {GEMINI_STYLES.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          <select
+            value={config.pace ?? GEMINI_PACE_DEFAULT}
+            onChange={(e) => update({ pace: e.target.value })}
+            className="flex-1 bg-[#0a1210] border border-[#1a2e25] text-[10px] font-mono text-[#8aaa98] px-2 py-1 focus:outline-none focus:border-[#00e5a0] cursor-pointer"
+            style={{ borderRadius: "2px" }}
+            title="Pace"
+          >
+            {GEMINI_PACES.map((p) => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+          <select
+            value={config.accent ?? GEMINI_ACCENT_DEFAULT}
+            onChange={(e) => update({ accent: e.target.value })}
+            className="flex-1 bg-[#0a1210] border border-[#1a2e25] text-[10px] font-mono text-[#8aaa98] px-2 py-1 focus:outline-none focus:border-[#00e5a0] cursor-pointer"
+            style={{ borderRadius: "2px" }}
+            title="Accent"
+          >
+            {GEMINI_ACCENTS.map((a) => (
+              <option key={a} value={a}>{a}</option>
             ))}
           </select>
         </div>

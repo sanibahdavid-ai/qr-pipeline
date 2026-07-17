@@ -11,11 +11,13 @@ import { CommandPalette } from "../components/CommandPalette";
 import { FloatingActions } from "../components/FloatingActions";
 import { EDGE_TTS_VOICES } from "../lib/edge-tts-voices";
 import { GOOGLE_TTS_VOICES } from "../lib/google-tts-voices";
+import { GEMINI_STYLE_DEFAULT, GEMINI_PACE_DEFAULT, GEMINI_ACCENT_DEFAULT } from "../lib/gemini-tts-voices";
 import { sanitizeTitle, wordStats } from "../lib/format";
 import type { Provider, Section, AudioState, Step, HistoryEntry, AuthUser } from "../types";
 import { SECTIONS } from "../types";
 import { supabase } from "../lib/supabase";
 import type { GenerationRow } from "../lib/supabase";
+import { VOICE_CONFIG_STORAGE_KEY, type VoiceConfig } from "../hooks/useVoiceConfig";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const SCRIPT_SECTIONS: Section[] = ["SCRIPT FR", "SCRIPT EN", "SCRIPT DE", "SCRIPT ES"];
@@ -205,10 +207,10 @@ export default function Home() {
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
   useHotkeys("mod+k", (e) => { e.preventDefault(); setShowPalette((v) => !v); });
   useHotkeys("mod+shift+c", (e) => { e.preventDefault(); if (step === "done") { copyAllQR(); toast.success("QR copié !"); } });
-  useHotkeys("1", () => { const a = audio["FR"] ?? audio["EDGE_FR"] ?? audio["GTTS_FR"]; if (a?.audioUrl) playAudio(a.audioUrl); }, { enabled: step === "done" });
-  useHotkeys("2", () => { const a = audio["EN"] ?? audio["EDGE_EN"] ?? audio["GTTS_EN"]; if (a?.audioUrl) playAudio(a.audioUrl); }, { enabled: step === "done" });
-  useHotkeys("3", () => { const a = audio["DE"] ?? audio["EDGE_DE"] ?? audio["GTTS_DE"]; if (a?.audioUrl) playAudio(a.audioUrl); }, { enabled: step === "done" });
-  useHotkeys("4", () => { const a = audio["ES"] ?? audio["EDGE_ES"] ?? audio["GTTS_ES"]; if (a?.audioUrl) playAudio(a.audioUrl); }, { enabled: step === "done" });
+  useHotkeys("1", () => { const a = audio["FR"] ?? audio["EDGE_FR"] ?? audio["GTTS_FR"] ?? audio["GEMINI_FR"]; if (a?.audioUrl) playAudio(a.audioUrl); }, { enabled: step === "done" });
+  useHotkeys("2", () => { const a = audio["EN"] ?? audio["EDGE_EN"] ?? audio["GTTS_EN"] ?? audio["GEMINI_EN"]; if (a?.audioUrl) playAudio(a.audioUrl); }, { enabled: step === "done" });
+  useHotkeys("3", () => { const a = audio["DE"] ?? audio["EDGE_DE"] ?? audio["GTTS_DE"] ?? audio["GEMINI_DE"]; if (a?.audioUrl) playAudio(a.audioUrl); }, { enabled: step === "done" });
+  useHotkeys("4", () => { const a = audio["ES"] ?? audio["EDGE_ES"] ?? audio["GTTS_ES"] ?? audio["GEMINI_ES"]; if (a?.audioUrl) playAudio(a.audioUrl); }, { enabled: step === "done" });
 
   function saveToHistory(title: string, currentUrl: string, text: string, transcript: string) {
     const id = Date.now().toString();
@@ -575,7 +577,7 @@ export default function Home() {
   }
 
   // ── TTS ───────────────────────────────────────────────────────────────────
-  async function handleTTS(language: "EN" | "DE" | "FR" | "ES", voice: string, speed: number, modelId?: string) {
+  async function handleTTS(language: "EN" | "DE" | "FR" | "ES", voice: string, speed: number, modelId?: string, geminiParams?: { style: string; pace: string; accent: string }) {
     const sectionKey = `SCRIPT ${language}` as Section;
     const rawText = getContent(sectionKey);
     console.log(`[handleTTS] lang=${language} sectionKey=${sectionKey} textLength=${rawText?.length ?? 0} step=${step}`);
@@ -626,6 +628,36 @@ export default function Home() {
         const blob = await res.blob();
         const audioUrl = URL.createObjectURL(blob);
         setAudio((s) => ({ ...s, [audioKey]: { status: "done", label: "Prêt", audioUrl, filename: `${sanitizeTitle(videoTitle)}_${language}_google.mp3` } }));
+      } catch (err) {
+        setAudio((a) => ({ ...a, [audioKey]: { status: "error", label: String(err) } }));
+      }
+      return;
+    }
+
+    if (provider === "google-ai-studio") {
+      const audioKey = `GEMINI_${language}`;
+      setAudio((a) => ({ ...a, [audioKey]: { status: "loading", label: "Génération..." } }));
+      try {
+        const res = await fetch("/api/tts/gemini", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text,
+            voiceName: voice,
+            style: geminiParams?.style ?? GEMINI_STYLE_DEFAULT,
+            pace: geminiParams?.pace ?? GEMINI_PACE_DEFAULT,
+            accent: geminiParams?.accent ?? GEMINI_ACCENT_DEFAULT,
+            speed,
+          }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+          setAudio((a) => ({ ...a, [audioKey]: { status: "error", label: err.error ?? "Erreur Gemini TTS" } }));
+          return;
+        }
+        const blob = await res.blob();
+        const audioUrl = URL.createObjectURL(blob);
+        setAudio((s) => ({ ...s, [audioKey]: { status: "done", label: "Prêt", audioUrl, filename: `DAV_${language}_gemini_${Date.now()}.mp3` } }));
       } catch (err) {
         setAudio((a) => ({ ...a, [audioKey]: { status: "error", label: String(err) } }));
       }
@@ -702,15 +734,15 @@ export default function Home() {
     setAudio((a) => ({ ...a, [language]: { status: "error", label: "Timeout" } }));
   }
 
-  function handleGenerateLang(lang: "FR" | "EN" | "DE" | "ES", voice: string, speed: number, modelId?: string) {
-    handleTTS(lang, voice, speed, modelId);
+  function handleGenerateLang(lang: "FR" | "EN" | "DE" | "ES", voice: string, speed: number, modelId?: string, geminiParams?: { style: string; pace: string; accent: string }) {
+    handleTTS(lang, voice, speed, modelId, geminiParams);
   }
 
   async function handleGenerateAll() {
-    const raw = typeof window !== "undefined" ? localStorage.getItem("qr_voice_config_v5") : null;
-    const configs = raw ? JSON.parse(raw) : {};
+    const raw = typeof window !== "undefined" ? localStorage.getItem(VOICE_CONFIG_STORAGE_KEY) : null;
+    const configs: Record<string, VoiceConfig> = raw ? JSON.parse(raw) : {};
 
-    function getVoiceConfig(lang: string) {
+    function getVoiceConfig(lang: string): VoiceConfig {
       const key = `${provider}__${lang}`;
       return configs[key] ?? getDefaultVoiceConfig(provider, lang);
     }
@@ -719,21 +751,36 @@ export default function Home() {
       try { return localStorage.getItem(`el_model_${lang}`) ?? undefined; } catch { return undefined; }
     }
 
-    await Promise.allSettled([
-      handleTTS("FR", getVoiceConfig("FR").voice, getVoiceConfig("FR").speed, getModelId("FR")),
-      handleTTS("EN", getVoiceConfig("EN").voice, getVoiceConfig("EN").speed, getModelId("EN")),
-      handleTTS("DE", getVoiceConfig("DE").voice, getVoiceConfig("DE").speed, getModelId("DE")),
-      handleTTS("ES", getVoiceConfig("ES").voice, getVoiceConfig("ES").speed, getModelId("ES")),
-    ]);
+    function getGeminiParams(cfg: VoiceConfig): { style: string; pace: string; accent: string } | undefined {
+      if (provider !== "google-ai-studio") return undefined;
+      return {
+        style: cfg.style ?? GEMINI_STYLE_DEFAULT,
+        pace: cfg.pace ?? GEMINI_PACE_DEFAULT,
+        accent: cfg.accent ?? GEMINI_ACCENT_DEFAULT,
+      };
+    }
+
+    await Promise.allSettled(
+      (["FR", "EN", "DE", "ES"] as const).map((lang) => {
+        const cfg = getVoiceConfig(lang);
+        return handleTTS(lang, cfg.voice, cfg.speed, getModelId(lang), getGeminiParams(cfg));
+      })
+    );
   }
 
-  function getDefaultVoiceConfig(p: Provider, lang: string): { voice: string; speed: number } {
-    const defaults: Record<string, Record<string, { voice: string; speed: number }>> = {
+  function getDefaultVoiceConfig(p: Provider, lang: string): VoiceConfig {
+    const defaults: Record<string, Record<string, VoiceConfig>> = {
       "ai33-minimax":    { FR: { voice: "clone_2580971", speed: 1.0 }, EN: { voice: "clone_2608233", speed: 1.0 }, DE: { voice: "clone_2608233", speed: 1.0 }, ES: { voice: "clone_2608233", speed: 1.0 } },
-      "ai33-elevenlabs": { FR: { voice: "elevenlabs_CwhRBWXzGAHq8TQ4Fs17", speed: 1.0 }, EN: { voice: "elevenlabs_CwhRBWXzGAHq8TQ4Fs17", speed: 1.0 }, DE: { voice: "elevenlabs_CwhRBWXzGAHq8TQ4Fs17", speed: 1.0 }, ES: { voice: "elevenlabs_JBFqnCBsd6RMkjVDRZzb", speed: 1.0 } },
-      "elevenlabs":      { FR: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, EN: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, DE: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 }, ES: { voice: "aTTiK3YzK3dXETpuDE2h", speed: 1.0 } },
+      "ai33-elevenlabs": { FR: { voice: "elevenlabs_6DsgX00trsI64jl83WWS", speed: 1.0 }, EN: { voice: "elevenlabs_6DsgX00trsI64jl83WWS", speed: 1.0 }, DE: { voice: "elevenlabs_6DsgX00trsI64jl83WWS", speed: 1.0 }, ES: { voice: "elevenlabs_6DsgX00trsI64jl83WWS", speed: 1.0 } },
+      "elevenlabs":      { FR: { voice: "6DsgX00trsI64jl83WWS", speed: 1.0 }, EN: { voice: "6DsgX00trsI64jl83WWS", speed: 1.0 }, DE: { voice: "6DsgX00trsI64jl83WWS", speed: 1.0 }, ES: { voice: "6DsgX00trsI64jl83WWS", speed: 1.0 } },
       "edge-tts":        { FR: { voice: "fr-FR-HenriNeural", speed: 0 }, EN: { voice: "en-US-GuyNeural", speed: 0 }, DE: { voice: "de-DE-KillianNeural", speed: 0 }, ES: { voice: "es-ES-AlvaroNeural", speed: 0 } },
       "google-tts":      { FR: { voice: "fr-FR-Neural2-B", speed: 1.0 }, EN: { voice: "en-US-Neural2-D", speed: 1.0 }, DE: { voice: "de-DE-Neural2-B", speed: 1.0 }, ES: { voice: "es-ES-Neural2-B", speed: 1.0 } },
+      "google-ai-studio": {
+        FR: { voice: "Schedar", speed: 1.0, style: "Promo/Hype", pace: "Rapid Fire", accent: "Neutral" },
+        EN: { voice: "Schedar", speed: 1.0, style: "Promo/Hype", pace: "Rapid Fire", accent: "Neutral" },
+        DE: { voice: "Schedar", speed: 1.0, style: "Promo/Hype", pace: "Rapid Fire", accent: "Neutral" },
+        ES: { voice: "Schedar", speed: 1.0, style: "Promo/Hype", pace: "Rapid Fire", accent: "Neutral" },
+      },
     };
     return defaults[p]?.[lang] ?? { voice: "", speed: 1.0 };
   }
@@ -804,8 +851,8 @@ export default function Home() {
   }
 
   function getVoiceConfigForLang(lang: string) {
-    const raw = typeof window !== "undefined" ? localStorage.getItem("qr_voice_config_v5") : null;
-    const configs = raw ? (JSON.parse(raw) as Record<string, { voice: string; speed: number }>) : {};
+    const raw = typeof window !== "undefined" ? localStorage.getItem(VOICE_CONFIG_STORAGE_KEY) : null;
+    const configs = raw ? (JSON.parse(raw) as Record<string, VoiceConfig>) : {};
     return configs[`${provider}__${lang}`] ?? getDefaultVoiceConfig(provider, lang);
   }
 
@@ -1057,7 +1104,7 @@ export default function Home() {
                 const rawContent = content ?? "";
                 const displayContent = ctaEnabled ? insertCTA(rawContent, lang, ctaPosition) : rawContent;
                 const stats = displayContent ? wordStats(displayContent) : null;
-                const audioKey = provider === "edge-tts" ? `EDGE_${lang}` : provider === "google-tts" ? `GTTS_${lang}` : lang;
+                const audioKey = provider === "edge-tts" ? `EDGE_${lang}` : provider === "google-tts" ? `GTTS_${lang}` : provider === "google-ai-studio" ? `GEMINI_${lang}` : lang;
                 const audioState = audio[audioKey];
                 const isAdjusting = adjusting === section;
                 const hasOverride = section in overrides;

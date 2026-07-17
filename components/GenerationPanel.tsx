@@ -10,11 +10,12 @@ const LANGS = ["FR", "EN", "DE", "ES"] as const;
 type LangCode = (typeof LANGS)[number];
 
 const PROVIDERS_UI: { id: Provider; label: string; group: string }[] = [
-  { id: "ai33-elevenlabs", label: "AI33 — ElevenLabs", group: "AI33" },
-  { id: "ai33-minimax",    label: "Minimax",           group: "AI33" },
-  { id: "elevenlabs",      label: "ElevenLabs Direct", group: "Direct" },
-  { id: "edge-tts",        label: "Edge TTS",          group: "Free" },
-  { id: "google-tts",      label: "Google Cloud",      group: "Free" },
+  { id: "ai33-elevenlabs",  label: "AI33 — ElevenLabs", group: "AI33" },
+  { id: "ai33-minimax",     label: "Minimax",           group: "AI33" },
+  { id: "elevenlabs",       label: "ElevenLabs Direct", group: "Direct" },
+  { id: "edge-tts",         label: "Edge TTS",          group: "Free" },
+  { id: "google-tts",       label: "Google Cloud",      group: "Free" },
+  { id: "google-ai-studio", label: "Google AI Studio",  group: "Free" },
 ];
 
 const DURATION_OPTIONS = ["10s", "15s", "30s", "45s", "1min30", "2min"] as const;
@@ -28,7 +29,7 @@ type Props = {
   customSeconds: number | null;
   onCustomSecondsChange: (s: number | null) => void;
   audio: Record<string, AudioState>;
-  onGenerate: (lang: LangCode, voice: string, speed: number) => void;
+  onGenerate: (lang: LangCode, voice: string, speed: number, modelId?: string, geminiParams?: { style: string; pace: string; accent: string }) => void;
   onGenerateAll: () => void;
   onCopyAllQR: () => void;
   disabled?: boolean;
@@ -65,11 +66,16 @@ export function GenerationPanel({
     audio["GTTS_FR"]?.status === "loading" ||
     audio["GTTS_EN"]?.status === "loading" ||
     audio["GTTS_DE"]?.status === "loading" ||
-    audio["GTTS_ES"]?.status === "loading";
+    audio["GTTS_ES"]?.status === "loading" ||
+    audio["GEMINI_FR"]?.status === "loading" ||
+    audio["GEMINI_EN"]?.status === "loading" ||
+    audio["GEMINI_DE"]?.status === "loading" ||
+    audio["GEMINI_ES"]?.status === "loading";
 
   function getAudioKey(lang: LangCode): string {
     if (provider === "edge-tts") return `EDGE_${lang}`;
     if (provider === "google-tts") return `GTTS_${lang}`;
+    if (provider === "google-ai-studio") return `GEMINI_${lang}`;
     return lang;
   }
 
