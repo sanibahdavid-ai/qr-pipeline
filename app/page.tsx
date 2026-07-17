@@ -657,7 +657,7 @@ export default function Home() {
         }
         const blob = await res.blob();
         const audioUrl = URL.createObjectURL(blob);
-        setAudio((s) => ({ ...s, [audioKey]: { status: "done", label: "Prêt", audioUrl, filename: `DAV_${language}_gemini_${Date.now()}.mp3` } }));
+        setAudio((s) => ({ ...s, [audioKey]: { status: "done", label: "Prêt", audioUrl, filename: `DAV_${language}_gemini_${Date.now()}.wav` } }));
       } catch (err) {
         setAudio((a) => ({ ...a, [audioKey]: { status: "error", label: String(err) } }));
       }
