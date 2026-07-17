@@ -9,6 +9,7 @@ import { GenerationPanel } from "../components/GenerationPanel";
 import { ScriptCard } from "../components/ScriptCard";
 import { CommandPalette } from "../components/CommandPalette";
 import { FloatingActions } from "../components/FloatingActions";
+import { MaintenanceGate } from "../components/MaintenanceGate";
 import { EDGE_TTS_VOICES } from "../lib/edge-tts-voices";
 import { GOOGLE_TTS_VOICES } from "../lib/google-tts-voices";
 import { GEMINI_STYLE_DEFAULT, GEMINI_PACE_DEFAULT, GEMINI_ACCENT_DEFAULT } from "../lib/gemini-tts-voices";
@@ -104,6 +105,21 @@ function parseQR(text: string): Partial<Record<Section, string>> {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function Home() {
+  // Maintenance gate — production only, skipped entirely on localhost.
+  // "loading" avoids flashing the real app before we know the hostname.
+  const [gateState, setGateState] = useState<"loading" | "show-app" | "show-gate">("loading");
+
+  useEffect(() => {
+    try {
+      const host = window.location.hostname;
+      const isLocalhost = host === "localhost" || host === "127.0.0.1";
+      const isUnlocked = localStorage.getItem("dav_owner_unlocked") === "true";
+      setGateState(isLocalhost || isUnlocked ? "show-app" : "show-gate");
+    } catch {
+      setGateState("show-app");
+    }
+  }, []);
+
   const [url, setUrl] = useState("");
   const [step, setStep] = useState<Step>("idle");
   const [videoTitle, setVideoTitle] = useState("");
@@ -873,6 +889,14 @@ export default function Home() {
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
+  if (gateState === "loading") {
+    return <div className="min-h-screen bg-[#090d0f]" />;
+  }
+
+  if (gateState === "show-gate") {
+    return <MaintenanceGate onUnlock={() => setGateState("show-app")} />;
+  }
+
   return (
     <div className="min-h-screen bg-[#090d0f] text-[#e0f0e8] relative z-[1]">
       <Header
