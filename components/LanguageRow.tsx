@@ -76,6 +76,7 @@ type Props = {
   provider: Provider;
   audioState?: AudioState;
   onGenerate: (lang: LangCode, voice: string, speed: number, modelId?: string, geminiParams?: GeminiParams) => void;
+  isProduction?: boolean;
 };
 
 function StatusDot({ state }: { state?: AudioState }) {
@@ -185,7 +186,7 @@ function AudioPlayer({ audioUrl, filename }: { audioUrl: string; filename?: stri
   );
 }
 
-export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
+export function LanguageRow({ lang, provider, audioState, onGenerate, isProduction }: Props) {
   const { config, update } = useVoiceConfig(provider, lang);
 
   const [modelId, setModelId] = useState(EL_MODEL_DEFAULT);
@@ -294,7 +295,13 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
         {isDone ? (
           <button
             onClick={handleGenerate}
-            className="shrink-0 w-36 px-3 py-1 text-[11px] font-mono border border-[#1a2e25] text-[#4a6a58] hover:border-[#00e5a0] hover:text-[#00e5a0] transition-none flex items-center justify-center gap-1.5"
+            disabled={isProduction}
+            title={isProduction ? "Available in local version only" : undefined}
+            className={`shrink-0 w-36 px-3 py-1 text-[11px] font-mono border transition-none flex items-center justify-center gap-1.5 ${
+              isProduction
+                ? "cursor-not-allowed bg-transparent border-[#1a2e25] text-[#4a6a58] opacity-50"
+                : "border-[#1a2e25] text-[#4a6a58] hover:border-[#00e5a0] hover:text-[#00e5a0]"
+            }`}
             style={{ borderRadius: "2px" }}
           >
             <RefreshCw size={10} />
@@ -303,9 +310,12 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
         ) : (
           <button
             onClick={handleGenerate}
-            disabled={isLoading}
+            disabled={isLoading || isProduction}
+            title={isProduction ? "Available in local version only" : undefined}
             className={`shrink-0 w-36 px-3 py-1 text-[11px] font-mono font-semibold border transition-none flex items-center justify-center gap-1.5 disabled:opacity-50 ${
-              isError
+              isProduction
+                ? "cursor-not-allowed bg-transparent border-[#1a2e25] text-[#4a6a58]"
+                : isError
                 ? "bg-transparent border-[#ff4466] text-[#ff4466] hover:bg-[#ff4466] hover:text-black"
                 : "bg-transparent border-[#1a2e25] text-[#e0f0e8] hover:border-[#00e5a0] hover:text-[#00e5a0]"
             }`}
@@ -316,7 +326,7 @@ export function LanguageRow({ lang, provider, audioState, onGenerate }: Props) {
                 <Loader2 size={10} className="animate-spin" />
                 <span className="truncate max-w-[80px]">{audioState?.label ?? "..."}</span>
               </>
-            ) : isError ? (
+            ) : isError && !isProduction ? (
               <>
                 <X size={10} />
                 Réessayer

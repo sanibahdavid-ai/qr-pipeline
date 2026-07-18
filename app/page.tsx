@@ -104,6 +104,10 @@ function parseQR(text: string): Partial<Record<Section, string>> {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function Home() {
+  const isProduction = typeof window !== "undefined" &&
+    window.location.hostname !== "localhost" &&
+    window.location.hostname !== "127.0.0.1";
+
   const [url, setUrl] = useState("");
   const [step, setStep] = useState<Step>("idle");
   const [videoTitle, setVideoTitle] = useState("");
@@ -578,6 +582,10 @@ export default function Home() {
 
   // ── TTS ───────────────────────────────────────────────────────────────────
   async function handleTTS(language: "EN" | "DE" | "FR" | "ES", voice: string, speed: number, modelId?: string, geminiParams?: { style: string; pace: string; accent: string }) {
+    if (isProduction) {
+      alert("Audio generation is disabled on this environment");
+      return;
+    }
     const sectionKey = `SCRIPT ${language}` as Section;
     const rawText = getContent(sectionKey);
     console.log(`[handleTTS] lang=${language} sectionKey=${sectionKey} textLength=${rawText?.length ?? 0} step=${step}`);
@@ -739,6 +747,10 @@ export default function Home() {
   }
 
   async function handleGenerateAll() {
+    if (isProduction) {
+      alert("Audio generation is disabled on this environment");
+      return;
+    }
     const raw = typeof window !== "undefined" ? localStorage.getItem(VOICE_CONFIG_STORAGE_KEY) : null;
     const configs: Record<string, VoiceConfig> = raw ? JSON.parse(raw) : {};
 
@@ -1093,6 +1105,7 @@ export default function Home() {
               onGenerateAll={handleGenerateAll}
               onCopyAllQR={copyAllQR}
               disabled={isLoading}
+              isProduction={isProduction}
             />
 
             {/* Script cards — grid 4-col on md+ */}
