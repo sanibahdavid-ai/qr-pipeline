@@ -135,6 +135,22 @@ def _find_downloaded_file(hint: str) -> Path | None:
     )
     return files[0] if files else None
 
+
+def _get_duration_seconds(path: Path) -> float:
+    """Reads the Duration: HH:MM:SS.xx line ffmpeg prints to stderr for -i probes."""
+    try:
+        result = subprocess.run(
+            [FFMPEG_PATH, "-i", str(path)],
+            capture_output=True, text=True, timeout=30,
+        )
+        m = re.search(r"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)", result.stderr or "")
+        if not m:
+            return 0.0
+        hours, minutes, seconds = m.groups()
+        return int(hours) * 3600 + int(minutes) * 60 + float(seconds)
+    except Exception:
+        return 0.0
+
 # ── Routes ────────────────────────────────────────────────────────────────────
 @app.route("/ping")
 def ping():
@@ -144,6 +160,67 @@ def ping():
         "ffmpeg": FFMPEG_PATH,
         "folder": str(DOWNLOAD_FOLDER),
     })
+
+
+@app.route("/remove-silence", methods=["POST"])
+def remove_silence():
+    """Strips long silences from a TTS audio file via ffmpeg's silenceremove filter."""
+    audio_file = request.files.get("audio")
+    if not audio_file or not audio_file.filename:
+        return jsonify({"error": "Fichier audio manquant (champ 'audio')"}), 400
+
+    def _float_arg(name: str, default: float) -> float:
+        try:
+            return float(request.args.get(name, default))
+        except (TypeError, ValueError):
+            return default
+
+    threshold_db = _float_arg("threshold_db", -30)
+    min_silence_ms = _float_arg("min_silence_ms", 500)
+    keep_silence_ms = _float_arg("keep_silence_ms", 200)
+
+    work_dir = DOWNLOAD_FOLDER / f"silence_{uuid.uuid4().hex}"
+    work_dir.mkdir(parents=True, exist_ok=True)
+    input_path = work_dir / "input.mp3"
+    output_path = work_dir / "output.mp3"
+
+    try:
+        audio_file.save(str(input_path))
+        duration_before = _get_duration_seconds(input_path)
+
+        stop_duration = min_silence_ms / 1000
+        stop_silence = keep_silence_ms / 1000
+        silence_filter = (
+            f"silenceremove=stop_periods=-1:stop_duration={stop_duration}:"
+            f"stop_threshold={threshold_db}dB:stop_silence={stop_silence}"
+        )
+        cmd = [
+            FFMPEG_PATH, "-y", "-i", str(input_path),
+            "-af", silence_filter,
+            "-c:a", "libmp3lame", "-q:a", "2",
+            str(output_path),
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        if result.returncode != 0 or not output_path.exists():
+            return jsonify({"error": f"FFmpeg a échoué: {(result.stderr or '')[-500:]}"}), 500
+
+        duration_after = _get_duration_seconds(output_path)
+        silence_removed_ms = max(0, round((duration_before - duration_after) * 1000))
+
+        resp = Response(output_path.read_bytes(), mimetype="audio/mpeg")
+        resp.headers["X-Duration-Before"] = f"{duration_before:.2f}"
+        resp.headers["X-Duration-After"] = f"{duration_after:.2f}"
+        resp.headers["X-Silence-Removed-Ms"] = str(silence_removed_ms)
+        resp.headers["Access-Control-Expose-Headers"] = (
+            "X-Duration-Before, X-Duration-After, X-Silence-Removed-Ms"
+        )
+        return resp
+    except subprocess.TimeoutExpired:
+        return jsonify({"error": "Timeout FFmpeg — fichier trop long"}), 500
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+    finally:
+        shutil.rmtree(work_dir, ignore_errors=True)
 
 
 @app.route("/download", methods=["POST"])

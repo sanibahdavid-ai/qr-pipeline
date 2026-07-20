@@ -3,6 +3,7 @@
 import { Play, RefreshCw, Loader2, Pause, X, Download } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
 import { useVoiceConfig } from "../hooks/useVoiceConfig";
+import { SilenceRemoveControls } from "./SilenceRemoveControls";
 import type { Provider, AudioState } from "../types";
 import { EDGE_TTS_VOICES } from "../lib/edge-tts-voices";
 import { GOOGLE_TTS_VOICES } from "../lib/google-tts-voices";
@@ -93,7 +94,14 @@ function fmt(s: number): string {
   return `${m}:${sec.toString().padStart(2, "0")}`;
 }
 
-function AudioPlayer({ audioUrl, filename }: { audioUrl: string; filename?: string }) {
+type AudioPlayerProps = {
+  audioUrl: string;
+  filename?: string;
+  showSilenceRemoval?: boolean;
+  onReplace?: (url: string, filename: string) => void;
+};
+
+function AudioPlayer({ audioUrl, filename, showSilenceRemoval, onReplace }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
   const [playing, setPlaying] = useState(false);
@@ -182,6 +190,10 @@ function AudioPlayer({ audioUrl, filename }: { audioUrl: string; filename?: stri
           <Download size={14} />
         </a>
       )}
+
+      {showSilenceRemoval && onReplace && (
+        <SilenceRemoveControls audioUrl={audioUrl} filename={filename} onReplace={onReplace} />
+      )}
     </div>
   );
 }
@@ -229,6 +241,13 @@ export function LanguageRow({ lang, provider, audioState, onGenerate, audioEnabl
   const isError = audioState?.status === "error";
 
   const currentAudioUrl = audioState?.audioUrl;
+
+  // Silence-removed audio overrides the generated one for playback/download until
+  // a fresh generation replaces audioState — reset whenever the base audio changes.
+  const [processedAudio, setProcessedAudio] = useState<{ url: string; filename: string } | null>(null);
+  useEffect(() => { setProcessedAudio(null); }, [currentAudioUrl]);
+  const displayAudioUrl = processedAudio?.url ?? currentAudioUrl;
+  const displayFilename = processedAudio?.filename ?? audioState?.filename;
 
   function handleGenerate() {
     const geminiParams: GeminiParams | undefined = isGemini
@@ -404,11 +423,13 @@ export function LanguageRow({ lang, provider, audioState, onGenerate, audioEnabl
       )}
 
       {/* ── Audio player ─────────────────────────────────────────────────── */}
-      {isDone && currentAudioUrl && (
+      {isDone && displayAudioUrl && (
         <AudioPlayer
-          key={currentAudioUrl}
-          audioUrl={currentAudioUrl}
-          filename={audioState?.filename}
+          key={displayAudioUrl}
+          audioUrl={displayAudioUrl}
+          filename={displayFilename}
+          showSilenceRemoval={audioEnabled}
+          onReplace={(url, fname) => setProcessedAudio({ url, filename: fname })}
         />
       )}
     </div>
