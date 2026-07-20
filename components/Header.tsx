@@ -6,8 +6,7 @@ import type { HistoryEntry, AuthUser } from "../types";
 import type { GenerationRow } from "../lib/supabase";
 import { formatDate } from "../lib/format";
 
-const APP_VERSION = "4.8";
-const CTA_POSITIONS = [2, 3, 4] as const;
+const APP_VERSION = "4.9";
 
 type Props = {
   history: HistoryEntry[];
@@ -20,10 +19,8 @@ type Props = {
   onReset: () => void;
   onOpenPalette: () => void;
   historyPanelRef: React.RefObject<HTMLDivElement | null>;
-  ctaEnabled: boolean;
-  ctaPosition: number;
-  onCtaPositionChange: (pos: number) => void;
-  onCtaToggle: () => void;
+  audioEnabled: boolean;
+  onAudioToggle: () => void;
   user: AuthUser | null;
   cloudHistory: GenerationRow[];
   onLogin: () => void;
@@ -34,21 +31,16 @@ type Props = {
 export function Header({
   history, showHistory, onToggleHistory, onRestoreHistory,
   onDeleteHistory, onClearHistory, canReset, onReset, onOpenPalette,
-  historyPanelRef, ctaEnabled, ctaPosition, onCtaPositionChange, onCtaToggle,
+  historyPanelRef, audioEnabled, onAudioToggle,
   user, cloudHistory, onLogin, onLogout, onRestoreCloud,
 }: Props) {
-  const [showCtaPopover, setShowCtaPopover] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [copiedUrlId, setCopiedUrlId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const ctaPopoverRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (ctaPopoverRef.current && !ctaPopoverRef.current.contains(e.target as Node)) {
-        setShowCtaPopover(false);
-      }
       if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
         setShowUserMenu(false);
       }
@@ -56,16 +48,6 @@ export function Header({
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
-
-  function handleSelectPosition(pos: number) {
-    onCtaPositionChange(pos);
-    setShowCtaPopover(false);
-  }
-
-  function handleDisable() {
-    onCtaToggle();
-    setShowCtaPopover(false);
-  }
 
   const displayName = user?.user_metadata?.full_name ?? user?.user_metadata?.name ?? user?.email ?? "";
   const avatarUrl = user?.user_metadata?.avatar_url ?? user?.user_metadata?.picture ?? "";
@@ -99,62 +81,20 @@ export function Header({
             v{APP_VERSION}
           </span>
 
-          {/* Hidden CTA toggle */}
-          <div className="relative" ref={ctaPopoverRef}>
-            <button
-              onClick={() => setShowCtaPopover((v) => !v)}
-              tabIndex={-1}
-              aria-hidden="true"
-              className="relative flex items-center justify-center w-3.5 h-3.5 text-[#0d1512] hover:text-[#1a2e25] transition-none select-none"
-              style={{ background: "none", border: "none", cursor: "pointer", padding: 0, lineHeight: 1 }}
-            >
-              <span className="font-mono text-[11px]">·</span>
-              {ctaEnabled && (
-                <span
-                  className="absolute top-0 right-0 w-1.5 h-1.5 rounded-full bg-[#00e5a0]"
-                  style={{ transform: "translate(30%, -30%)" }}
-                />
-              )}
-            </button>
-
-            {showCtaPopover && (
-              <div
-                className="absolute top-full left-0 mt-1.5 z-[60] w-28 bg-[#0d1512] border border-[#1a2e25] overflow-hidden shadow-xl"
-                style={{ borderRadius: "4px" }}
-              >
-                <div className="h-[2px] w-full" style={{ background: "linear-gradient(90deg, #00e5a0, #ff3cac)" }} />
-                <div className="py-1">
-                  {CTA_POSITIONS.map((pos) => (
-                    <button
-                      key={pos}
-                      onClick={() => handleSelectPosition(pos)}
-                      className={`w-full text-left px-3 py-1.5 text-[11px] font-mono transition-none flex items-center justify-between ${
-                        ctaEnabled && ctaPosition === pos
-                          ? "text-[#00e5a0] bg-[#081a10]"
-                          : "text-[#8aaa98] hover:bg-[#121f19] hover:text-[#e0f0e8]"
-                      }`}
-                    >
-                      Phrase {pos}
-                      {ctaEnabled && ctaPosition === pos && (
-                        <span className="w-1 h-1 rounded-full bg-[#00e5a0] shrink-0" />
-                      )}
-                    </button>
-                  ))}
-                  {ctaEnabled && (
-                    <>
-                      <div className="mx-3 my-1 h-px bg-[#1a2e25]" />
-                      <button
-                        onClick={handleDisable}
-                        className="w-full text-left px-3 py-1.5 text-[11px] font-mono text-[#4a6a58] hover:text-[#ff4466] hover:bg-[#121f19] transition-none"
-                      >
-                        Désactiver
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+          {/* Hidden audio toggle — invisible when off, small blue dot when on */}
+          <button
+            onClick={onAudioToggle}
+            tabIndex={-1}
+            aria-hidden="true"
+            className="w-2 h-2 shrink-0 select-none"
+            style={{
+              background: audioEnabled ? "#3b82f6" : "transparent",
+              border: "none",
+              borderRadius: "50%",
+              padding: 0,
+              cursor: "pointer",
+            }}
+          />
         </div>
 
         {/* Actions */}

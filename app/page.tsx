@@ -22,12 +22,21 @@ import { VOICE_CONFIG_STORAGE_KEY, type VoiceConfig } from "../hooks/useVoiceCon
 // ── Constants ─────────────────────────────────────────────────────────────────
 const SCRIPT_SECTIONS: Section[] = ["SCRIPT FR", "SCRIPT EN", "SCRIPT DE", "SCRIPT ES"];
 
-const CTA_TEXTS: Record<string, string> = {
-  FR: "Savais-tu que Cristiano sourit quand tu tapes sur le bouton plus ?",
-  EN: "Did you know Cristiano smiles when you tap the plus button?",
-  DE: "Wusstest du, dass Cristiano lächelt, wenn du auf Plus tippst?",
-  ES: "¿Sabías que Cristiano sonríe cuando tocas el botón plus?",
+const RONALDO_CTA_TEXTS: Record<string, string> = {
+  FR: "En passant, savais-tu que Cristiano sourit quand tu tapes sur le bouton plus ?",
+  EN: "By the way, did you know Cristiano smiles when you tap the plus button?",
+  DE: "Übrigens, wusstest du, dass Cristiano lächelt, wenn du auf Plus tippst?",
+  ES: "Por cierto, ¿sabías que Cristiano sonríe cuando tocas el botón plus?",
 };
+
+const TIKTOK_CTA_TEXTS: Record<string, string> = {
+  FR: "Si tu es fan de ce genre d'histoires football, suis-nous dès maintenant, car TikTok risque de ne plus te montrer notre prochain chef-d'œuvre si tu ne le fais pas.",
+  EN: "If you're impressed by football stories like this one, follow us right now, because TikTok might not show you our next masterpiece if you don't.",
+  DE: "Wenn dir solche Fußball-Geschichten gefallen, folge uns jetzt, denn TikTok könnte dir unser nächstes Meisterwerk sonst nicht mehr zeigen.",
+  ES: "Si te gustan este tipo de historias del fútbol, síguenos ahora mismo, porque TikTok podría no mostrarte nuestra próxima obra maestra si no lo haces.",
+};
+
+type CtaChoice = "none" | "ronaldo" | "tiktok";
 
 function filterKeywords(text: string): string {
   return text
@@ -48,9 +57,7 @@ function filterKeywords(text: string): string {
     .join("\n");
 }
 
-function insertCTA(text: string, lang: string, position: number): string {
-  const cta = CTA_TEXTS[lang];
-  if (!cta || !text.trim()) return text;
+function splitSentences(text: string): string[] {
   const parts: string[] = [];
   let pos = 0;
   const re = /[.!?…]+\s*/g;
@@ -61,12 +68,36 @@ function insertCTA(text: string, lang: string, position: number): string {
     pos = m.index + m[0].length;
   }
   if (pos < text.length) { const tail = text.slice(pos).trim(); if (tail) parts.push(tail); }
-  if (parts.length < 2) return `${text.trim()} ${cta}`;
-  // position is 2, 3, or 4 — insert after that sentence (0-based: position - 1).
-  const target = position - 1;
-  const insertAfter = Math.min(target, parts.length - 2);
-  console.log("[insertCTA]", { position, partsLength: parts.length, target, insertAfter });
-  return [...parts.slice(0, insertAfter + 1), cta, ...parts.slice(insertAfter + 1)].join(" ");
+  return parts;
+}
+
+// Calls Claude to find the narratively best placement for the CTA, with a
+// local fallback (30% for Ronaldo, 80% for TikTok) if the API call fails.
+async function placeCta(script: string, lang: string, ctaType: "ronaldo" | "tiktok"): Promise<string> {
+  const ctaText = (ctaType === "ronaldo" ? RONALDO_CTA_TEXTS : TIKTOK_CTA_TEXTS)[lang];
+  if (!ctaText || !script.trim()) return script;
+  const sentences = splitSentences(script);
+  if (sentences.length < 3) return `${script.trim()} ${ctaText}`;
+
+  const fallback = () => Math.round(sentences.length * (ctaType === "ronaldo" ? 0.3 : 0.8)) - 1;
+
+  let index: number;
+  try {
+    const res = await fetch("/api/place-cta", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ script, ctaType, ctaText }),
+    });
+    if (!res.ok) throw new Error("bad status");
+    const data = await res.json();
+    const parsed = Number(data.insertAfterSentenceIndex);
+    index = Number.isFinite(parsed) ? parsed : fallback();
+  } catch {
+    index = fallback();
+  }
+
+  const bounded = Math.max(1, Math.min(index, sentences.length - 2));
+  return [...sentences.slice(0, bounded + 1), ctaText, ...sentences.slice(bounded + 1)].join(" ");
 }
 const ADJUST_DURATIONS = ["10s", "15s", "30s", "45s", "1min30", "2min"] as const;
 type AdjustDuration = (typeof ADJUST_DURATIONS)[number];
@@ -74,6 +105,7 @@ type AdjustDuration = (typeof ADJUST_DURATIONS)[number];
 const HISTORY_KEY = "qr_pipeline_history";
 const MAX_HISTORY = 50;
 const TAB_KEY = "dav_active_tab";
+const AUDIO_ENABLED_KEY = "dav_audio_enabled";
 type Tab = "scripts" | "download";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -104,10 +136,6 @@ function parseQR(text: string): Partial<Record<Section, string>> {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function Home() {
-  const isProduction = typeof window !== "undefined" &&
-    window.location.hostname !== "localhost" &&
-    window.location.hostname !== "127.0.0.1";
-
   const [url, setUrl] = useState("");
   const [step, setStep] = useState<Step>("idle");
   const [videoTitle, setVideoTitle] = useState("");
@@ -125,9 +153,8 @@ export default function Home() {
   const [targetDuration, setTargetDuration] = useState<AdjustDuration | "original">("original");
   const [customSeconds, setCustomSeconds] = useState<number | null>(null);
 
-  // CTA toggle
-  const [ctaEnabled, setCtaEnabled] = useState(false);
-  const [ctaPosition, setCtaPosition] = useState(2);
+  // Hidden audio toggle (blue dot) — gates all TTS generation, everywhere
+  const [audioEnabled, setAudioEnabled] = useState(false);
 
   // Per-generation CTA choice (asked after extraction, before rewrite — not persisted)
   const [showCtaChoice, setShowCtaChoice] = useState(false);
@@ -173,11 +200,9 @@ export default function Home() {
           );
         }
       }
-      if (localStorage.getItem("cta_enabled") === "1") setCtaEnabled(true);
       const savedTab = localStorage.getItem(TAB_KEY) as Tab | null;
       if (savedTab === "scripts" || savedTab === "download") setActiveTab(savedTab);
-      const savedPos = Number(localStorage.getItem("cta_position"));
-      if (savedPos === 2 || savedPos === 3 || savedPos === 4) setCtaPosition(savedPos);
+      if (localStorage.getItem(AUDIO_ENABLED_KEY) === "1") setAudioEnabled(true);
     } catch {}
   }, []);
 
@@ -428,18 +453,12 @@ export default function Home() {
   }
 
   // ── CTA choice (per-generation only, not persisted) ─────────────────────────
-  function chooseCta(choice: "none" | "p3" | "p4") {
-    if (choice === "none") {
-      setCtaEnabled(false);
-    } else {
-      setCtaEnabled(true);
-      setCtaPosition(choice === "p3" ? 3 : 4);
-    }
+  function chooseCta(choice: CtaChoice) {
     setShowCtaChoice(false);
     if (pendingRewrite) {
       const { text, title } = pendingRewrite;
       setPendingRewrite(null);
-      void handleRewrite(text, title);
+      void handleRewrite(text, title, choice);
     }
   }
 
@@ -537,7 +556,24 @@ export default function Home() {
     return "original";
   }
 
-  async function handleRewrite(text: string, title?: string) {
+  async function applyCtaToScripts(parsed: Partial<Record<Section, string>>, ctaChoice: "ronaldo" | "tiktok") {
+    const entries: Array<[Section, string]> = [
+      ["SCRIPT FR", "FR"],
+      ["SCRIPT EN", "EN"],
+      ["SCRIPT DE", "DE"],
+      ["SCRIPT ES", "ES"],
+    ];
+    await Promise.all(
+      entries.map(async ([section, lang]) => {
+        const script = parsed[section];
+        if (!script) return;
+        const withCta = await placeCta(script, lang, ctaChoice);
+        setOverrides((o) => ({ ...o, [section]: withCta }));
+      })
+    );
+  }
+
+  async function handleRewrite(text: string, title?: string, ctaChoice: CtaChoice = "none") {
     setStep("rewriting");
     const targetSeconds = customSeconds !== null ? customSeconds : durationToSeconds(targetDuration);
 
@@ -578,19 +614,17 @@ export default function Home() {
       saveToHistory(finalTitle, url, accumulated, text);
       saveToCloud(accumulated, finalTitle);
     }
+    if (ctaChoice !== "none") {
+      void applyCtaToScripts(parsed, ctaChoice);
+    }
   }
 
   // ── TTS ───────────────────────────────────────────────────────────────────
   async function handleTTS(language: "EN" | "DE" | "FR" | "ES", voice: string, speed: number, modelId?: string, geminiParams?: { style: string; pace: string; accent: string }) {
-    if (isProduction) {
-      alert("Audio generation is disabled on this environment");
-      return;
-    }
+    if (!audioEnabled) return;
     const sectionKey = `SCRIPT ${language}` as Section;
-    const rawText = getContent(sectionKey);
-    console.log(`[handleTTS] lang=${language} sectionKey=${sectionKey} textLength=${rawText?.length ?? 0} step=${step}`);
-    if (!rawText) return;
-    const text = ctaEnabled ? insertCTA(rawText, language, ctaPosition) : rawText;
+    const text = getContent(sectionKey);
+    if (!text) return;
 
     const filename = `DAV_${language}_${Date.now()}.mp3`;
 
@@ -747,10 +781,7 @@ export default function Home() {
   }
 
   async function handleGenerateAll() {
-    if (isProduction) {
-      alert("Audio generation is disabled on this environment");
-      return;
-    }
+    if (!audioEnabled) return;
     const raw = typeof window !== "undefined" ? localStorage.getItem(VOICE_CONFIG_STORAGE_KEY) : null;
     const configs: Record<string, VoiceConfig> = raw ? JSON.parse(raw) : {};
 
@@ -868,15 +899,12 @@ export default function Home() {
     return configs[`${provider}__${lang}`] ?? getDefaultVoiceConfig(provider, lang);
   }
 
-  function toggleCTA(v: boolean) {
-    setCtaEnabled(v);
-    try { localStorage.setItem("cta_enabled", v ? "1" : "0"); } catch {}
-  }
-
-  function handleCtaPositionChange(pos: number) {
-    setCtaPosition(pos);
-    try { localStorage.setItem("cta_position", String(pos)); } catch {}
-    if (!ctaEnabled) toggleCTA(true);
+  function toggleAudioEnabled() {
+    setAudioEnabled((v) => {
+      const next = !v;
+      try { localStorage.setItem(AUDIO_ENABLED_KEY, next ? "1" : "0"); } catch {}
+      return next;
+    });
   }
 
   function switchTab(tab: Tab) {
@@ -898,10 +926,8 @@ export default function Home() {
         onReset={reset}
         onOpenPalette={() => setShowPalette(true)}
         historyPanelRef={historyPanelRef}
-        ctaEnabled={ctaEnabled}
-        ctaPosition={ctaPosition}
-        onCtaPositionChange={handleCtaPositionChange}
-        onCtaToggle={() => toggleCTA(!ctaEnabled)}
+        audioEnabled={audioEnabled}
+        onAudioToggle={toggleAudioEnabled}
         user={user}
         cloudHistory={cloudHistory}
         onLogin={handleLogin}
@@ -1023,7 +1049,7 @@ export default function Home() {
         {showCtaChoice && step === "transcript" && (
           <div className="bg-[#0d1512] border border-[#1a2e25] p-4 space-y-3" style={{ borderRadius: "4px" }}>
             <p className="text-[10px] font-mono font-semibold text-[#8aaa98] tracking-widest uppercase">
-              CTA de Ronaldo ?
+              CTA ?
             </p>
             <div className="flex flex-wrap gap-2">
               <button
@@ -1034,18 +1060,18 @@ export default function Home() {
                 Sans CTA
               </button>
               <button
-                onClick={() => chooseCta("p3")}
+                onClick={() => chooseCta("ronaldo")}
                 className="px-3 py-1.5 text-[11px] font-mono border border-[#1a2e25] text-[#8aaa98] hover:border-[#00e5a0] hover:text-[#00e5a0] transition-none"
                 style={{ borderRadius: "4px" }}
               >
-                CTA Phrase 3
+                CTA Ronaldo
               </button>
               <button
-                onClick={() => chooseCta("p4")}
+                onClick={() => chooseCta("tiktok")}
                 className="px-3 py-1.5 text-[11px] font-mono border border-[#1a2e25] text-[#8aaa98] hover:border-[#00e5a0] hover:text-[#00e5a0] transition-none"
                 style={{ borderRadius: "4px" }}
               >
-                CTA Phrase 4
+                CTA TikTok Follow
               </button>
             </div>
           </div>
@@ -1105,7 +1131,7 @@ export default function Home() {
               onGenerateAll={handleGenerateAll}
               onCopyAllQR={copyAllQR}
               disabled={isLoading}
-              isProduction={isProduction}
+              audioEnabled={audioEnabled}
             />
 
             {/* Script cards — grid 4-col on md+ */}
@@ -1114,8 +1140,7 @@ export default function Home() {
                 const content = getContent(section);
                 if (!content && !sections[section]) return null;
                 const lang = section.split(" ")[1];
-                const rawContent = content ?? "";
-                const displayContent = ctaEnabled ? insertCTA(rawContent, lang, ctaPosition) : rawContent;
+                const displayContent = content ?? "";
                 const stats = displayContent ? wordStats(displayContent) : null;
                 const audioKey = provider === "edge-tts" ? `EDGE_${lang}` : provider === "google-tts" ? `GTTS_${lang}` : provider === "google-ai-studio" ? `GEMINI_${lang}` : lang;
                 const audioState = audio[audioKey];

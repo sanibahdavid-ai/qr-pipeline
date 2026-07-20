@@ -33,7 +33,7 @@ type Props = {
   onGenerateAll: () => void;
   onCopyAllQR: () => void;
   disabled?: boolean;
-  isProduction?: boolean;
+  audioEnabled?: boolean;
 };
 
 export function GenerationPanel({
@@ -41,7 +41,7 @@ export function GenerationPanel({
   targetDuration, onDurationChange,
   customSeconds, onCustomSecondsChange,
   audio, onGenerate, onGenerateAll, onCopyAllQR,
-  disabled, isProduction,
+  disabled, audioEnabled,
 }: Props) {
   const [copiedAll, setCopiedAll] = useState(false);
   const [customInput, setCustomInput] = useState("");
@@ -180,7 +180,7 @@ export function GenerationPanel({
             provider={provider}
             audioState={audio[getAudioKey(lang)]}
             onGenerate={onGenerate}
-            isProduction={isProduction}
+            audioEnabled={audioEnabled}
           />
         ))}
       </div>
@@ -189,14 +189,14 @@ export function GenerationPanel({
       <div className="px-4 py-3 border-t border-[#1a2e25] flex items-center justify-between gap-3">
         <button
           onClick={onGenerateAll}
-          disabled={disabled || anyLoading || isProduction}
-          title={isProduction ? "Available in local version only" : undefined}
+          disabled={disabled || anyLoading || !audioEnabled}
+          title={!audioEnabled ? "Audio generation is disabled" : undefined}
           className={`flex-1 py-2 text-[11px] font-bold tracking-[2px] uppercase disabled:opacity-40 transition-none ${
-            isProduction ? "cursor-not-allowed text-[#4a6a58]" : "text-black"
+            !audioEnabled ? "cursor-not-allowed text-[#4a6a58]" : "text-black"
           }`}
           style={{
             fontFamily: "var(--font-syne)",
-            background: isProduction ? "#1a2e25" : "linear-gradient(135deg, #00e5a0, #00b4d8)",
+            background: !audioEnabled ? "#1a2e25" : "linear-gradient(135deg, #00e5a0, #00b4d8)",
             borderRadius: "2px",
           }}
         >

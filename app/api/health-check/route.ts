@@ -3,16 +3,46 @@ import Anthropic from "@anthropic-ai/sdk";
 
 export const runtime = "edge";
 
+// CTAs are client-inserted after the rewrite, not part of the model's output —
+// strip them before scoring so they don't affect fidelity/length/wording checks.
+const RONALDO_CTA_TEXTS: Record<string, string> = {
+  FR: "En passant, savais-tu que Cristiano sourit quand tu tapes sur le bouton plus ?",
+  EN: "By the way, did you know Cristiano smiles when you tap the plus button?",
+  DE: "Übrigens, wusstest du, dass Cristiano lächelt, wenn du auf Plus tippst?",
+  ES: "Por cierto, ¿sabías que Cristiano sonríe cuando tocas el botón plus?",
+};
+
+const TIKTOK_CTA_TEXTS: Record<string, string> = {
+  FR: "Si tu es fan de ce genre d'histoires football, suis-nous dès maintenant, car TikTok risque de ne plus te montrer notre prochain chef-d'œuvre si tu ne le fais pas.",
+  EN: "If you're impressed by football stories like this one, follow us right now, because TikTok might not show you our next masterpiece if you don't.",
+  DE: "Wenn dir solche Fußball-Geschichten gefallen, folge uns jetzt, denn TikTok könnte dir unser nächstes Meisterwerk sonst nicht mehr zeigen.",
+  ES: "Si te gustan este tipo de historias del fútbol, síguenos ahora mismo, porque TikTok podría no mostrarte nuestra próxima obra maestra si no lo haces.",
+};
+
+function stripCtas(scripts: Record<string, string>): Record<string, string> {
+  const stripped: Record<string, string> = {};
+  for (const [lang, script] of Object.entries(scripts)) {
+    let clean = script ?? "";
+    const ronaldo = RONALDO_CTA_TEXTS[lang];
+    const tiktok = TIKTOK_CTA_TEXTS[lang];
+    if (ronaldo) clean = clean.split(ronaldo).join(" ");
+    if (tiktok) clean = clean.split(tiktok).join(" ");
+    stripped[lang] = clean.replace(/\s+/g, " ").trim();
+  }
+  return stripped;
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body?.scripts || !body?.transcript) {
     return new Response(JSON.stringify({ error: "Missing scripts or transcript" }), { status: 400 });
   }
 
-  const { scripts, transcript } = body as {
+  const { scripts: rawScripts, transcript } = body as {
     scripts: Record<string, string>;
     transcript: string;
   };
+  const scripts = stripCtas(rawScripts);
 
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
