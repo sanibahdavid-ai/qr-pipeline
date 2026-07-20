@@ -914,7 +914,7 @@ export default function Home() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-[#090d0f] text-[#e0f0e8] relative z-[1]">
+    <div className="min-h-screen bg-[#060a12] text-[#e0eef8] relative z-[1]">
       <Header
         history={history}
         showHistory={showHistory}
@@ -936,7 +936,7 @@ export default function Home() {
       />
 
       {/* Tab switcher */}
-      <div style={{ borderBottom: "1px solid #1a2e25" }}>
+      <div style={{ borderBottom: "1px solid #1a2942" }}>
         <div className="max-w-5xl mx-auto px-4 flex">
           {(["scripts", "download"] as Tab[]).map((tab) => (
             <button
@@ -944,8 +944,8 @@ export default function Home() {
               onClick={() => switchTab(tab)}
               className="px-4 py-2.5 text-[11px] font-mono font-semibold tracking-widest uppercase transition-none"
               style={{
-                color: activeTab === tab ? "#00e5a0" : "#4a6a58",
-                borderBottom: activeTab === tab ? "2px solid #00e5a0" : "2px solid transparent",
+                color: activeTab === tab ? "#00b4ff" : "#4a6a8a",
+                borderBottom: activeTab === tab ? "2px solid #00b4ff" : "2px solid transparent",
                 marginBottom: "-1px",
               }}
             >
@@ -968,8 +968,8 @@ export default function Home() {
         {/* Video title */}
         {videoTitle && (
           <div className="flex items-center gap-2 min-w-0">
-            <p className="text-[12px] font-mono text-[#4a6a58] truncate min-w-0 flex-1">
-              <span className="text-[#223a2f]">▸ </span>{videoTitle}
+            <p className="text-[12px] font-mono text-[#4a6a8a] truncate min-w-0 flex-1">
+              <span className="text-[#2a4a75]">▸ </span>{videoTitle}
             </p>
             {url && (
               <button
@@ -978,7 +978,7 @@ export default function Home() {
                   setCopiedUrl(true);
                   setTimeout(() => setCopiedUrl(false), 1000);
                 }}
-                className="shrink-0 text-[10px] font-mono text-[#4a6a58] hover:text-[#00e5a0] transition-none"
+                className="shrink-0 text-[10px] font-mono text-[#4a6a8a] hover:text-[#00b4ff] transition-none"
                 title="Copier le lien"
               >
                 {copiedUrl ? "Copié !" : "🔗"}
@@ -1001,7 +1001,7 @@ export default function Home() {
               onManualSubmit={handleManualSubmit}
             />
             {step === "extracting" && (
-              <p className="text-[12px] font-mono text-[#4a6a58]">Extraction du transcript…</p>
+              <p className="text-[12px] font-mono text-[#4a6a8a]">Extraction du transcript…</p>
             )}
           </div>
         )}
@@ -1009,10 +1009,10 @@ export default function Home() {
         {/* Empty state */}
         {step === "idle" && !url && (
           <div className="py-16 text-center space-y-3">
-            <p className="text-[13px] font-mono text-[#4a6a58]">
+            <p className="text-[13px] font-mono text-[#4a6a8a]">
               Colle une URL pour commencer
             </p>
-            <p className="text-[11px] font-mono text-[#223a2f]">
+            <p className="text-[11px] font-mono text-[#2a4a75]">
               YouTube · TikTok · Instagram  ·  ⌘K pour les actions rapides
             </p>
           </div>
@@ -1020,9 +1020,9 @@ export default function Home() {
 
         {/* Transcript card (collapsable) */}
         {(step === "transcript" || step === "rewriting" || step === "done") && transcriptText && (
-          <details className="group bg-[#0d1512] border border-[#1a2e25] overflow-hidden" style={{ borderRadius: "4px" }}>
-            <summary className="flex items-center justify-between px-4 py-2.5 cursor-pointer list-none select-none hover:bg-[#121f19] transition-none">
-              <span className="text-[10px] font-mono font-semibold text-[#8aaa98] tracking-widest uppercase flex items-center gap-2">
+          <details className="group bg-[#0d1420] border border-[#1a2942] overflow-hidden" style={{ borderRadius: "4px" }}>
+            <summary className="flex items-center justify-between px-4 py-2.5 cursor-pointer list-none select-none hover:bg-[#13233a] transition-none">
+              <span className="text-[10px] font-mono font-semibold text-[#7a9ac2] tracking-widest uppercase flex items-center gap-2">
                 <span className="group-open:rotate-90 inline-block transition-none">▸</span>
                 Transcript · {transcriptText.trim().split(/\s+/).filter(Boolean).length} mots
               </span>
@@ -1034,12 +1034,12 @@ export default function Home() {
                   toast.success("Transcript copié");
                   setTimeout(() => setCopiedTranscript(false), 1500);
                 }}
-                className="text-[10px] font-mono text-[#4a6a58] hover:text-[#00e5a0] transition-none"
+                className="text-[10px] font-mono text-[#4a6a8a] hover:text-[#00b4ff] transition-none"
               >
                 {copiedTranscript ? "Copié !" : "Copier"}
               </button>
             </summary>
-            <p className="px-4 py-3 text-[12px] text-[#8aaa98] font-mono whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto border-t border-[#1a2e25]">
+            <p className="px-4 py-3 text-[12px] text-[#7a9ac2] font-mono whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto border-t border-[#1a2942]">
               {transcriptText}
             </p>
           </details>
@@ -1047,28 +1047,28 @@ export default function Home() {
 
         {/* CTA choice — asked once per generation, before rewrite */}
         {showCtaChoice && step === "transcript" && (
-          <div className="bg-[#0d1512] border border-[#1a2e25] p-4 space-y-3" style={{ borderRadius: "4px" }}>
-            <p className="text-[10px] font-mono font-semibold text-[#8aaa98] tracking-widest uppercase">
+          <div className="bg-[#0d1420] border border-[#1a2942] p-4 space-y-3" style={{ borderRadius: "4px" }}>
+            <p className="text-[10px] font-mono font-semibold text-[#7a9ac2] tracking-widest uppercase">
               CTA ?
             </p>
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => chooseCta("none")}
-                className="px-3 py-1.5 text-[11px] font-mono border border-[#1a2e25] text-[#8aaa98] hover:border-[#00e5a0] hover:text-[#00e5a0] transition-none"
+                className="px-3 py-1.5 text-[11px] font-mono border border-[#1a2942] text-[#7a9ac2] hover:border-[#00b4ff] hover:text-[#00b4ff] transition-none"
                 style={{ borderRadius: "4px" }}
               >
                 Sans CTA
               </button>
               <button
                 onClick={() => chooseCta("ronaldo")}
-                className="px-3 py-1.5 text-[11px] font-mono border border-[#1a2e25] text-[#8aaa98] hover:border-[#00e5a0] hover:text-[#00e5a0] transition-none"
+                className="px-3 py-1.5 text-[11px] font-mono border border-[#1a2942] text-[#7a9ac2] hover:border-[#00b4ff] hover:text-[#00b4ff] transition-none"
                 style={{ borderRadius: "4px" }}
               >
                 CTA Ronaldo
               </button>
               <button
                 onClick={() => chooseCta("tiktok")}
-                className="px-3 py-1.5 text-[11px] font-mono border border-[#1a2e25] text-[#8aaa98] hover:border-[#00e5a0] hover:text-[#00e5a0] transition-none"
+                className="px-3 py-1.5 text-[11px] font-mono border border-[#1a2942] text-[#7a9ac2] hover:border-[#00b4ff] hover:text-[#00b4ff] transition-none"
                 style={{ borderRadius: "4px" }}
               >
                 CTA TikTok Follow
@@ -1080,13 +1080,13 @@ export default function Home() {
         {/* Rewriting — streaming preview + skeleton cards */}
         {step === "rewriting" && (
           <div className="space-y-6">
-            <div className="bg-[#0d1512] border border-[#1a2e25] p-4 space-y-2" style={{ borderRadius: "4px" }}>
+            <div className="bg-[#0d1420] border border-[#1a2942] p-4 space-y-2" style={{ borderRadius: "4px" }}>
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-[#F59E0B] animate-pulse" />
-                <span className="text-[10px] font-mono text-[#4a6a58] tracking-widest uppercase">Réécriture en cours…</span>
+                <span className="text-[10px] font-mono text-[#4a6a8a] tracking-widest uppercase">Réécriture en cours…</span>
               </div>
               {qrText && (
-                <p className="text-[12px] font-mono text-[#8aaa98] whitespace-pre-wrap leading-relaxed line-clamp-6">
+                <p className="text-[12px] font-mono text-[#7a9ac2] whitespace-pre-wrap leading-relaxed line-clamp-6">
                   {qrText}
                 </p>
               )}
@@ -1094,19 +1094,19 @@ export default function Home() {
             {/* Skeleton script cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               {["FR", "EN", "DE", "ES"].map((lang) => (
-                <div key={lang} className="bg-[#0d1512] border border-[#1a2e25] overflow-hidden flex flex-col" style={{ borderRadius: "4px" }}>
-                  <div className="h-[2px] w-full" style={{ background: "linear-gradient(90deg, #00e5a0, #ff3cac)" }} />
-                  <div className="px-3 py-2 border-b border-[#1a2e25] flex items-center gap-2">
-                    <div className="h-2.5 w-16 bg-[#1a2e25] animate-pulse" style={{ borderRadius: "2px" }} />
-                    <div className="h-2 w-12 bg-[#121f19] animate-pulse" style={{ borderRadius: "2px" }} />
+                <div key={lang} className="bg-[#0d1420] border border-[#1a2942] overflow-hidden flex flex-col" style={{ borderRadius: "4px" }}>
+                  <div className="h-[2px] w-full" style={{ background: "linear-gradient(90deg, #00b4ff, #ff3cac)" }} />
+                  <div className="px-3 py-2 border-b border-[#1a2942] flex items-center gap-2">
+                    <div className="h-2.5 w-16 bg-[#1a2942] animate-pulse" style={{ borderRadius: "2px" }} />
+                    <div className="h-2 w-12 bg-[#13233a] animate-pulse" style={{ borderRadius: "2px" }} />
                   </div>
                   <div className="px-3 py-3 space-y-2 flex-1">
                     {[100, 90, 95, 80, 70].map((w, i) => (
-                      <div key={i} className="h-3 bg-[#121f19] animate-pulse" style={{ borderRadius: "2px", width: `${w}%` }} />
+                      <div key={i} className="h-3 bg-[#13233a] animate-pulse" style={{ borderRadius: "2px", width: `${w}%` }} />
                     ))}
                   </div>
-                  <div className="px-3 py-2 border-t border-[#1a2e25]">
-                    <div className="h-2 w-8 bg-[#121f19] animate-pulse" style={{ borderRadius: "2px" }} />
+                  <div className="px-3 py-2 border-t border-[#1a2942]">
+                    <div className="h-2 w-8 bg-[#13233a] animate-pulse" style={{ borderRadius: "2px" }} />
                   </div>
                 </div>
               ))}
@@ -1179,20 +1179,20 @@ export default function Home() {
                 const raw = content ?? "";
                 const displayContent = section === "SEARCH KEYWORDS EN" ? filterKeywords(raw) : raw;
                 return (
-                  <div key={section} className="bg-[#0d1512] border border-[#1a2e25] overflow-hidden" style={{ borderRadius: "4px" }}>
-                    <div className="h-[2px] w-full" style={{ background: "linear-gradient(90deg, #00e5a0, #ff3cac)" }} />
-                    <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#1a2e25]">
-                      <span className="text-[10px] font-mono font-semibold text-[#8aaa98] tracking-widest uppercase">
+                  <div key={section} className="bg-[#0d1420] border border-[#1a2942] overflow-hidden" style={{ borderRadius: "4px" }}>
+                    <div className="h-[2px] w-full" style={{ background: "linear-gradient(90deg, #00b4ff, #ff3cac)" }} />
+                    <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#1a2942]">
+                      <span className="text-[10px] font-mono font-semibold text-[#7a9ac2] tracking-widest uppercase">
                         {section}
                       </span>
                       <button
                         onClick={() => copySection(section, displayContent)}
-                        className="text-[10px] font-mono text-[#4a6a58] hover:text-[#00e5a0] transition-none"
+                        className="text-[10px] font-mono text-[#4a6a8a] hover:text-[#00b4ff] transition-none"
                       >
                         {copied === section ? "Copié ✓" : "Copier"}
                       </button>
                     </div>
-                    <p className="px-4 py-3 text-[13px] font-mono text-[#e0f0e8] whitespace-pre-wrap leading-relaxed">
+                    <p className="px-4 py-3 text-[13px] font-mono text-[#e0eef8] whitespace-pre-wrap leading-relaxed">
                       {displayContent}
                     </p>
                   </div>
@@ -1204,7 +1204,7 @@ export default function Home() {
         )}
       </main>
 
-      <footer className="text-center text-[#1a2e25] text-[10px] font-mono py-6 mt-8">
+      <footer className="text-center text-[#1a2942] text-[10px] font-mono py-6 mt-8">
         DAV Pipeline · 2026
       </footer>
 

@@ -113,7 +113,7 @@ export function SilenceRemoveControls({ audioUrl, filename, onReplace }: Props) 
         onClick={handleRemoveSilence}
         disabled={isLoading}
         title="Enlever silences"
-        className="shrink-0 w-9 h-9 flex items-center justify-center border border-[#1a2e25] text-[#4a6a58] hover:border-[#00e5a0] hover:text-[#00e5a0] disabled:opacity-50 transition-none"
+        className="shrink-0 w-9 h-9 flex items-center justify-center border border-[#1a2942] text-[#4a6a8a] hover:border-[#00b4ff] hover:text-[#00b4ff] disabled:opacity-50 transition-none"
         style={{ borderRadius: "2px" }}
       >
         {isLoading ? <Loader2 size={14} className="animate-spin" /> : <Scissors size={14} />}
@@ -123,7 +123,7 @@ export function SilenceRemoveControls({ audioUrl, filename, onReplace }: Props) 
         <button
           onClick={() => setShowSettings((v) => !v)}
           title="Réglages silence"
-          className="shrink-0 w-6 h-6 flex items-center justify-center text-[#4a6a58] hover:text-[#00e5a0] transition-none"
+          className="shrink-0 w-6 h-6 flex items-center justify-center text-[#4a6a8a] hover:text-[#00b4ff] transition-none"
           style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
         >
           <Settings size={12} />
@@ -131,17 +131,17 @@ export function SilenceRemoveControls({ audioUrl, filename, onReplace }: Props) 
 
         {showSettings && (
           <div
-            className="absolute right-0 top-full mt-1.5 z-[70] w-56 bg-[#0d1512] border border-[#1a2e25] shadow-2xl overflow-hidden"
+            className="absolute right-0 top-full mt-1.5 z-[70] w-56 bg-[#0d1420] border border-[#1a2942] shadow-2xl overflow-hidden"
             style={{ borderRadius: "4px" }}
           >
-            <div className="h-[2px] w-full" style={{ background: "linear-gradient(90deg, #00e5a0, #ff3cac)" }} />
-            <div className="flex items-center justify-between px-3 py-2 border-b border-[#1a2e25]">
-              <span className="text-[10px] font-mono font-semibold text-[#8aaa98] tracking-widest uppercase">
+            <div className="h-[2px] w-full" style={{ background: "linear-gradient(90deg, #00b4ff, #ff3cac)" }} />
+            <div className="flex items-center justify-between px-3 py-2 border-b border-[#1a2942]">
+              <span className="text-[10px] font-mono font-semibold text-[#7a9ac2] tracking-widest uppercase">
                 Réglages silence
               </span>
               <button
                 onClick={() => setShowSettings(false)}
-                className="text-[#4a6a58] hover:text-[#e0f0e8] transition-none"
+                className="text-[#4a6a8a] hover:text-[#e0eef8] transition-none"
                 style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
               >
                 <X size={12} />
@@ -149,7 +149,7 @@ export function SilenceRemoveControls({ audioUrl, filename, onReplace }: Props) 
             </div>
             <div className="px-3 py-3 space-y-3">
               <div className="space-y-1">
-                <div className="flex items-center justify-between text-[10px] font-mono text-[#8aaa98]">
+                <div className="flex items-center justify-between text-[10px] font-mono text-[#7a9ac2]">
                   <span>Seuil</span>
                   <span>{settings.thresholdDb} dB</span>
                 </div>
@@ -160,12 +160,12 @@ export function SilenceRemoveControls({ audioUrl, filename, onReplace }: Props) 
                   step={1}
                   value={settings.thresholdDb}
                   onChange={(e) => updateSetting("thresholdDb", parseInt(e.target.value, 10))}
-                  className="w-full h-0.5 bg-[#1a2e25] cursor-pointer"
-                  style={{ accentColor: "#00e5a0" }}
+                  className="w-full h-0.5 bg-[#1a2942] cursor-pointer"
+                  style={{ accentColor: "#00b4ff" }}
                 />
               </div>
               <div className="space-y-1">
-                <div className="flex items-center justify-between text-[10px] font-mono text-[#8aaa98]">
+                <div className="flex items-center justify-between text-[10px] font-mono text-[#7a9ac2]">
                   <span>Silence min.</span>
                   <span>{settings.minSilenceMs} ms</span>
                 </div>
@@ -176,12 +176,12 @@ export function SilenceRemoveControls({ audioUrl, filename, onReplace }: Props) 
                   step={50}
                   value={settings.minSilenceMs}
                   onChange={(e) => updateSetting("minSilenceMs", parseInt(e.target.value, 10))}
-                  className="w-full h-0.5 bg-[#1a2e25] cursor-pointer"
-                  style={{ accentColor: "#00e5a0" }}
+                  className="w-full h-0.5 bg-[#1a2942] cursor-pointer"
+                  style={{ accentColor: "#00b4ff" }}
                 />
               </div>
               <div className="space-y-1">
-                <div className="flex items-center justify-between text-[10px] font-mono text-[#8aaa98]">
+                <div className="flex items-center justify-between text-[10px] font-mono text-[#7a9ac2]">
                   <span>Garder</span>
                   <span>{settings.keepSilenceMs} ms</span>
                 </div>
@@ -192,8 +192,8 @@ export function SilenceRemoveControls({ audioUrl, filename, onReplace }: Props) 
                   step={25}
                   value={settings.keepSilenceMs}
                   onChange={(e) => updateSetting("keepSilenceMs", parseInt(e.target.value, 10))}
-                  className="w-full h-0.5 bg-[#1a2e25] cursor-pointer"
-                  style={{ accentColor: "#00e5a0" }}
+                  className="w-full h-0.5 bg-[#1a2942] cursor-pointer"
+                  style={{ accentColor: "#00b4ff" }}
                 />
               </div>
             </div>
@@ -204,7 +204,7 @@ export function SilenceRemoveControls({ audioUrl, filename, onReplace }: Props) 
       {status.kind === "done" && (
         <span
           title={`Silence removed: ${status.before.toFixed(1)}s → ${status.after.toFixed(1)}s (saved ${(status.before - status.after).toFixed(1)}s)`}
-          className="text-[10px] font-mono text-[#00e5a0] whitespace-nowrap"
+          className="text-[10px] font-mono text-[#00b4ff] whitespace-nowrap"
         >
           −{(status.before - status.after).toFixed(1)}s
         </span>

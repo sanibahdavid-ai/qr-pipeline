@@ -81,18 +81,18 @@ export function GenerationPanel({
   }
 
   return (
-    <div className="border border-[#1a2e25] bg-[#0d1512] overflow-hidden" style={{ borderRadius: "4px" }}>
+    <div className="border border-[#1a2942] bg-[#0d1420] overflow-hidden" style={{ borderRadius: "4px" }}>
       {/* Gradient top bar */}
-      <div className="h-[2px] w-full" style={{ background: "linear-gradient(90deg, #00e5a0, #ff3cac)" }} />
+      <div className="h-[2px] w-full" style={{ background: "linear-gradient(90deg, #00b4ff, #ff3cac)" }} />
 
       {/* Provider selector */}
-      <div className="px-4 pt-4 pb-3 border-b border-[#1a2e25]">
+      <div className="px-4 pt-4 pb-3 border-b border-[#1a2942]">
         <div className="flex items-stretch gap-1 flex-wrap">
           {groups.map((group, gi) => (
             <div key={group} className="flex items-center gap-1">
-              {gi > 0 && <div className="w-px h-5 bg-[#1a2e25] mx-1" />}
+              {gi > 0 && <div className="w-px h-5 bg-[#1a2942] mx-1" />}
               <div className="flex flex-col gap-0.5">
-                <span className="text-[9px] font-mono text-[#4a6a58] uppercase tracking-widest px-1">{group}</span>
+                <span className="text-[9px] font-mono text-[#4a6a8a] uppercase tracking-widest px-1">{group}</span>
                 <div className="flex gap-1">
                   {PROVIDERS_UI.filter((p) => p.group === group).map((p) => (
                     <button
@@ -101,11 +101,11 @@ export function GenerationPanel({
                       className={`px-2.5 py-1 text-[11px] font-mono font-medium transition-none ${
                         provider === p.id
                           ? "text-black"
-                          : "text-[#8aaa98] hover:text-[#e0f0e8] hover:bg-[#121f19]"
+                          : "text-[#7a9ac2] hover:text-[#e0eef8] hover:bg-[#13233a]"
                       }`}
                       style={{
                         borderRadius: "2px",
-                        background: provider === p.id ? "linear-gradient(135deg, #00e5a0, #00b4d8)" : undefined,
+                        background: provider === p.id ? "linear-gradient(135deg, #00b4ff, #0084d1)" : undefined,
                       }}
                     >
                       {p.label}
@@ -119,9 +119,9 @@ export function GenerationPanel({
       </div>
 
       {/* Duration selector */}
-      <div className="px-4 py-3 border-b border-[#1a2e25]">
+      <div className="px-4 py-3 border-b border-[#1a2942]">
         <div className="flex items-center gap-1 flex-wrap">
-          <span className="text-[9px] font-mono text-[#4a6a58] uppercase tracking-widest mr-2">Durée</span>
+          <span className="text-[9px] font-mono text-[#4a6a8a] uppercase tracking-widest mr-2">Durée</span>
           {([...DURATION_OPTIONS, "original"] as const).map((d) => (
             <button
               key={d}
@@ -132,18 +132,18 @@ export function GenerationPanel({
               }}
               className={`px-2.5 py-0.5 text-[11px] font-mono border transition-none ${
                 targetDuration === d && customSeconds === null
-                  ? "text-black border-[#00e5a0]"
-                  : "bg-transparent border-[#1a2e25] text-[#8aaa98] hover:border-[#223a2f] hover:text-[#e0f0e8]"
+                  ? "text-black border-[#00b4ff]"
+                  : "bg-transparent border-[#1a2942] text-[#7a9ac2] hover:border-[#2a4a75] hover:text-[#e0eef8]"
               }`}
               style={{
                 borderRadius: "2px",
-                background: targetDuration === d && customSeconds === null ? "linear-gradient(135deg, #00e5a0, #00b4d8)" : undefined,
+                background: targetDuration === d && customSeconds === null ? "linear-gradient(135deg, #00b4ff, #0084d1)" : undefined,
               }}
             >
               {d === "original" ? "Original" : d}
             </button>
           ))}
-          <div className="w-px h-4 bg-[#1a2e25] mx-1" />
+          <div className="w-px h-4 bg-[#1a2942] mx-1" />
           <input
             type="number"
             min="1"
@@ -159,20 +159,20 @@ export function GenerationPanel({
                 onCustomSecondsChange(parsed);
               }
             }}
-            className="w-14 px-2 py-0.5 text-[11px] font-mono bg-[#080e0c] border border-[#1a2e25] text-[#8aaa98] outline-none transition-none"
+            className="w-14 px-2 py-0.5 text-[11px] font-mono bg-[#070d1a] border border-[#1a2942] text-[#7a9ac2] outline-none transition-none"
             style={{
               borderRadius: "2px",
               fontFamily: "var(--font-space-mono, monospace)",
-              borderColor: customSeconds !== null ? "#00e5a0" : undefined,
+              borderColor: customSeconds !== null ? "#00b4ff" : undefined,
             }}
-            onFocus={(e) => { e.currentTarget.style.borderColor = "#00e5a0"; }}
-            onBlur={(e) => { e.currentTarget.style.borderColor = customSeconds !== null ? "#00e5a0" : "#1a2e25"; }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = "#00b4ff"; }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = customSeconds !== null ? "#00b4ff" : "#1a2942"; }}
           />
         </div>
       </div>
 
       {/* Language rows */}
-      <div className="px-4 py-2 divide-y divide-[#1a2e25]">
+      <div className="px-4 py-2 divide-y divide-[#1a2942]">
         {LANGS.map((lang) => (
           <LanguageRow
             key={lang}
@@ -186,17 +186,17 @@ export function GenerationPanel({
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-3 border-t border-[#1a2e25] flex items-center justify-between gap-3">
+      <div className="px-4 py-3 border-t border-[#1a2942] flex items-center justify-between gap-3">
         <button
           onClick={onGenerateAll}
           disabled={disabled || anyLoading || !audioEnabled}
           title={!audioEnabled ? "Audio generation is disabled" : undefined}
           className={`flex-1 py-2 text-[11px] font-bold tracking-[2px] uppercase disabled:opacity-40 transition-none ${
-            !audioEnabled ? "cursor-not-allowed text-[#4a6a58]" : "text-black"
+            !audioEnabled ? "cursor-not-allowed text-[#4a6a8a]" : "text-black"
           }`}
           style={{
             fontFamily: "var(--font-syne)",
-            background: !audioEnabled ? "#1a2e25" : "linear-gradient(135deg, #00e5a0, #00b4d8)",
+            background: !audioEnabled ? "#1a2942" : "linear-gradient(135deg, #00b4ff, #0084d1)",
             borderRadius: "2px",
           }}
         >
@@ -205,7 +205,7 @@ export function GenerationPanel({
         <button
           onClick={handleCopyAll}
           disabled={disabled}
-          className="flex items-center gap-1.5 px-3 py-2 text-[11px] font-mono border border-[#1a2e25] text-[#8aaa98] hover:border-[#00e5a0] hover:text-[#00e5a0] disabled:opacity-40 transition-none"
+          className="flex items-center gap-1.5 px-3 py-2 text-[11px] font-mono border border-[#1a2942] text-[#7a9ac2] hover:border-[#00b4ff] hover:text-[#00b4ff] disabled:opacity-40 transition-none"
           style={{ borderRadius: "2px" }}
         >
           {copiedAll ? <Check size={11} /> : <Copy size={11} />}

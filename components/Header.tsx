@@ -6,7 +6,7 @@ import type { HistoryEntry, AuthUser } from "../types";
 import type { GenerationRow } from "../lib/supabase";
 import { formatDate } from "../lib/format";
 
-const APP_VERSION = "5.0";
+const APP_VERSION = "5.1";
 
 type Props = {
   history: HistoryEntry[];
@@ -56,8 +56,8 @@ export function Header({
 
   return (
     <header
-      className="sticky top-0 z-40 border-b border-[#1a2e25]"
-      style={{ background: "rgba(9,13,15,0.9)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+      className="sticky top-0 z-40 border-b border-[#1a2942]"
+      style={{ background: "rgba(6,10,18,0.9)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
     >
       <div className="max-w-5xl mx-auto px-4 h-12 flex items-center justify-between gap-4">
         {/* Logo */}
@@ -66,7 +66,7 @@ export function Header({
             className="text-[14px] font-bold tracking-tight"
             style={{
               fontFamily: "var(--font-syne)",
-              background: "linear-gradient(135deg, #00e5a0, #ff3cac)",
+              background: "linear-gradient(135deg, #00b4ff, #ff3cac)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               backgroundClip: "text",
@@ -75,7 +75,7 @@ export function Header({
             DAV PIPELINE
           </span>
           <span
-            className="text-[10px] font-mono text-[#4a6a58] border border-[#1a2e25] px-1.5 py-0.5"
+            className="text-[10px] font-mono text-[#4a6a8a] border border-[#1a2942] px-1.5 py-0.5"
             style={{ borderRadius: "2px" }}
           >
             v{APP_VERSION}
@@ -102,7 +102,7 @@ export function Header({
           {/* Command palette trigger */}
           <button
             onClick={onOpenPalette}
-            className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-mono text-[#4a6a58] border border-[#1a2e25] hover:border-[#223a2f] hover:text-[#e0f0e8] transition-none"
+            className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-mono text-[#4a6a8a] border border-[#1a2942] hover:border-[#2a4a75] hover:text-[#e0eef8] transition-none"
             style={{ borderRadius: "2px" }}
             title="⌘K — Command palette"
           >
@@ -114,14 +114,14 @@ export function Header({
           <div className="relative" ref={historyPanelRef}>
             <button
               onClick={onToggleHistory}
-              className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-mono text-[#4a6a58] border border-[#1a2e25] hover:border-[#223a2f] hover:text-[#e0f0e8] transition-none"
+              className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-mono text-[#4a6a8a] border border-[#1a2942] hover:border-[#2a4a75] hover:text-[#e0eef8] transition-none"
               style={{ borderRadius: "2px" }}
             >
               <Clock size={11} />
               <span className="hidden sm:inline">Historique</span>
               {historyCount > 0 && (
                 <span
-                  className="bg-[#1a2e25] text-[#8aaa98] px-1 text-[9px] font-mono"
+                  className="bg-[#1a2942] text-[#7a9ac2] px-1 text-[9px] font-mono"
                   style={{ borderRadius: "2px" }}
                 >
                   {historyCount}
@@ -131,21 +131,21 @@ export function Header({
 
             {showHistory && (
               <div
-                className="absolute right-0 top-9 w-96 bg-[#0d1512] border border-[#1a2e25] shadow-2xl z-50 overflow-hidden"
+                className="absolute right-0 top-9 w-96 bg-[#0d1420] border border-[#1a2942] shadow-2xl z-50 overflow-hidden"
                 style={{ borderRadius: "4px" }}
               >
-                <div className="h-[2px] w-full" style={{ background: "linear-gradient(90deg, #00e5a0, #ff3cac)" }} />
-                <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#1a2e25]">
-                  <span className="text-[10px] font-mono font-semibold text-[#8aaa98] tracking-widest uppercase flex items-center gap-1.5">
+                <div className="h-[2px] w-full" style={{ background: "linear-gradient(90deg, #00b4ff, #ff3cac)" }} />
+                <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#1a2942]">
+                  <span className="text-[10px] font-mono font-semibold text-[#7a9ac2] tracking-widest uppercase flex items-center gap-1.5">
                     Historique
                     {user && (
-                      <span className="text-[#00e5a0]">· Cloud</span>
+                      <span className="text-[#00b4ff]">· Cloud</span>
                     )}
                   </span>
                   {!user && history.length > 0 && (
                     <button
                       onClick={onClearHistory}
-                      className="text-[10px] font-mono text-[#4a6a58] hover:text-[#ff4466] transition-none"
+                      className="text-[10px] font-mono text-[#4a6a8a] hover:text-[#ff4466] transition-none"
                     >
                       Tout effacer
                     </button>
@@ -155,22 +155,22 @@ export function Header({
                 {/* Cloud history when logged in */}
                 {user ? (
                   cloudHistory.length === 0 ? (
-                    <div className="px-4 py-8 text-center text-[11px] font-mono text-[#4a6a58]">
+                    <div className="px-4 py-8 text-center text-[11px] font-mono text-[#4a6a8a]">
                       Aucune génération sauvegardée
                     </div>
                   ) : (
-                    <div className="max-h-80 overflow-y-auto divide-y divide-[#1a2e25]">
+                    <div className="max-h-80 overflow-y-auto divide-y divide-[#1a2942]">
                       {cloudHistory.map((gen) => (
                         <div
                           key={gen.id}
                           onClick={() => onRestoreCloud(gen)}
-                          className="flex items-start gap-2 px-4 py-2.5 hover:bg-[#121f19] cursor-pointer transition-none"
+                          className="flex items-start gap-2 px-4 py-2.5 hover:bg-[#13233a] cursor-pointer transition-none"
                         >
                           <div className="flex-1 min-w-0">
-                            <p className="text-[12px] text-[#e0f0e8] truncate font-medium leading-snug">
+                            <p className="text-[12px] text-[#e0eef8] truncate font-medium leading-snug">
                               {gen.video_title || "Sans titre"}
                             </p>
-                            <p className="text-[10px] text-[#4a6a58] font-mono mt-0.5">
+                            <p className="text-[10px] text-[#4a6a8a] font-mono mt-0.5">
                               {formatDate(gen.created_at)}
                             </p>
                           </div>
@@ -181,20 +181,20 @@ export function Header({
                 ) : (
                   /* Local history when not logged in */
                   history.length === 0 ? (
-                    <div className="px-4 py-8 text-center text-[11px] font-mono text-[#4a6a58]">
+                    <div className="px-4 py-8 text-center text-[11px] font-mono text-[#4a6a8a]">
                       Aucune vidéo générée
                     </div>
                   ) : (
-                    <div className="max-h-[32rem] overflow-y-auto divide-y divide-[#1a2e25]">
+                    <div className="max-h-[32rem] overflow-y-auto divide-y divide-[#1a2942]">
                       {history.map((entry) => (
-                        <div key={entry.id} className="flex flex-col px-4 py-3 hover:bg-[#121f19] transition-none">
+                        <div key={entry.id} className="flex flex-col px-4 py-3 hover:bg-[#13233a] transition-none">
                           {/* Title + URL copy + delete */}
                           <div className="flex items-start gap-2 min-w-0">
                             <button
                               onClick={() => onRestoreHistory(entry)}
                               className="flex-1 min-w-0 text-left"
                             >
-                              <p className="text-[12px] text-[#e0f0e8] truncate font-medium leading-snug">
+                              <p className="text-[12px] text-[#e0eef8] truncate font-medium leading-snug">
                                 {entry.title || "Sans titre"}
                               </p>
                             </button>
@@ -207,7 +207,7 @@ export function Header({
                                     setTimeout(() => setCopiedUrlId(null), 1000);
                                   });
                                 }}
-                                className="shrink-0 text-[11px] font-mono text-[#4a6a58] hover:text-[#00e5a0] transition-none"
+                                className="shrink-0 text-[11px] font-mono text-[#4a6a8a] hover:text-[#00b4ff] transition-none"
                                 title="Copier le lien"
                               >
                                 {copiedUrlId === entry.id ? "✓" : "🔗"}
@@ -215,14 +215,14 @@ export function Header({
                             )}
                             <button
                               onClick={(e) => onDeleteHistory(entry.id, e)}
-                              className="shrink-0 text-[#4a6a58] hover:text-[#ff4466] transition-none"
+                              className="shrink-0 text-[#4a6a8a] hover:text-[#ff4466] transition-none"
                             >
                               <span className="text-xs">×</span>
                             </button>
                           </div>
 
                           {/* Date + provider */}
-                          <p className="text-[10px] text-[#4a6a58] font-mono mt-0.5">
+                          <p className="text-[10px] text-[#4a6a8a] font-mono mt-0.5">
                             {formatDate(entry.createdAt)} · {entry.provider}
                           </p>
 
@@ -232,7 +232,7 @@ export function Header({
                               {(["FR", "EN", "DE", "ES"] as const).map((lang) => {
                                 const score = entry.healthScores?.[lang];
                                 if (score === undefined) return null;
-                                const color = score >= 80 ? "#00ff88" : score >= 60 ? "#F59E0B" : "#ff4466";
+                                const color = score >= 80 ? "#00b4ff" : score >= 60 ? "#F59E0B" : "#ff4466";
                                 return (
                                   <span
                                     key={lang}
@@ -254,12 +254,12 @@ export function Header({
                                   e.stopPropagation();
                                   setExpandedId(expandedId === entry.id ? null : entry.id);
                                 }}
-                                className="text-[9px] font-mono text-[#4a6a58] hover:text-[#8aaa98] transition-none"
+                                className="text-[9px] font-mono text-[#4a6a8a] hover:text-[#7a9ac2] transition-none"
                               >
                                 {expandedId === entry.id ? "▾ transcript" : "▸ transcript"}
                               </button>
                               {expandedId === entry.id && (
-                                <p className="mt-1 text-[10px] font-mono text-[#8aaa98] leading-relaxed max-h-24 overflow-y-auto whitespace-pre-wrap">
+                                <p className="mt-1 text-[10px] font-mono text-[#7a9ac2] leading-relaxed max-h-24 overflow-y-auto whitespace-pre-wrap">
                                   {entry.transcriptText}
                                 </p>
                               )}
@@ -269,7 +269,7 @@ export function Header({
                           {/* Restore */}
                           <button
                             onClick={() => onRestoreHistory(entry)}
-                            className="mt-2 text-left text-[10px] font-mono text-[#4a6a58] hover:text-[#00e5a0] transition-none"
+                            className="mt-2 text-left text-[10px] font-mono text-[#4a6a8a] hover:text-[#00b4ff] transition-none"
                           >
                             Restaurer →
                           </button>
@@ -287,7 +287,7 @@ export function Header({
             <div className="relative" ref={userMenuRef}>
               <button
                 onClick={() => setShowUserMenu((v) => !v)}
-                className="flex items-center gap-1.5 px-2 py-1 border border-[#1a2e25] hover:border-[#223a2f] transition-none"
+                className="flex items-center gap-1.5 px-2 py-1 border border-[#1a2942] hover:border-[#2a4a75] transition-none"
                 style={{ borderRadius: "2px" }}
                 title={displayName}
               >
@@ -295,28 +295,28 @@ export function Header({
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img src={avatarUrl} alt="" className="w-5 h-5 rounded-full" />
                 ) : (
-                  <span className="w-5 h-5 rounded-full bg-[#1a2e25] flex items-center justify-center text-[9px] font-mono text-[#8aaa98]">
+                  <span className="w-5 h-5 rounded-full bg-[#1a2942] flex items-center justify-center text-[9px] font-mono text-[#7a9ac2]">
                     {displayName.charAt(0).toUpperCase()}
                   </span>
                 )}
-                <span className="hidden sm:inline text-[11px] font-mono text-[#8aaa98] max-w-[80px] truncate">
+                <span className="hidden sm:inline text-[11px] font-mono text-[#7a9ac2] max-w-[80px] truncate">
                   {displayName.split(" ")[0]}
                 </span>
               </button>
 
               {showUserMenu && (
                 <div
-                  className="absolute right-0 top-9 w-44 bg-[#0d1512] border border-[#1a2e25] shadow-xl z-50 overflow-hidden"
+                  className="absolute right-0 top-9 w-44 bg-[#0d1420] border border-[#1a2942] shadow-xl z-50 overflow-hidden"
                   style={{ borderRadius: "4px" }}
                 >
-                  <div className="h-[2px] w-full" style={{ background: "linear-gradient(90deg, #00e5a0, #ff3cac)" }} />
-                  <div className="px-3 py-2 border-b border-[#1a2e25]">
-                    <p className="text-[11px] font-mono text-[#e0f0e8] truncate">{displayName}</p>
-                    <p className="text-[10px] font-mono text-[#4a6a58] truncate">{user.email}</p>
+                  <div className="h-[2px] w-full" style={{ background: "linear-gradient(90deg, #00b4ff, #ff3cac)" }} />
+                  <div className="px-3 py-2 border-b border-[#1a2942]">
+                    <p className="text-[11px] font-mono text-[#e0eef8] truncate">{displayName}</p>
+                    <p className="text-[10px] font-mono text-[#4a6a8a] truncate">{user.email}</p>
                   </div>
                   <button
                     onClick={() => { setShowUserMenu(false); onLogout(); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-[11px] font-mono text-[#4a6a58] hover:text-[#ff4466] hover:bg-[#121f19] transition-none"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-[11px] font-mono text-[#4a6a8a] hover:text-[#ff4466] hover:bg-[#13233a] transition-none"
                   >
                     <LogOut size={11} />
                     Déconnexion
@@ -327,7 +327,7 @@ export function Header({
           ) : (
             <button
               onClick={onLogin}
-              className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-mono text-[#4a6a58] border border-[#1a2e25] hover:border-[#00e5a0] hover:text-[#00e5a0] transition-none"
+              className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-mono text-[#4a6a8a] border border-[#1a2942] hover:border-[#00b4ff] hover:text-[#00b4ff] transition-none"
               style={{ borderRadius: "2px" }}
               title="Connexion avec Google"
             >
@@ -340,7 +340,7 @@ export function Header({
           {canReset && (
             <button
               onClick={onReset}
-              className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-mono text-[#4a6a58] hover:text-[#e0f0e8] transition-none"
+              className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-mono text-[#4a6a8a] hover:text-[#e0eef8] transition-none"
             >
               <RotateCcw size={11} />
               <span className="hidden sm:inline">Reset</span>

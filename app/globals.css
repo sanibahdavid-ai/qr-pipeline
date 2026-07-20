@@ -1,19 +1,19 @@
 @import "tailwindcss";
 
 @theme {
-  /* DAV Pipeline — dark green palette */
-  --color-bg: #090d0f;
-  --color-surface: #0d1512;
-  --color-surface-hover: #121f19;
-  --color-border: #1a2e25;
-  --color-border-strong: #223a2f;
-  --color-text: #e0f0e8;
-  --color-text-muted: #8aaa98;
-  --color-text-dim: #4a6a58;
-  --color-accent: #00e5a0;
+  /* DAV Pipeline — cyber-blue palette */
+  --color-bg: #060a12;
+  --color-surface: #0d1420;
+  --color-surface-hover: #13233a;
+  --color-border: #1a2942;
+  --color-border-strong: #2a4a75;
+  --color-text: #e0eef8;
+  --color-text-muted: #7a9ac2;
+  --color-text-dim: #4a6a8a;
+  --color-accent: #00b4ff;
   --color-accent2: #ff3cac;
   --color-accent-fg: #000000;
-  --color-success: #00ff88;
+  --color-success: #00b4ff;
   --color-warning: #F59E0B;
   --color-danger: #ff4466;
 
@@ -37,8 +37,8 @@ html {
 }
 
 body {
-  background-color: #090d0f;
-  color: #e0f0e8;
+  background-color: #060a12;
+  color: #e0eef8;
   font-family: var(--font-space-mono), "Space Mono", ui-monospace, monospace;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -50,8 +50,8 @@ body::before {
   position: fixed;
   inset: 0;
   background-image:
-    linear-gradient(#00e5a0 1px, transparent 1px),
-    linear-gradient(90deg, #00e5a0 1px, transparent 1px);
+    linear-gradient(#00b4ff 1px, transparent 1px),
+    linear-gradient(90deg, #00b4ff 1px, transparent 1px);
   background-size: 40px 40px;
   opacity: 0.03;
   pointer-events: none;
@@ -63,7 +63,7 @@ input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
   height: 2px;
-  background: #1a2e25;
+  background: #1a2942;
   border-radius: 1px;
   outline: none;
   cursor: pointer;
@@ -75,7 +75,7 @@ input[type="range"]::-webkit-slider-thumb {
   width: 12px;
   height: 12px;
   border-radius: 2px;
-  background: #00e5a0;
+  background: #00b4ff;
   cursor: pointer;
 }
 
@@ -83,14 +83,14 @@ input[type="range"]::-moz-range-thumb {
   width: 12px;
   height: 12px;
   border-radius: 2px;
-  background: #00e5a0;
+  background: #00b4ff;
   cursor: pointer;
   border: none;
 }
 
 /* Focus ring */
 *:focus-visible {
-  outline: 1px solid rgba(0, 229, 160, 0.4);
+  outline: 1px solid rgba(0, 180, 255, 0.4);
   outline-offset: 2px;
 }
 
@@ -103,9 +103,9 @@ input[type="range"]::-moz-range-thumb {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1a2e25;
+  background: #1a2942;
   border-radius: 2px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #223a2f;
+  background: #2a4a75;
 }

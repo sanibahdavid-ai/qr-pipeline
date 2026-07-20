@@ -81,9 +81,9 @@ type Props = {
 };
 
 function StatusDot({ state }: { state?: AudioState }) {
-  if (!state) return <span className="w-2 h-2 rounded-full border border-[#223a2f] inline-block" title="idle" />;
-  if (state.status === "loading") return <Loader2 size={12} className="text-[#8aaa98] animate-spin" />;
-  if (state.status === "done") return <span className="w-2 h-2 rounded-full bg-[#00ff88] inline-block" title="ready" />;
+  if (!state) return <span className="w-2 h-2 rounded-full border border-[#2a4a75] inline-block" title="idle" />;
+  if (state.status === "loading") return <Loader2 size={12} className="text-[#7a9ac2] animate-spin" />;
+  if (state.status === "done") return <span className="w-2 h-2 rounded-full bg-[#00b4ff] inline-block" title="ready" />;
   return <span className="w-2 h-2 rounded-full bg-[#ff4466] inline-block" title="error" />;
 }
 
@@ -133,8 +133,8 @@ function AudioPlayer({ audioUrl, filename, showSilenceRemoval, onReplace }: Audi
 
   return (
     <div
-      className="w-full flex items-center gap-4 px-4 py-2.5 border border-[#1a2e25]"
-      style={{ background: "#0d1512", borderRadius: "2px" }}
+      className="w-full flex items-center gap-4 px-4 py-2.5 border border-[#1a2942]"
+      style={{ background: "#0d1420", borderRadius: "2px" }}
     >
       <audio
         ref={audioRef}
@@ -147,7 +147,7 @@ function AudioPlayer({ audioUrl, filename, showSilenceRemoval, onReplace }: Audi
 
       <button
         onClick={toggle}
-        className="shrink-0 w-9 h-9 flex items-center justify-center border border-[#223a2f] text-[#8aaa98] hover:border-[#00e5a0] hover:text-[#00e5a0] transition-none"
+        className="shrink-0 w-9 h-9 flex items-center justify-center border border-[#2a4a75] text-[#7a9ac2] hover:border-[#00b4ff] hover:text-[#00b4ff] transition-none"
         style={{ borderRadius: "2px" }}
         aria-label={playing ? "Pause" : "Play"}
       >
@@ -161,19 +161,19 @@ function AudioPlayer({ audioUrl, filename, showSilenceRemoval, onReplace }: Audi
         style={{ borderRadius: "2px" }}
         title="Cliquer pour naviguer"
       >
-        <div className="absolute inset-0 bg-[#1a2e25]" style={{ borderRadius: "2px" }} />
+        <div className="absolute inset-0 bg-[#1a2942]" style={{ borderRadius: "2px" }} />
         <div
-          className="absolute inset-y-0 left-0 bg-[#00e5a0]"
+          className="absolute inset-y-0 left-0 bg-[#00b4ff]"
           style={{ width: `${progress}%`, borderRadius: "2px" }}
         />
         <div
-          className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-[#00e5a0] opacity-0 group-hover:opacity-100 transition-opacity"
+          className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-[#00b4ff] opacity-0 group-hover:opacity-100 transition-opacity"
           style={{ left: `calc(${progress}% - 5px)`, borderRadius: "50%" }}
         />
       </div>
 
       <span
-        className="shrink-0 text-[11px] text-[#8aaa98] tabular-nums"
+        className="shrink-0 text-[11px] text-[#7a9ac2] tabular-nums"
         style={{ fontFamily: "var(--font-space-mono, monospace)", minWidth: "84px", textAlign: "center" }}
       >
         {fmt(currentTime)} / {fmt(duration)}
@@ -183,7 +183,7 @@ function AudioPlayer({ audioUrl, filename, showSilenceRemoval, onReplace }: Audi
         <a
           href={audioUrl}
           download={filename}
-          className="shrink-0 w-9 h-9 flex items-center justify-center border border-[#1a2e25] text-[#4a6a58] hover:border-[#00e5a0] hover:text-[#00e5a0] transition-none"
+          className="shrink-0 w-9 h-9 flex items-center justify-center border border-[#1a2942] text-[#4a6a8a] hover:border-[#00b4ff] hover:text-[#00b4ff] transition-none"
           style={{ borderRadius: "2px" }}
           title="Télécharger"
         >
@@ -263,106 +263,115 @@ export function LanguageRow({ lang, provider, audioState, onGenerate, audioEnabl
   return (
     <div className="flex flex-col py-2 gap-1.5">
 
-      {/* ── Controls row ────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-2">
+      {/* ── Controls row — stacks on mobile, single line from sm+ ──────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
 
-        {/* Lang badge */}
-        <span className="text-[11px] font-mono font-semibold text-[#8aaa98] w-6 shrink-0 uppercase tracking-wider">
-          {lang}
-        </span>
-
-        {/* Voice select */}
-        {hasVoiceSelect ? (
-          <select
-            value={config.voice}
-            onChange={(e) => update({ voice: e.target.value })}
-            className="flex-1 min-w-0 bg-[#0a1210] border border-[#1a2e25] text-[11px] font-mono text-[#e0f0e8] px-2 py-1 focus:outline-none focus:border-[#00e5a0] cursor-pointer"
-            style={{ borderRadius: "2px" }}
-          >
-            {voices.map((v) => (
-              <option key={v.id} value={v.id}>{v.label}</option>
-            ))}
-          </select>
-        ) : (
-          <span
-            className="flex-1 min-w-0 text-[11px] font-mono text-[#4a6a58] px-2 py-1 border border-[#1a2e25] truncate"
-            style={{ borderRadius: "2px" }}
-          >
-            ElevenLabs Direct
+        {/* Lang badge + voice select — own group, free to shrink/grow */}
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <span className="text-[11px] font-mono font-semibold text-[#7a9ac2] w-6 shrink-0 uppercase tracking-wider">
+            {lang}
           </span>
-        )}
 
-        {/* Speed slider */}
-        <div className="flex items-center gap-1.5 w-28 shrink-0">
-          <input
-            type="range"
-            min={isEdge ? EDGE_RATE_MIN : speedMin}
-            max={isEdge ? EDGE_RATE_MAX : speedMax}
-            step={isEdge ? 5 : 0.05}
-            value={config.speed}
-            onChange={(e) => update({ speed: parseFloat(e.target.value) })}
-            className="flex-1 h-0.5 bg-[#1a2e25] cursor-pointer"
-            style={{ accentColor: "#00e5a0" }}
-          />
-          <span className="text-[10px] font-mono text-[#4a6a58] w-9 text-right shrink-0">
-            {isEdge
-              ? `${config.speed >= 0 ? "+" : ""}${config.speed}%`
-              : `×${config.speed.toFixed(2)}`}
-          </span>
+          {hasVoiceSelect ? (
+            <select
+              value={config.voice}
+              onChange={(e) => update({ voice: e.target.value })}
+              className="flex-1 min-w-0 bg-[#0a1420] border border-[#1a2942] text-[11px] font-mono text-[#e0eef8] px-2 py-1 focus:outline-none focus:border-[#00b4ff] cursor-pointer"
+              style={{ borderRadius: "2px" }}
+            >
+              {voices.map((v) => (
+                <option key={v.id} value={v.id}>{v.label}</option>
+              ))}
+            </select>
+          ) : (
+            <span
+              className="flex-1 min-w-0 text-[11px] font-mono text-[#4a6a8a] px-2 py-1 border border-[#1a2942] truncate"
+              style={{ borderRadius: "2px" }}
+            >
+              ElevenLabs Direct
+            </span>
+          )}
         </div>
 
-        {/* Generate / Régénérer */}
-        {isDone ? (
-          <button
-            onClick={handleGenerate}
-            disabled={audioDisabled}
-            title={audioDisabled ? "Audio generation is disabled" : undefined}
-            className={`shrink-0 w-36 px-3 py-1 text-[11px] font-mono border transition-none flex items-center justify-center gap-1.5 ${
-              audioDisabled
-                ? "cursor-not-allowed bg-transparent border-[#1a2e25] text-[#4a6a58] opacity-50"
-                : "border-[#1a2e25] text-[#4a6a58] hover:border-[#00e5a0] hover:text-[#00e5a0]"
-            }`}
-            style={{ borderRadius: "2px" }}
-          >
-            <RefreshCw size={10} />
-            Régénérer
-          </button>
-        ) : (
-          <button
-            onClick={handleGenerate}
-            disabled={isLoading || audioDisabled}
-            title={audioDisabled ? "Audio generation is disabled" : undefined}
-            className={`shrink-0 w-36 px-3 py-1 text-[11px] font-mono font-semibold border transition-none flex items-center justify-center gap-1.5 disabled:opacity-50 ${
-              audioDisabled
-                ? "cursor-not-allowed bg-transparent border-[#1a2e25] text-[#4a6a58]"
-                : isError
-                ? "bg-transparent border-[#ff4466] text-[#ff4466] hover:bg-[#ff4466] hover:text-black"
-                : "bg-transparent border-[#1a2e25] text-[#e0f0e8] hover:border-[#00e5a0] hover:text-[#00e5a0]"
-            }`}
-            style={{ borderRadius: "2px" }}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 size={10} className="animate-spin" />
-                <span className="truncate max-w-[80px]">{audioState?.label ?? "..."}</span>
-              </>
-            ) : isError && !audioDisabled ? (
-              <>
-                <X size={10} />
-                Réessayer
-              </>
-            ) : (
-              <>
-                <Play size={10} />
-                Générer
-              </>
-            )}
-          </button>
-        )}
+        {/* Speed slider + value + Generate + status — own group, never collides with the select */}
+        <div className="flex items-center gap-2 shrink-0 flex-wrap">
 
-        {/* Status dot */}
-        <div className="shrink-0 w-4 flex items-center justify-center">
-          <StatusDot state={audioState} />
+          {/* Speed slider */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <input
+              type="range"
+              min={isEdge ? EDGE_RATE_MIN : speedMin}
+              max={isEdge ? EDGE_RATE_MAX : speedMax}
+              step={isEdge ? 5 : 0.05}
+              value={config.speed}
+              onChange={(e) => update({ speed: parseFloat(e.target.value) })}
+              className="w-16 sm:w-20 h-0.5 bg-[#1a2942] cursor-pointer shrink-0"
+              style={{ accentColor: "#00b4ff" }}
+            />
+            {/* Speed value — dedicated bordered badge, own space, never overlaps the button */}
+            <span
+              className="shrink-0 text-[10px] font-mono text-[#7a9ac2] px-1.5 py-0.5 border border-[#1a2942] bg-[#0a1420] text-center tabular-nums"
+              style={{ borderRadius: "2px", minWidth: "44px" }}
+            >
+              {isEdge
+                ? `${config.speed >= 0 ? "+" : ""}${config.speed}%`
+                : `×${config.speed.toFixed(2)}`}
+            </span>
+          </div>
+
+          {/* Generate / Régénérer */}
+          {isDone ? (
+            <button
+              onClick={handleGenerate}
+              disabled={audioDisabled}
+              title={audioDisabled ? "Audio generation is disabled" : undefined}
+              className={`shrink-0 w-32 sm:w-36 px-3 py-1 text-[11px] font-mono border transition-none flex items-center justify-center gap-1.5 ${
+                audioDisabled
+                  ? "cursor-not-allowed bg-transparent border-[#1a2942] text-[#4a6a8a] opacity-50"
+                  : "border-[#1a2942] text-[#4a6a8a] hover:border-[#00b4ff] hover:text-[#00b4ff]"
+              }`}
+              style={{ borderRadius: "2px" }}
+            >
+              <RefreshCw size={10} />
+              Régénérer
+            </button>
+          ) : (
+            <button
+              onClick={handleGenerate}
+              disabled={isLoading || audioDisabled}
+              title={audioDisabled ? "Audio generation is disabled" : undefined}
+              className={`shrink-0 w-32 sm:w-36 px-3 py-1 text-[11px] font-mono font-semibold border transition-none flex items-center justify-center gap-1.5 disabled:opacity-50 ${
+                audioDisabled
+                  ? "cursor-not-allowed bg-transparent border-[#1a2942] text-[#4a6a8a]"
+                  : isError
+                  ? "bg-transparent border-[#ff4466] text-[#ff4466] hover:bg-[#ff4466] hover:text-black"
+                  : "bg-transparent border-[#1a2942] text-[#e0eef8] hover:border-[#00b4ff] hover:text-[#00b4ff]"
+              }`}
+              style={{ borderRadius: "2px" }}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 size={10} className="animate-spin" />
+                  <span className="truncate max-w-[80px]">{audioState?.label ?? "..."}</span>
+                </>
+              ) : isError && !audioDisabled ? (
+                <>
+                  <X size={10} />
+                  Réessayer
+                </>
+              ) : (
+                <>
+                  <Play size={10} />
+                  Générer
+                </>
+              )}
+            </button>
+          )}
+
+          {/* Status dot */}
+          <div className="shrink-0 w-4 flex items-center justify-center">
+            <StatusDot state={audioState} />
+          </div>
         </div>
       </div>
 
@@ -372,7 +381,7 @@ export function LanguageRow({ lang, provider, audioState, onGenerate, audioEnabl
           <select
             value={modelId}
             onChange={(e) => handleModelChange(e.target.value)}
-            className="w-full bg-[#0a1210] border border-[#1a2e25] text-[10px] font-mono text-[#8aaa98] px-2 py-1 focus:outline-none focus:border-[#00e5a0] cursor-pointer"
+            className="w-full bg-[#0a1420] border border-[#1a2942] text-[10px] font-mono text-[#7a9ac2] px-2 py-1 focus:outline-none focus:border-[#00b4ff] cursor-pointer"
             style={{ borderRadius: "2px" }}
             title="ElevenLabs model"
           >
@@ -389,7 +398,7 @@ export function LanguageRow({ lang, provider, audioState, onGenerate, audioEnabl
           <select
             value={config.style ?? GEMINI_STYLE_DEFAULT}
             onChange={(e) => update({ style: e.target.value })}
-            className="flex-1 bg-[#0a1210] border border-[#1a2e25] text-[10px] font-mono text-[#8aaa98] px-2 py-1 focus:outline-none focus:border-[#00e5a0] cursor-pointer"
+            className="flex-1 bg-[#0a1420] border border-[#1a2942] text-[10px] font-mono text-[#7a9ac2] px-2 py-1 focus:outline-none focus:border-[#00b4ff] cursor-pointer"
             style={{ borderRadius: "2px" }}
             title="Style"
           >
@@ -400,7 +409,7 @@ export function LanguageRow({ lang, provider, audioState, onGenerate, audioEnabl
           <select
             value={config.pace ?? GEMINI_PACE_DEFAULT}
             onChange={(e) => update({ pace: e.target.value })}
-            className="flex-1 bg-[#0a1210] border border-[#1a2e25] text-[10px] font-mono text-[#8aaa98] px-2 py-1 focus:outline-none focus:border-[#00e5a0] cursor-pointer"
+            className="flex-1 bg-[#0a1420] border border-[#1a2942] text-[10px] font-mono text-[#7a9ac2] px-2 py-1 focus:outline-none focus:border-[#00b4ff] cursor-pointer"
             style={{ borderRadius: "2px" }}
             title="Pace"
           >
@@ -411,7 +420,7 @@ export function LanguageRow({ lang, provider, audioState, onGenerate, audioEnabl
           <select
             value={config.accent ?? GEMINI_ACCENT_DEFAULT}
             onChange={(e) => update({ accent: e.target.value })}
-            className="flex-1 bg-[#0a1210] border border-[#1a2e25] text-[10px] font-mono text-[#8aaa98] px-2 py-1 focus:outline-none focus:border-[#00e5a0] cursor-pointer"
+            className="flex-1 bg-[#0a1420] border border-[#1a2942] text-[10px] font-mono text-[#7a9ac2] px-2 py-1 focus:outline-none focus:border-[#00b4ff] cursor-pointer"
             style={{ borderRadius: "2px" }}
             title="Accent"
           >
