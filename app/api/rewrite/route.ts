@@ -107,7 +107,7 @@ RÈGLES TITRES :
 - Maximum 4 hashtags pertinents
 - Zéro points de suspension
 - Si la vidéo parle d'une personne précise, son nom apparaît dans le titre
-- Les 4 titres longs B (sections 10 à 13) font 3 à 4 fois la longueur des titres courts, ne sont pas des traductions entre eux, max 4 hashtags, style teaser qui met en situation sans révéler la fin
+- Les 4 titres longs B (sections 10 à 13) font 6 à 8 fois la longueur des titres courts, décrivent plusieurs moments clés de la vidéo (pas un seul), incluent la mise en situation, le rebondissement ET un indice teaser du dénouement sans jamais le révéler, ne sont pas des traductions entre eux, max 4 hashtags, commencent par des emojis pertinents
 
 EXEMPLE DE RÉFÉRENCE VALIDÉ (qualité à atteindre) :
 Source : "Stephen Curry has finally spoken about the shot that literally broke the internet because in 2024 Steph made that famous tunnel shot that shocked the entire arena and even though at first everyone thought the ball had clearly gone in a video filmed by a fan came out a few days later showing that the ball didn't even touch the rim but the story doesn't end there because in 2025 Curry decided to try again this time with the clear goal of proving to everyone that he could actually make the shot and silence the doubters"
@@ -117,6 +117,30 @@ SECTION 1 SCRIPT FR :
 
 SECTION 2 SCRIPT EN :
 "The internet finally got its answer from Stephen Curry himself. Back in 2024, his now-legendary tunnel shot had the entire arena buzzing in disbelief. For months, fans assumed the ball had gone clean through the hoop, until a fan's video resurfaced days later revealing the truth: the rim was never even touched. That wasn't the end of it though. In 2025, Curry returned to that same spot, determined to settle the debate once and for all."
+
+SECTION 6 TITRE ET HASHTAGS FR :
+"Curry répond enfin sur ce tir 🎯 #StephCurry #NBA #Basketball"
+
+SECTION 7 TITRE ET HASHTAGS EN :
+"Steph Curry finally answers the doubters 🎯 #StephCurry #NBA"
+
+SECTION 8 TITRE ET HASHTAGS DE :
+"Curry äußert sich endlich zu diesem Wurf 🎯 #Curry #NBA #Basketball"
+
+SECTION 9 TITRE ET HASHTAGS ES :
+"Stephen Curry responde por fin a las dudas 🎯 #Curry #NBA #Baloncesto"
+
+SECTION 10 TITRE ET HASHTAGS FR B :
+"🎯😱🔥 Pendant des mois, toute l'arène et même les commentateurs ont juré que ce tunnel shot légendaire de Stephen Curry avait franchi le cercle sans aucun doute possible, jusqu'au jour où un fan présent dans les gradins a partagé une vidéo prise sous un angle totalement différent, révélant une vérité que personne n'avait vue venir et qui a immédiatement déclenché un débat sans fin sur les réseaux. Mais l'histoire ne s'arrête pas là, car un an plus tard Curry est revenu au même endroit, bien décidé à retenter sa chance et à prouver une bonne fois pour toutes s'il pouvait vraiment réussir ce tir devenu légendaire, et ce qui s'est passé ensuite a laissé absolument tout le monde sans voix #StephCurry #NBA #Basketball #TunnelShot"
+
+SECTION 11 TITRE ET HASHTAGS EN B :
+"🎯😱🔥 For months, the entire arena and even the commentators were convinced that Steph Curry's legendary tunnel shot had clearly gone through the hoop without any doubt, until a fan sitting in the stands shared a video filmed from a completely different angle, revealing a truth nobody saw coming and instantly sparking an endless debate across every platform. But that wasn't the end of the story, because a year later Curry came back to that exact same spot, determined to give it another shot and finally prove once and for all whether he could actually make this now-legendary shot, and what happened next left absolutely everyone speechless #StephCurry #NBA #Basketball #TunnelShot"
+
+SECTION 12 TITRE ET HASHTAGS DE B :
+"🎯😱🔥 Monatelang waren die gesamte Arena und sogar die Kommentatoren fest davon überzeugt, dass Stephen Currys legendärer Tunnel-Wurf zweifellos durch den Ring gegangen war, bis ein Fan auf den Tribünen ein Video aus einem völlig anderen Blickwinkel teilte, das eine Wahrheit offenbarte, mit der niemand gerechnet hatte, und sofort eine endlose Debatte in allen sozialen Netzwerken auslöste. Doch damit war die Geschichte noch lange nicht vorbei, denn ein Jahr später kehrte Curry an genau diesen Ort zurück, fest entschlossen, es erneut zu versuchen und ein für alle Mal zu beweisen, ob er diesen inzwischen legendären Wurf wirklich treffen konnte, und was danach geschah, ließ wirklich jeden sprachlos zurück #Curry #NBA #Basketball #TunnelShot"
+
+SECTION 13 TITRE ET HASHTAGS ES B :
+"🎯😱🔥 Durante meses, todo el estadio e incluso los comentaristas estaban totalmente convencidos de que el legendario tunnel shot de Stephen Curry había entrado sin lugar a dudas, hasta que un fan sentado en las gradas compartió un video grabado desde un ángulo completamente distinto, revelando una verdad que nadie esperaba y desatando al instante un debate interminable en todas las redes. Pero ahí no terminó la historia, porque un año después Curry regresó a ese mismo lugar, decidido a intentarlo de nuevo y demostrar de una vez por todas si realmente podía lograr este tiro ya legendario, y lo que ocurrió después dejó absolutamente a todos sin palabras #Curry #NBA #Baloncesto #TunnelShot"
 
 RAPPEL FINAL :
 Vérifier les règles avant chaque génération. Ne jamais écrêter d'éléments. La réécriture doit avoir la même durée approximative que l'original. Le script est l'âme de la vidéo.`;

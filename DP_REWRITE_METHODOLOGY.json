@@ -38,7 +38,7 @@
     "Jamais numéroter, mettre des puces ou des tirets devant les mots-clés.",
     "Jamais de points de suspension (...) dans les titres.",
     "Jamais plus de 4 hashtags par titre.",
-    "Un titre (court ou long) + ses hashtags ne doivent jamais dépasser une seule ligne pour les titres courts ; pour les titres longs (B) la longueur est volontairement 3 à 4 fois supérieure."
+    "Un titre (court ou long) + ses hashtags ne doivent jamais dépasser une seule ligne pour les titres courts ; pour les titres longs (B) la longueur est volontairement 6 à 8 fois supérieure."
   ],
 
   "regles_mots_cles": {
@@ -66,11 +66,11 @@
     "titres_longs_B": {
       "sections": ["SECTION 10 = FR B", "SECTION 11 = EN B", "SECTION 12 = DE B", "SECTION 13 = ES B"],
       "regles": [
-        "3 à 4 fois plus longs que les titres courts correspondants.",
+        "6 à 8 fois plus longs que les titres courts correspondants.",
         "Ne PAS être des traductions les uns des autres — chaque langue formulée différemment.",
-        "Racontent un mini-teaser de l'histoire (mise en situation + tension + révélation partielle) sans tout dévoiler.",
+        "Décrivent plusieurs moments clés de la vidéo (pas un seul) : la mise en situation, le rebondissement ET un indice teaser du dénouement, sans jamais tout dévoiler.",
         "Toujours maximum 4 hashtags.",
-        "Emojis autorisés et encouragés (pertinents)."
+        "Commencent par des emojis pertinents (pas juste décoratifs)."
       ]
     }
   },
@@ -135,7 +135,7 @@
       },
       {
         "erreur": "Titres B pas assez longs (à peine plus longs que les courts).",
-        "correction": "Titres B = 3 à 4 fois plus longs que les titres courts, avec toujours max 4 hashtags."
+        "correction": "Titres B = 6 à 8 fois plus longs que les titres courts, avec toujours max 4 hashtags."
       }
     ]
   },
@@ -162,10 +162,10 @@
       "SECTION_7_TITRE_EN": "Steph Curry finally answers the doubters 🎯 #StephCurry #NBA",
       "SECTION_8_TITRE_DE": "Curry äußert sich endlich zu diesem Wurf 🎯 #Curry #NBA #Basketball",
       "SECTION_9_TITRE_ES": "Stephen Curry responde por fin a las dudas 🎯 #Curry #NBA #Baloncesto",
-      "SECTION_10_TITRE_FR_B": "Pendant des mois, toute l'arène et même les commentateurs ont juré que ce tunnel shot légendaire de Stephen Curry avait franchi le cercle sans aucun doute possible, jusqu'au jour où un fan présent dans les gradins a partagé une vidéo prise sous un angle totalement différent, révélant une vérité que personne n'avait vue venir et qui a immédiatement déclenché un débat sans fin sur les réseaux 🎯😱🔥 #StephCurry #NBA #Basketball #TunnelShot",
-      "SECTION_11_TITRE_EN_B": "For months, the entire arena and even the commentators were convinced that Steph Curry's legendary tunnel shot had clearly gone through the hoop without any doubt, until a fan sitting in the stands shared a video filmed from a completely different angle, revealing a truth nobody saw coming and instantly sparking an endless debate across every platform 🎯😱🔥 #StephCurry #NBA #Basketball #TunnelShot",
-      "SECTION_12_TITRE_DE_B": "Monatelang waren die gesamte Arena und sogar die Kommentatoren fest davon überzeugt, dass Stephen Currys legendärer Tunnel-Wurf zweifellos durch den Ring gegangen war, bis ein Fan auf den Tribünen ein Video aus einem völlig anderen Blickwinkel teilte, das eine Wahrheit offenbarte, mit der niemand gerechnet hatte, und sofort eine endlose Debatte in allen sozialen Netzwerken auslöste 🎯😱🔥 #Curry #NBA #Basketball #TunnelShot",
-      "SECTION_13_TITRE_ES_B": "Durante meses, todo el estadio e incluso los comentaristas estaban totalmente convencidos de que el legendario tunnel shot de Stephen Curry había entrado sin lugar a dudas, hasta que un fan sentado en las gradas compartió un video grabado desde un ángulo completamente distinto, revelando una verdad que nadie esperaba y desatando al instante un debate interminable en todas las redes 🎯😱🔥 #Curry #NBA #Baloncesto #TunnelShot"
+      "SECTION_10_TITRE_FR_B": "🎯😱🔥 Pendant des mois, toute l'arène et même les commentateurs ont juré que ce tunnel shot légendaire de Stephen Curry avait franchi le cercle sans aucun doute possible, jusqu'au jour où un fan présent dans les gradins a partagé une vidéo prise sous un angle totalement différent, révélant une vérité que personne n'avait vue venir et qui a immédiatement déclenché un débat sans fin sur les réseaux. Mais l'histoire ne s'arrête pas là, car un an plus tard Curry est revenu au même endroit, bien décidé à retenter sa chance et à prouver une bonne fois pour toutes s'il pouvait vraiment réussir ce tir devenu légendaire, et ce qui s'est passé ensuite a laissé absolument tout le monde sans voix #StephCurry #NBA #Basketball #TunnelShot",
+      "SECTION_11_TITRE_EN_B": "🎯😱🔥 For months, the entire arena and even the commentators were convinced that Steph Curry's legendary tunnel shot had clearly gone through the hoop without any doubt, until a fan sitting in the stands shared a video filmed from a completely different angle, revealing a truth nobody saw coming and instantly sparking an endless debate across every platform. But that wasn't the end of the story, because a year later Curry came back to that exact same spot, determined to give it another shot and finally prove once and for all whether he could actually make this now-legendary shot, and what happened next left absolutely everyone speechless #StephCurry #NBA #Basketball #TunnelShot",
+      "SECTION_12_TITRE_DE_B": "🎯😱🔥 Monatelang waren die gesamte Arena und sogar die Kommentatoren fest davon überzeugt, dass Stephen Currys legendärer Tunnel-Wurf zweifellos durch den Ring gegangen war, bis ein Fan auf den Tribünen ein Video aus einem völlig anderen Blickwinkel teilte, das eine Wahrheit offenbarte, mit der niemand gerechnet hatte, und sofort eine endlose Debatte in allen sozialen Netzwerken auslöste. Doch damit war die Geschichte noch lange nicht vorbei, denn ein Jahr später kehrte Curry an genau diesen Ort zurück, fest entschlossen, es erneut zu versuchen und ein für alle Mal zu beweisen, ob er diesen inzwischen legendären Wurf wirklich treffen konnte, und was danach geschah, ließ wirklich jeden sprachlos zurück #Curry #NBA #Basketball #TunnelShot",
+      "SECTION_13_TITRE_ES_B": "🎯😱🔥 Durante meses, todo el estadio e incluso los comentaristas estaban totalmente convencidos de que el legendario tunnel shot de Stephen Curry había entrado sin lugar a dudas, hasta que un fan sentado en las gradas compartió un video grabado desde un ángulo completamente distinto, revelando una verdad que nadie esperaba y desatando al instante un debate interminable en todas las redes. Pero ahí no terminó la historia, porque un año después Curry regresó a ese mismo lugar, decidido a intentarlo de nuevo y demostrar de una vez por todas si realmente podía lograr este tiro ya legendario, y lo que ocurrió después dejó absolutamente a todos sin palabras #Curry #NBA #Baloncesto #TunnelShot"
     }
   },
 
@@ -177,7 +177,7 @@
       "2. Écris les 4 scripts (FR, EN, DE, ES) indépendamment depuis la source, en respectant la définition de la réécriture et toutes les règles absolues.",
       "3. Génère les 8 mots-clés selon les règles de contexte et de concrétude.",
       "4. Génère les 4 titres courts (non-traductions).",
-      "5. Génère les 4 titres longs B (3 à 4× plus longs, non-traductions, max 4 hashtags).",
+      "5. Génère les 4 titres longs B (6 à 8× plus longs, non-traductions, max 4 hashtags).",
       "6. Rends la sortie dans l'ordre exact des 13 sections."
     ],
     "rappel_final": "Le script est l'âme de la vidéo. Aucune des erreurs listées dans 'historique_erreurs_et_corrections' ne doit se reproduire."
