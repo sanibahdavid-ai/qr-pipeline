@@ -389,8 +389,14 @@ function setStatus(msg, cls) {
 async function loadTopicsSelect() {
   const el = document.getElementById("topicList");
   try {
-    const d = await (await fetch(API + "/api/topics/latest")).json();
-    if (!d.topics.length) { el.innerHTML = '<div class="empty-hint">Clique "Proposer 20 sujets".</div>'; return; }
+    const r = await fetch(API + "/api/topics/latest");
+    if (!r.ok) {
+      const body = await r.text().catch(() => "");
+      el.innerHTML = `<div class="empty-hint">Erreur ${r.status} en chargeant les sujets — ${body.slice(0,200)}</div>`;
+      return;
+    }
+    const d = await r.json();
+    if (!d.topics || !d.topics.length) { el.innerHTML = '<div class="empty-hint">Clique "Proposer 20 sujets".</div>'; return; }
     el.innerHTML = "";
     d.topics.forEach((t, i) => {
       const row = document.createElement("div");
@@ -399,7 +405,7 @@ async function loadTopicsSelect() {
       if (!t.already_done) row.addEventListener("click", () => runGenerate(t.subject));
       el.appendChild(row);
     });
-  } catch (e) { el.innerHTML = '<div class="empty-hint">Impossible de charger les sujets.</div>'; }
+  } catch (e) { el.innerHTML = `<div class="empty-hint">Erreur réseau : ${e.message}</div>`; }
 }
 
 function pollStatus(onTick) {

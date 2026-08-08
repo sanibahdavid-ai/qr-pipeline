@@ -75,7 +75,7 @@ class AuthGateMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
-        if not path.startswith("/api/"):
+        if not path.startswith("/api/") or path == "/api/_debug/supabase":
             return await call_next(request)
         auth = request.headers.get("authorization", "")
         token = auth[7:] if auth.lower().startswith("bearer ") else ""
@@ -266,6 +266,29 @@ def api_history():
 def api_status():
     env = read_env()
     return {"anthropic_key_configured": bool(env.get("ANTHROPIC_API_KEY"))}
+
+
+@app.get("/api/_debug/supabase")
+def debug_supabase(request: Request):
+    """Diagnostic temporaire — teste la connexion sortante vers Supabase depuis
+    Render (mon bac à sable local ne peut pas atteindre supabase.co pour tester).
+    À retirer une fois le login Google validé de bout en bout."""
+    auth = request.headers.get("authorization", "")
+    token = auth[7:] if auth.lower().startswith("bearer ") else ""
+    try:
+        resp = requests.get(
+            f"{SUPABASE_URL}/auth/v1/user",
+            headers={"Authorization": f"Bearer {token}", "apikey": SUPABASE_ANON_KEY},
+            timeout=8,
+        )
+        return {
+            "reached_supabase": True,
+            "status_code": resp.status_code,
+            "body": resp.text[:500],
+            "had_token": bool(token),
+        }
+    except requests.RequestException as e:
+        return {"reached_supabase": False, "error": str(e), "had_token": bool(token)}
 
 
 # ---------- Frontend statique (mono-fichier, comme health-pipeline/script-dashboard) ----------
