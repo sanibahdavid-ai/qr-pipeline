@@ -273,6 +273,17 @@ def debug_supabase(request: Request):
     """Diagnostic temporaire — teste la connexion sortante vers Supabase depuis
     Render (mon bac à sable local ne peut pas atteindre supabase.co pour tester).
     À retirer une fois le login Google validé de bout en bout."""
+    import socket
+
+    out = {}
+
+    for host in ["zentofapbmyajtiawuqn.supabase.co", "www.google.com", "github.com", "api.anthropic.com"]:
+        try:
+            ip = socket.gethostbyname(host)
+            out[f"dns_{host}"] = ip
+        except Exception as e:
+            out[f"dns_{host}"] = f"FAIL: {e}"
+
     auth = request.headers.get("authorization", "")
     token = auth[7:] if auth.lower().startswith("bearer ") else ""
     try:
@@ -281,14 +292,11 @@ def debug_supabase(request: Request):
             headers={"Authorization": f"Bearer {token}", "apikey": SUPABASE_ANON_KEY},
             timeout=8,
         )
-        return {
-            "reached_supabase": True,
-            "status_code": resp.status_code,
-            "body": resp.text[:500],
-            "had_token": bool(token),
-        }
+        out.update(reached_supabase=True, status_code=resp.status_code, body=resp.text[:500])
     except requests.RequestException as e:
-        return {"reached_supabase": False, "error": str(e), "had_token": bool(token)}
+        out.update(reached_supabase=False, error=str(e))
+    out["had_token"] = bool(token)
+    return out
 
 
 # ---------- Frontend statique (mono-fichier, comme health-pipeline/script-dashboard) ----------
