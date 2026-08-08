@@ -1,16 +1,18 @@
 """FastAPI — sert l'API + le dashboard statique sur un seul port (4610)."""
+import os
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from fastapi import FastAPI, Form, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
+import requests
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pydantic import BaseModel
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.middleware.sessions import SessionMiddleware
 
-from backend.env_manager import bootstrap_auto_keys, mask_key, read_env
+from backend.env_manager import bootstrap_auto_keys, read_env
 from modules import analyzer, collector, generator, history
 from modules.common import (
     ANALYSIS_DIR,
@@ -23,8 +25,6 @@ from modules.common import (
     read_json,
 )
 
-import os
-
 ROOT = Path(__file__).resolve().parent.parent
 STATIC_DIR = ROOT / "static"
 
@@ -32,88 +32,59 @@ STATIC_DIR = ROOT / "static"
 # Next.js fait un rewrite "/csp/:path*" -> ce service interne). Vide en local.
 BASE_PATH = os.environ.get("BASE_PATH", "").rstrip("/")
 
+# Même connexion que le reste du site (Google via Supabase) — pas de mot de
+# passe séparé. Valeurs publiques (NEXT_PUBLIC_*), extraites du bundle JS
+# réellement déployé de qr-pipeline pour être sûr qu'elles correspondent.
+SUPABASE_URL = os.environ.get("NEXT_PUBLIC_SUPABASE_URL", "https://zentofapbmyajtiawuqn.supabase.co")
+SUPABASE_ANON_KEY = os.environ.get("NEXT_PUBLIC_SUPABASE_ANON_KEY", "sb_publishable_mrUEyO1esUT-9Cw0NDig_A_RJuIXFFo")
+
 app = FastAPI(title="Clone Script Pipeline")
 
-boot_result = bootstrap_auto_keys()
-if boot_result.get("DASHBOARD_PASSWORD_GENERATED"):
-    print(
-        "=" * 60
-        + f"\nMot de passe du dashboard généré : {boot_result['DASHBOARD_PASSWORD_GENERATED']}"
-        + "\n(sauvegardé dans .env — DASHBOARD_PASSWORD — ne sera plus réaffiché)"
-        + "\n" + "=" * 60,
-        flush=True,
-    )
+bootstrap_auto_keys()
+
+_user_cache: dict[str, tuple[float, dict | None]] = {}
+_USER_CACHE_TTL = 60  # secondes — évite un aller-retour Supabase à chaque appel API
 
 
-LOGIN_PAGE = """<!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Connexion — Clone Script Pipeline</title>
-<style>
-  body {{ margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
-    background:#0b1220; color:#e8edf7; font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif; }}
-  form {{ background:#111a2e; border:1px solid #22314f; border-radius:14px; padding:32px; width:280px; }}
-  h1 {{ font-size:16px; margin:0 0 18px; }}
-  input {{ width:100%; background:#16213a; border:1px solid #22314f; color:#e8edf7;
-    border-radius:8px; padding:11px 12px; font-size:14px; box-sizing:border-box; margin-bottom:12px; }}
-  button {{ width:100%; background:#4fc3f7; color:#04121f; border:none; border-radius:8px;
-    padding:11px; font-size:14px; font-weight:700; cursor:pointer; }}
-  .err {{ color:#ef5350; font-size:13px; margin-bottom:12px; }}
-</style></head><body>
-<form method="post" action="{base_path}/login">
-  <h1>Clone Script Pipeline</h1>
-  {error_html}
-  <input type="password" name="password" placeholder="Mot de passe" autofocus required>
-  <button type="submit">Entrer</button>
-</form>
-</body></html>"""
-
-
-@app.get("/login", response_class=HTMLResponse)
-def login_form():
-    return LOGIN_PAGE.format(error_html="", base_path=BASE_PATH)
-
-
-@app.post("/login")
-def login_submit(request: Request, password: str = Form(...)):
-    if password == read_env().get("DASHBOARD_PASSWORD"):
-        request.session["authenticated"] = True
-        return RedirectResponse(BASE_PATH + "/", status_code=303)
-    return HTMLResponse(
-        LOGIN_PAGE.format(error_html='<div class="err">Mot de passe incorrect.</div>', base_path=BASE_PATH),
-        status_code=401,
-    )
-
-
-@app.get("/logout")
-def logout(request: Request):
-    request.session.clear()
-    return RedirectResponse(BASE_PATH + "/login", status_code=303)
+def _verify_supabase_token(token: str) -> dict | None:
+    """Vérifie un access token Supabase auprès de l'API Supabase (même compte
+    Google que le reste du site). Retourne l'objet user si valide, None sinon."""
+    now = time.time()
+    cached = _user_cache.get(token)
+    if cached and now - cached[0] < _USER_CACHE_TTL:
+        return cached[1]
+    try:
+        resp = requests.get(
+            f"{SUPABASE_URL}/auth/v1/user",
+            headers={"Authorization": f"Bearer {token}", "apikey": SUPABASE_ANON_KEY},
+            timeout=5,
+        )
+        user = resp.json() if resp.status_code == 200 else None
+    except requests.RequestException:
+        user = None
+    _user_cache[token] = (now, user)
+    return user
 
 
 class AuthGateMiddleware(BaseHTTPMiddleware):
-    """Protège tout le dashboard derrière un mot de passe unique (DASHBOARD_PASSWORD).
-    Nécessaire dès que le site n'est plus juste en local (127.0.0.1) : sans ça,
-    n'importe qui avec l'URL pourrait déclencher des générations (coût API) ou
-    voir l'analyse concurrentielle."""
+    """Protège les routes /api/* avec le token de session Supabase (Google)
+    envoyé par le frontend en 'Authorization: Bearer <token>' — la même
+    connexion que le reste du site, pas de mot de passe séparé. La page HTML
+    elle-même reste publique : c'est le JS qui redirige vers le login Google
+    si aucune session valide n'est trouvée."""
 
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
-        if path == "/login" or path.startswith("/favicon"):
+        if not path.startswith("/api/"):
             return await call_next(request)
-        if request.session.get("authenticated"):
-            return await call_next(request)
-        if path.startswith("/api/"):
+        auth = request.headers.get("authorization", "")
+        token = auth[7:] if auth.lower().startswith("bearer ") else ""
+        if not token or not _verify_supabase_token(token):
             return JSONResponse({"detail": "Non authentifié"}, status_code=401)
-        return RedirectResponse(BASE_PATH + "/login")
+        return await call_next(request)
 
 
 app.add_middleware(AuthGateMiddleware)
-app.add_middleware(
-    SessionMiddleware,
-    secret_key=read_env().get("SESSION_SECRET"),
-    same_site="lax",
-    max_age=60 * 60 * 24 * 30,
-)
 
 
 # ---------- Chaînes / collecte ----------
@@ -294,7 +265,7 @@ def api_history():
 @app.get("/api/status")
 def api_status():
     env = read_env()
-    return {"anthropic_key_configured": bool(env.get("ANTHROPIC_API_KEY")), "port": env.get("DASHBOARD_PORT", "4610")}
+    return {"anthropic_key_configured": bool(env.get("ANTHROPIC_API_KEY"))}
 
 
 # ---------- Frontend statique (mono-fichier, comme health-pipeline/script-dashboard) ----------

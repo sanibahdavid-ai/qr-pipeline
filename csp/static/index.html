@@ -92,6 +92,7 @@
   .topic-item.done, .topic-item.done .n { color:var(--red); }
   .topic-item.done:hover { border-color:var(--red); }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
 <body>
 
@@ -193,6 +194,37 @@
 <script>
 const API = "";
 let current = null;
+
+// ---------------- Connexion (même compte Google que le reste du site) ----------------
+const SUPABASE_URL = "https://zentofapbmyajtiawuqn.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_mrUEyO1esUT-9Cw0NDig_A_RJuIXFFo";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let currentAccessToken = null;
+
+const _origFetch = window.fetch.bind(window);
+window.fetch = (url, opts = {}) => {
+  if (currentAccessToken && typeof url === "string" && url.startsWith(API + "/api/")) {
+    const headers = new Headers(opts.headers || {});
+    headers.set("Authorization", "Bearer " + currentAccessToken);
+    opts = { ...opts, headers };
+  }
+  return _origFetch(url, opts);
+};
+
+sb.auth.onAuthStateChange((_event, session) => {
+  currentAccessToken = session ? session.access_token : null;
+});
+
+async function requireAuth() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) {
+    await sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.href } });
+    return false; // la page va naviguer vers Google, rien d'autre à faire
+  }
+  currentAccessToken = session.access_token;
+  return true;
+}
 
 function switchView(viewId) {
   document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.view === viewId));
@@ -539,8 +571,12 @@ document.getElementById("adminDot").addEventListener("click", () => {
   document.getElementById("adminDot").style.background = on ? "#22c55e" : "transparent";
 });
 
-loadStatus();
-loadTopicsSelect();
+(async () => {
+  const ok = await requireAuth();
+  if (!ok) return;
+  loadStatus();
+  loadTopicsSelect();
+})();
 </script>
 </body>
 </html>

@@ -7,21 +7,18 @@ il n'y a pas de fichier .env — les valeurs arrivent en variables d'environneme
 du process. read_env() fusionne les deux : fichier .env prioritaire, sinon
 os.environ, pour que le même code tourne dans les deux contextes sans changement."""
 import os
-import secrets
-import string
 from pathlib import Path
 
 ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
 
-KNOWN_KEYS = ["ANTHROPIC_API_KEY", "DASHBOARD_PORT", "DASHBOARD_PASSWORD", "SESSION_SECRET"]
+KNOWN_KEYS = ["ANTHROPIC_API_KEY"]
 
-# Sources canoniques déjà utilisées par les autres pipelines de la machine
-# (ordre de préférence). On ne lit que ANTHROPIC_API_KEY, jamais rien d'autre.
-# Uniquement valable en local — absentes sur un serveur cloud (pas de problème,
-# la boucle de secours ci-dessous les ignore silencieusement si absentes).
+# En local (dev sur cette machine), qr-pipeline/.env.local a déjà la clé —
+# on la reprend pour éviter de la ressaisir. En production (Render), c'est
+# la variable d'env ANTHROPIC_API_KEY du service qui prend le relais (déjà
+# gérée par read_env() via os.environ), cette source est ignorée si absente.
 FOREIGN_SOURCES = [
-    Path(r"C:\projets\qr-pipeline\.env.local"),
-    Path(r"C:\projets\health-pipeline\pipeline\.env"),
+    Path(__file__).resolve().parent.parent.parent / ".env.local",
 ]
 
 
@@ -86,15 +83,9 @@ def _read_foreign_env(path: Path) -> dict:
     return values
 
 
-def _random_password(length: int = 16) -> str:
-    alphabet = string.ascii_letters + string.digits
-    return "".join(secrets.choice(alphabet) for _ in range(length))
-
-
 def bootstrap_auto_keys() -> dict:
     """Appelé au démarrage du backend. Complète ANTHROPIC_API_KEY si absente
-    (copie locale uniquement), génère DASHBOARD_PASSWORD/SESSION_SECRET si absents
-    (marche aussi bien en local qu'en cloud — ne dépend d'aucune source externe),
+    (copie locale uniquement — en prod c'est la variable d'env du service),
     sans jamais rien demander à l'utilisateur ni exposer les valeurs dans les logs.
     Retourne un résumé (clé -> source) pour les logs."""
     current = read_env()
@@ -107,18 +98,5 @@ def bootstrap_auto_keys() -> dict:
                 write_env_value("ANTHROPIC_API_KEY", val)
                 result["ANTHROPIC_API_KEY"] = str(source)
                 break
-
-    if not read_env().get("DASHBOARD_PORT"):
-        write_env_value("DASHBOARD_PORT", "4610")
-
-    if not read_env().get("SESSION_SECRET"):
-        write_env_value("SESSION_SECRET", secrets.token_hex(32))
-
-    if not read_env().get("DASHBOARD_PASSWORD"):
-        # Fixe (pas aléatoire) : sur un déploiement cloud sans accès aux logs de
-        # build, un mot de passe généré au hasard serait illisible pour tout le
-        # monde. Changeable plus tard via la variable d'env DASHBOARD_PASSWORD.
-        write_env_value("DASHBOARD_PASSWORD", "csp-dav-2026")
-        result["DASHBOARD_PASSWORD_GENERATED"] = "csp-dav-2026"
 
     return result
