@@ -1,0 +1,29 @@
+{
+  "channels": [
+    {
+      "slug": "smartsimple-b2o",
+      "handle": "smartsimple-b2o",
+      "url": "https://www.youtube.com/@smartsimple-b2o/videos",
+      "role": "reference"
+    },
+    {
+      "slug": "thestrategiclens2",
+      "handle": "thestrategiclens2",
+      "url": "https://www.youtube.com/@thestrategiclens2/videos",
+      "role": "concurrent"
+    },
+    {
+      "slug": "marketmindset-h7m",
+      "handle": "marketmindset-h7m",
+      "url": "https://www.youtube.com/@marketmindset-h7m/videos",
+      "role": "concurrent"
+    },
+    {
+      "slug": "dollar_theory",
+      "handle": "dollar_theory",
+      "url": "https://www.youtube.com/@dollar_theory/videos",
+      "role": "concurrent"
+    }
+  ],
+  "top_n_per_channel": 4
+}

@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const FLASK_URL = "http://localhost:5757";
+const CSP_URL = "http://localhost:8010";
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ['edge-tts-universal'],
@@ -20,6 +21,9 @@ const nextConfig: NextConfig = {
       { source: "/test-r2",               destination: `${FLASK_URL}/test-r2` },
       { source: "/transcript-ytdlp",        destination: `${FLASK_URL}/transcript` },
       { source: "/transcript-whisper",      destination: `${FLASK_URL}/transcript-whisper` },
+      // Clone Script Pipeline — point d'accès caché, pas de lien visible dans le nav.
+      { source: "/csp",                     destination: `${CSP_URL}/` },
+      { source: "/csp/:path*",              destination: `${CSP_URL}/:path*` },
     ];
   },
 };

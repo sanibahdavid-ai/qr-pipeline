@@ -6,3 +6,6 @@ node_modules/
 qr-pipeline-migration/
 .env.render
 SECRETS_LOCAL.txt
+csp/.env
+csp/data/
+csp/**/__pycache__/

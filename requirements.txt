@@ -4,3 +4,10 @@ yt-dlp
 boto3
 imageio-ffmpeg
 python-dotenv
+anthropic
+pillow
+fastapi
+uvicorn[standard]
+pydantic
+itsdangerous
+python-multipart

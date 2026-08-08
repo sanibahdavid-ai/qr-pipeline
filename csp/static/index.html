@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clone Script Pipeline</title>
+<style>
+  :root {
+    --bg:#0b1220; --panel:#111a2e; --panel2:#16213a; --text:#e8edf7; --muted:#93a1bf;
+    --accent:#4fc3f7; --accent2:#ffd54f; --border:#22314f; --green:#66bb6a; --red:#ef5350;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif; }
+  header { display:flex; align-items:center; justify-content:space-between; padding:20px clamp(16px,4vw,48px); border-bottom:1px solid var(--border); }
+  header h1 { font-size:20px; margin:0; }
+  .badge { background:var(--panel2); border:1px solid var(--border); color:var(--accent); font-size:12px; font-weight:700; padding:4px 10px; border-radius:999px; }
+  .badge.ok { color:var(--green); border-color:var(--green); }
+  main { max-width:940px; margin:0 auto; padding:28px clamp(16px,4vw,48px) 80px; }
+  .card { background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:22px 24px; margin-bottom:20px; }
+  label { display:block; font-size:13px; color:var(--muted); margin-bottom:6px; font-weight:600; }
+  select, input[type=text] {
+    width:100%; background:var(--panel2); border:1px solid var(--border); color:var(--text);
+    border-radius:8px; padding:11px 12px; font-size:14px; font-family:inherit;
+  }
+  .row { margin-bottom:16px; }
+  button {
+    background:var(--accent); color:#04121f; border:none; border-radius:8px; padding:12px 22px;
+    font-size:14px; font-weight:700; cursor:pointer;
+  }
+  button.secondary { background:var(--panel2); color:var(--text); border:1px solid var(--border); }
+  button.small { padding:6px 12px; font-size:12.5px; font-weight:600; }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  button + button { margin-left:10px; }
+  .actions { margin-top:6px; }
+  #status { color:var(--muted); font-size:13px; margin-top:10px; min-height:18px; }
+  #status.err { color:var(--red); }
+  #status.ok { color:var(--green); }
+  .result { display:none; }
+  .result.show { display:block; }
+  details.section {
+    background:var(--panel); border:1px solid var(--border); border-radius:14px;
+    margin-bottom:16px; overflow:hidden;
+  }
+  details.section summary {
+    padding:16px 22px; cursor:pointer; font-weight:700; color:var(--accent); font-size:15px;
+    list-style:none; display:flex; align-items:center; justify-content:space-between;
+  }
+  details.section summary::-webkit-details-marker { display:none; }
+  details.section summary::after { content:"▾"; color:var(--muted); transition:transform .15s; }
+  details.section[open] summary::after { transform:rotate(180deg); }
+  .section-body { padding:0 22px 20px; }
+  pre { white-space:pre-wrap; word-break:break-word; background:var(--panel2); border-radius:8px; padding:16px; font-size:13.5px; line-height:1.55; max-height:460px; overflow:auto; margin:0; }
+  .copy-row { display:flex; justify-content:flex-end; margin-bottom:10px; }
+  .hint { font-size:12px; color:var(--muted); margin-top:6px; }
+  .tabs { display:flex; gap:4px; padding:0 clamp(16px,4vw,48px); border-bottom:1px solid var(--border); }
+  .tab { padding:12px 18px; cursor:pointer; color:var(--muted); font-size:14px; font-weight:600; border-bottom:3px solid transparent; }
+  .tab.admin-only { display:none; }
+  body.admin-on .tab.admin-only { display:block; }
+  .tab:hover { color:var(--text); }
+  .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+  .view { display:none; }
+  .view.active { display:block; }
+  .subtabs { display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+  .subtab { padding:6px 14px; border-radius:999px; border:1px solid var(--border); background:var(--panel2); color:var(--muted); font-size:12.5px; font-weight:600; cursor:pointer; }
+  .subtab.active { border-color:var(--accent); color:var(--accent); background:rgba(79,195,247,.1); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px,1fr)); gap:14px; }
+  .ch-card h3 { margin:0 0 8px; font-size:14.5px; }
+  .video-row { display:flex; gap:8px; align-items:center; padding:6px 0; border-top:1px solid var(--border); }
+  .video-row:first-of-type { border-top:none; }
+  .video-row img { width:64px; height:36px; object-fit:cover; border-radius:4px; flex:none; }
+  .video-row .t { font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .video-row .v { font-size:11px; color:var(--muted); }
+  .md h1 { font-size:19px; margin-top:0; }
+  .md h2 { font-size:15.5px; color:var(--accent); margin-top:22px; border-bottom:1px solid var(--border); padding-bottom:6px; }
+  .md h3 { font-size:13.5px; color:var(--accent2); }
+  .md table { border-collapse:collapse; width:100%; margin:12px 0; font-size:12.5px; }
+  .md th, .md td { border:1px solid var(--border); padding:6px 10px; text-align:left; }
+  .md th { background:var(--panel2); }
+  .md ul { padding-left:20px; }
+  .md p, .md li { line-height:1.6; font-size:13.5px; color:#d7dae0; }
+  .hist-item { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px 20px; margin-bottom:14px; }
+  .hist-top { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:8px; }
+  .hist-topic { font-weight:700; font-size:14.5px; }
+  .hist-meta { font-size:12px; color:var(--muted); white-space:nowrap; }
+  .hist-preview { font-size:13px; color:var(--muted); margin:6px 0 12px; line-height:1.5; }
+  .empty-hint { color:var(--muted); font-size:14px; padding:20px 0; text-align:center; }
+  .topic-list { display:flex; flex-direction:column; gap:6px; }
+  .topic-item { display:flex; gap:10px; align-items:baseline; padding:9px 12px; border-radius:8px; background:var(--panel2); border:1px solid var(--border); cursor:pointer; font-size:13.5px; }
+  .topic-item:hover { border-color:var(--accent); }
+  .topic-item .n { color:var(--muted); font-weight:700; font-size:12px; flex-shrink:0; }
+  .topic-item.done { cursor:not-allowed; border-color:var(--red); }
+  .topic-item.done, .topic-item.done .n { color:var(--red); }
+  .topic-item.done:hover { border-color:var(--red); }
+</style>
+</head>
+<body>
+
+<header>
+  <div style="display:flex;align-items:center;gap:8px">
+    <h1>Clone Script Pipeline</h1>
+    <button id="adminDot" tabindex="-1" aria-hidden="true"
+      style="width:8px;height:8px;flex-shrink:0;border:none;border-radius:50%;padding:0;cursor:pointer;background:transparent"></button>
+  </div>
+  <span class="badge" id="statusBadge">…</span>
+</header>
+
+<div class="tabs" id="tabs">
+  <div class="tab admin-only" data-view="channelsView">Chaînes</div>
+  <div class="tab admin-only" data-view="analysisView">Analyse</div>
+  <div class="tab active" data-view="generationView">Génération</div>
+  <div class="tab" data-view="historyView">Historique</div>
+</div>
+
+<main>
+
+<div id="channelsView" class="view">
+  <div id="channelsGrid" class="grid"></div>
+</div>
+
+<div id="analysisView" class="view">
+  <div class="subtabs" id="analysisTabs"></div>
+  <div class="card" id="analysisCard"><div class="empty-hint">Chargement...</div></div>
+</div>
+
+<div id="generationView" class="view active">
+  <div class="card">
+    <div class="row">
+      <label>Sujets proposés (clique un sujet pour le générer)</label>
+      <div id="topicList" class="topic-list"><div class="empty-hint">Clique "Proposer 20 sujets".</div></div>
+    </div>
+    <div class="row">
+      <label for="customTopic">Ou tape ton propre sujet</label>
+      <input type="text" id="customTopic" placeholder="ex: Trump relance l'idée de reprendre le canal de Panama">
+    </div>
+    <div class="actions">
+      <button class="secondary" id="proposeBtn">🔄 Proposer 20 sujets</button>
+      <button id="genBtn">Générer</button>
+    </div>
+    <div id="status"></div>
+  </div>
+
+  <div class="result" id="resultBlock">
+    <details class="section" open>
+      <summary>📝 Script complet</summary>
+      <div class="section-body">
+        <div class="copy-row"><button class="secondary small" id="copyScript">📋 Copier le script</button></div>
+        <pre id="scriptOut"></pre>
+        <div id="scriptStats" class="hint"></div>
+        <div class="actions" style="margin-top:10px">
+          <button class="secondary small" id="halveBtn">➗ Réduire de moitié</button>
+          <button class="secondary small" id="doubleBtn">✖️2️⃣ Doubler la longueur</button>
+        </div>
+        <div id="adjustStatus" class="hint" style="margin-top:8px"></div>
+      </div>
+    </details>
+    <details class="section" open>
+      <summary>🏷️ Titre</summary>
+      <div class="section-body">
+        <div class="copy-row"><button class="secondary small" id="copyTitle">📋 Copier</button></div>
+        <div id="titleOut" style="font-size:15px;font-weight:700"></div>
+      </div>
+    </details>
+    <details class="section">
+      <summary>📄 Description</summary>
+      <div class="section-body">
+        <div class="copy-row"><button class="secondary small" id="copyDesc">📋 Copier</button></div>
+        <pre id="descOut"></pre>
+      </div>
+    </details>
+    <details class="section">
+      <summary>🔑 Mots-clés / liens de recherche</summary>
+      <div class="section-body">
+        <div class="copy-row"><button class="secondary small" id="copyKw">📋 Copier</button></div>
+        <pre id="kwOut"></pre>
+      </div>
+    </details>
+    <details class="section">
+      <summary>🖼️ Prompt miniature (texte)</summary>
+      <div class="section-body">
+        <div class="copy-row"><button class="secondary small" id="copyPrompt">📋 Copier</button></div>
+        <pre id="promptOut"></pre>
+      </div>
+    </details>
+  </div>
+</div>
+
+<div id="historyView" class="view">
+  <div id="historyList"></div>
+</div>
+
+</main>
+
+<script>
+const API = "";
+let current = null;
+
+function switchView(viewId) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.view === viewId));
+  document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.id === viewId));
+  if (viewId === "channelsView") loadChannels();
+  if (viewId === "analysisView") loadAnalysisTabs();
+  if (viewId === "generationView") loadTopicsSelect();
+  if (viewId === "historyView") loadHistory();
+}
+document.getElementById("tabs").addEventListener("click", (e) => {
+  const tab = e.target.closest(".tab");
+  if (tab) switchView(tab.dataset.view);
+});
+
+async function loadStatus() {
+  try {
+    const s = await (await fetch(API + "/api/status")).json();
+    const b = document.getElementById("statusBadge");
+    b.textContent = s.anthropic_key_configured ? "Clé Claude OK" : "Clé Claude manquante";
+    b.className = "badge" + (s.anthropic_key_configured ? " ok" : "");
+  } catch (_) {}
+}
+
+// ---------------- Chaînes ----------------
+async function loadChannels() {
+  const el = document.getElementById("channelsGrid");
+  el.innerHTML = '<div class="empty-hint">Chargement...</div>';
+  const channels = await (await fetch(API + "/api/channels")).json();
+  el.innerHTML = "";
+  for (const ch of channels) {
+    const videos = await (await fetch(`${API}/api/channels/${ch.slug}/videos`)).json();
+    const card = document.createElement("div");
+    card.className = "card ch-card";
+    const roleBadge = ch.role === "reference" ? '<span class="badge">référence</span>' : '<span class="badge">concurrent</span>';
+    card.innerHTML = `
+      <h3>${ch.slug} ${roleBadge}</h3>
+      <div class="hint">${ch.n_collected} vidéo(s) collectée(s)</div>
+      <div class="actions" style="margin:10px 0">
+        <button class="small" data-collect>Collecter</button>
+        <button class="small secondary" data-recollect>Re-collecter</button>
+      </div>
+      <div id="vids-${ch.slug}"></div>
+    `;
+    const vidsEl = card.querySelector(`#vids-${ch.slug}`);
+    videos.forEach(v => {
+      const row = document.createElement("div");
+      row.className = "video-row";
+      row.innerHTML = `<img src="${API}/api/thumbnail/${ch.slug}/${v.id}" onerror="this.style.visibility='hidden'">
+        <div><div class="t">${v.title || v.id}</div><div class="v">${(v.view_count||0).toLocaleString()} vues</div></div>`;
+      vidsEl.appendChild(row);
+    });
+    card.querySelector("[data-collect]").onclick = async (e) => {
+      e.target.disabled = true; e.target.textContent = "…";
+      try { await fetch(`${API}/api/channels/${ch.slug}/collect`, {method:"POST"}); loadChannels(); }
+      catch (err) { alert(err.message); e.target.disabled = false; e.target.textContent = "Collecter"; }
+    };
+    card.querySelector("[data-recollect]").onclick = async (e) => {
+      e.target.disabled = true; e.target.textContent = "…";
+      try { await fetch(`${API}/api/channels/${ch.slug}/collect?force=true`, {method:"POST"}); loadChannels(); }
+      catch (err) { alert(err.message); e.target.disabled = false; e.target.textContent = "Re-collecter"; }
+    };
+    el.appendChild(card);
+  }
+}
+
+// ---------------- Analyse ----------------
+let currentAnalysisTab = null;
+
+function renderMarkdown(md) {
+  if (!md) return "";
+  const lines = md.split("\n");
+  let html = "", inList = false, tableBuf = [];
+  const esc = t => t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const inline = t => esc(t).replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>").replace(/\*(.+?)\*/g,"<em>$1</em>").replace(/`(.+?)`/g,"<code>$1</code>");
+  function flushList() { if (inList) { html += "</ul>"; inList = false; } }
+  function flushTable() {
+    if (!tableBuf.length) return;
+    const rows = tableBuf.filter(r => !/^\|?\s*-+\s*\|/.test(r));
+    html += "<table>";
+    rows.forEach((r,i) => {
+      const cells = r.replace(/^\||\|$/g,"").split("|").map(c=>c.trim());
+      const tag = i===0 ? "th" : "td";
+      html += "<tr>" + cells.map(c=>`<${tag}>${inline(c)}</${tag}>`).join("") + "</tr>";
+    });
+    html += "</table>"; tableBuf = [];
+  }
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+    if (/^\s*\|.*\|\s*$/.test(line)) { flushList(); tableBuf.push(line); continue; }
+    flushTable();
+    if (/^#{1,3}\s/.test(line)) { flushList(); const lvl = line.match(/^#+/)[0].length; html += `<h${lvl}>${inline(line.replace(/^#{1,3}\s/,""))}</h${lvl}>`; }
+    else if (/^[-*]\s/.test(line)) { if (!inList) { html += "<ul>"; inList = true; } html += `<li>${inline(line.replace(/^[-*]\s/,""))}</li>`; }
+    else if (line.trim() === "") { flushList(); }
+    else { flushList(); html += `<p>${inline(line)}</p>`; }
+  }
+  flushList(); flushTable();
+  return html;
+}
+
+async function loadAnalysisTabs() {
+  const channels = await (await fetch(API + "/api/channels")).json();
+  const tabs = document.getElementById("analysisTabs");
+  tabs.innerHTML = "";
+  channels.forEach(ch => {
+    const b = document.createElement("div");
+    b.className = "subtab"; b.textContent = ch.slug;
+    b.onclick = () => { currentAnalysisTab = ch.slug; renderSubtabs(); showChannelAnalysis(ch.slug); };
+    tabs.appendChild(b);
+  });
+  const patternBtn = document.createElement("div");
+  patternBtn.className = "subtab"; patternBtn.textContent = "Pattern consolidé";
+  patternBtn.onclick = () => { currentAnalysisTab = "__pattern__"; renderSubtabs(); showPattern(); };
+  tabs.appendChild(patternBtn);
+
+  if (!currentAnalysisTab) currentAnalysisTab = channels[0]?.slug;
+  renderSubtabs();
+  if (currentAnalysisTab === "__pattern__") showPattern();
+  else if (currentAnalysisTab) showChannelAnalysis(currentAnalysisTab);
+}
+
+function renderSubtabs() {
+  [...document.getElementById("analysisTabs").children].forEach(el => {
+    const isPattern = el.textContent === "Pattern consolidé";
+    el.classList.toggle("active", isPattern ? currentAnalysisTab === "__pattern__" : el.textContent === currentAnalysisTab);
+  });
+}
+
+async function showChannelAnalysis(slug) {
+  const card = document.getElementById("analysisCard");
+  card.innerHTML = `<div class="actions" style="margin-bottom:14px"><button class="secondary small" id="runAnalysis">Lancer l'analyse</button></div><div id="analysisBody" class="empty-hint">Chargement...</div>`;
+  document.getElementById("runAnalysis").onclick = async (e) => {
+    e.target.disabled = true; e.target.textContent = "⏳ Analyse en cours (1-2 min)...";
+    try { await fetch(`${API}/api/channels/${slug}/analyze`, {method:"POST"}); showChannelAnalysis(slug); }
+    catch (err) { alert(err.message); e.target.disabled = false; e.target.textContent = "Lancer l'analyse"; }
+  };
+  const data = await (await fetch(`${API}/api/channels/${slug}/analysis`)).json();
+  const body = document.getElementById("analysisBody");
+  if (!data.available) { body.className = "empty-hint"; body.textContent = `Aucune analyse pour ${slug} — collecte d'abord les vidéos.`; return; }
+  body.className = "md"; body.innerHTML = renderMarkdown(data.synthese_md);
+}
+
+async function showPattern() {
+  const card = document.getElementById("analysisCard");
+  card.innerHTML = `<div class="actions" style="margin-bottom:14px"><button class="secondary small" id="runConsolidate">Consolider le pattern</button></div><div id="analysisBody" class="empty-hint">Chargement...</div>`;
+  document.getElementById("runConsolidate").onclick = async (e) => {
+    e.target.disabled = true; e.target.textContent = "⏳ Consolidation...";
+    try { await fetch(`${API}/api/consolidate`, {method:"POST"}); showPattern(); }
+    catch (err) { alert(err.message); e.target.disabled = false; e.target.textContent = "Consolider le pattern"; }
+  };
+  const data = await (await fetch(`${API}/api/pattern`)).json();
+  const body = document.getElementById("analysisBody");
+  if (!data.available) { body.className = "empty-hint"; body.textContent = "Pas encore de pattern consolidé — analyse toutes les chaînes d'abord."; return; }
+  body.className = "md"; body.innerHTML = renderMarkdown(data.pattern_md);
+}
+
+// ---------------- Génération ----------------
+function setStatus(msg, cls) {
+  const el = document.getElementById("status");
+  el.textContent = msg || ""; el.className = cls || "";
+}
+
+async function loadTopicsSelect() {
+  const el = document.getElementById("topicList");
+  try {
+    const d = await (await fetch(API + "/api/topics/latest")).json();
+    if (!d.topics.length) { el.innerHTML = '<div class="empty-hint">Clique "Proposer 20 sujets".</div>'; return; }
+    el.innerHTML = "";
+    d.topics.forEach((t, i) => {
+      const row = document.createElement("div");
+      row.className = "topic-item" + (t.already_done ? " done" : "");
+      row.innerHTML = `<span class="n">${i + 1}.</span><span>${t.subject}</span>`;
+      if (!t.already_done) row.addEventListener("click", () => runGenerate(t.subject));
+      el.appendChild(row);
+    });
+  } catch (e) { el.innerHTML = '<div class="empty-hint">Impossible de charger les sujets.</div>'; }
+}
+
+function pollStatus(onTick) {
+  return setInterval(async () => {
+    try {
+      const s = await (await fetch(API + "/api/generate/status")).json();
+      if (!s.active) return;
+      onTick(s);
+    } catch (_) {}
+  }, 900);
+}
+
+function statusMessage(s) {
+  if (s.kind === "propose") {
+    if (s.step === "pattern") return "⏳ Chargement du pattern consolidé...";
+    if (s.step === "claude") return "⏳ Claude propose 20 sujets d'actualité...";
+    if (s.step === "filtering") return "⏳ Filtrage anti-doublon...";
+    return "⏳ En cours...";
+  }
+  if (s.kind === "generate" || s.kind === "adjust") {
+    if (s.step === "script") return "⏳ Génération du script, titre, CTA, description (appel Claude)...";
+    if (s.step === "length_check") {
+      if (s.length == null) return `⏳ Contrôle de longueur — tentative ${s.attempt}/${s.max_attempts}...`;
+      return `⏳ Tentative ${s.attempt}/${s.max_attempts} : ${s.length.toLocaleString()} caractères (cible ${s.target_min.toLocaleString()}–${s.target_max.toLocaleString()})`;
+    }
+    if (s.step === "length_truncate") return `⏳ Troncature automatique à la cible (tentative ${s.attempt})...`;
+    if (s.step === "length_extend") return `⏳ Extension ciblée du script par Claude (tentative ${s.attempt})...`;
+    if (s.step === "saving") return "⏳ Sauvegarde des livrables...";
+    return "⏳ En cours...";
+  }
+  return "⏳ En cours...";
+}
+
+document.getElementById("proposeBtn").addEventListener("click", async (e) => {
+  document.querySelectorAll("#proposeBtn,#genBtn").forEach(b => b.disabled = true);
+  setStatus("⏳ Proposition de 20 sujets...");
+  const pollId = pollStatus(s => setStatus(statusMessage(s)));
+  try {
+    await fetch(API + "/api/topics/propose?n=20", {method:"POST"});
+    await loadTopicsSelect();
+    setStatus("✅ 20 sujets proposés.", "ok");
+  } catch (err) {
+    setStatus("❌ " + err.message, "err");
+  } finally {
+    clearInterval(pollId);
+    document.querySelectorAll("#proposeBtn,#genBtn").forEach(b => b.disabled = false);
+  }
+});
+
+async function runGenerate(topic) {
+  document.querySelectorAll("#proposeBtn,#genBtn").forEach(b => b.disabled = true);
+  setStatus("⏳ Génération en cours...");
+  const pollId = pollStatus(s => setStatus(statusMessage(s)));
+  try {
+    const r = await fetch(API + "/api/generate", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({subject: topic})
+    });
+    if (!r.ok) { const e = await r.json().catch(()=>({detail:r.statusText})); throw new Error(e.detail || "Erreur serveur"); }
+    const meta = await r.json();
+    const full = await (await fetch(`${API}/api/generated/${meta.folder}`)).json();
+    renderResult(meta, full);
+    setStatus("✅ Généré avec succès.", "ok");
+    document.getElementById("customTopic").value = "";
+    await loadTopicsSelect();
+  } catch (err) {
+    setStatus("❌ " + err.message, "err");
+  } finally {
+    clearInterval(pollId);
+    document.querySelectorAll("#proposeBtn,#genBtn").forEach(b => b.disabled = false);
+  }
+}
+
+document.getElementById("genBtn").addEventListener("click", () => {
+  const topic = document.getElementById("customTopic").value.trim();
+  if (!topic) { setStatus("Clique un sujet dans la liste ou tape le tien.", "err"); return; }
+  runGenerate(topic);
+});
+
+async function adjustLength(factor, btn) {
+  if (!current || !current.meta || !current.meta.folder) { setStatus("Génère d'abord un script.", "err"); return; }
+  const statusEl = document.getElementById("adjustStatus");
+  document.querySelectorAll("#halveBtn,#doubleBtn").forEach(b => b.disabled = true);
+  statusEl.className = "hint";
+  statusEl.textContent = (factor < 1 ? "⏳ Réduction en cours..." : "⏳ Extension en cours...");
+  const pollId = pollStatus(s => statusEl.textContent = statusMessage(s));
+  try {
+    const r = await fetch(API + "/api/adjust-length", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({folder: current.meta.folder, factor})
+    });
+    const meta = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(meta.detail || "Échec de l'ajustement");
+    const full = await (await fetch(`${API}/api/generated/${meta.folder}`)).json();
+    renderResult(meta, full);
+    statusEl.className = "hint";
+    statusEl.textContent = "✅ Script ajusté (" + meta.final_script_body_length.toLocaleString() + " caractères).";
+  } catch (err) {
+    statusEl.className = "err";
+    statusEl.textContent = "❌ " + err.message;
+  } finally {
+    clearInterval(pollId);
+    document.querySelectorAll("#halveBtn,#doubleBtn").forEach(b => b.disabled = false);
+  }
+}
+document.getElementById("halveBtn").addEventListener("click", (e) => adjustLength(0.5, e.target));
+document.getElementById("doubleBtn").addEventListener("click", (e) => adjustLength(2.0, e.target));
+
+function renderResult(meta, full) {
+  current = full;
+  document.getElementById("scriptOut").textContent = full.script;
+  document.getElementById("scriptStats").textContent =
+    `${meta.final_script_body_length.toLocaleString()} caractères (hors CTA) — cible ${meta.target_range[0].toLocaleString()}–${meta.target_range[1].toLocaleString()} — ` +
+    (meta.length_ok ? "✅ cible atteinte" : "⚠️ hors cible après correction") + ` (${meta.length_attempts.length} tentative(s))`;
+  document.getElementById("titleOut").textContent = full.title;
+  document.getElementById("descOut").textContent = full.description;
+  document.getElementById("kwOut").textContent = full.keywords;
+  document.getElementById("promptOut").textContent = full.thumbnail_prompt;
+  document.getElementById("resultBlock").classList.add("show");
+}
+
+async function copyText(text, btn) {
+  try {
+    await navigator.clipboard.writeText(text);
+    const old = btn.textContent; btn.textContent = "✅ Copié";
+    setTimeout(() => btn.textContent = old, 1500);
+  } catch (_) {}
+}
+document.getElementById("copyScript").addEventListener("click", e => current && copyText(current.script, e.target));
+document.getElementById("copyTitle").addEventListener("click", e => current && copyText(current.title, e.target));
+document.getElementById("copyDesc").addEventListener("click", e => current && copyText(current.description, e.target));
+document.getElementById("copyKw").addEventListener("click", e => current && copyText(current.keywords, e.target));
+document.getElementById("copyPrompt").addEventListener("click", e => current && copyText(current.thumbnail_prompt, e.target));
+
+// ---------------- Historique ----------------
+function fmtDate(iso) {
+  try { const d = new Date(iso); return d.toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit",year:"numeric"}) + " " + d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}); }
+  catch (_) { return iso; }
+}
+
+async function loadHistory() {
+  const list = document.getElementById("historyList");
+  list.innerHTML = '<div class="empty-hint">Chargement...</div>';
+  const items = await (await fetch(API + "/api/history")).json();
+  if (!items.length) { list.innerHTML = '<div class="empty-hint">Aucune génération pour le moment.</div>'; return; }
+  list.innerHTML = "";
+  items.forEach(entry => {
+    const div = document.createElement("div");
+    div.className = "hist-item";
+    div.innerHTML = `
+      <div class="hist-top">
+        <div class="hist-topic">${entry.title}</div>
+        <div class="hist-meta">${fmtDate(entry.date)}</div>
+      </div>
+      <div class="hist-preview">${entry.subject}</div>
+      <button class="secondary small" data-action="view">👁️ Voir le script</button>
+    `;
+    div.querySelector('[data-action="view"]').addEventListener("click", async () => {
+      const full = await (await fetch(`${API}/api/generated/${entry.folder}`)).json();
+      renderResult(full.meta, full);
+      switchView("generationView");
+    });
+    list.appendChild(div);
+  });
+}
+
+document.getElementById("adminDot").addEventListener("click", () => {
+  const on = document.body.classList.toggle("admin-on");
+  document.getElementById("adminDot").style.background = on ? "#22c55e" : "transparent";
+});
+
+loadStatus();
+loadTopicsSelect();
+</script>
+</body>
+</html>

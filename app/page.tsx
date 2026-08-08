@@ -1204,8 +1204,16 @@ export default function Home() {
         )}
       </main>
 
-      <footer className="text-center text-[#1a2942] text-[10px] font-mono py-6 mt-8">
-        DAV Pipeline · 2026
+      <footer className="text-center text-[#1a2942] text-[10px] font-mono py-6 mt-8 flex items-center justify-center gap-2">
+        <span>DAV Pipeline · 2026</span>
+        {/* Point d'accès caché vers Clone Script Pipeline — invisible, pas de lien nav */}
+        <a
+          href="/csp"
+          tabIndex={-1}
+          aria-hidden="true"
+          className="w-2 h-2 shrink-0 rounded-full"
+          style={{ background: "transparent" }}
+        />
       </footer>
 
       {/* Command palette */}
