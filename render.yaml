@@ -2,5 +2,5 @@ services:
   - type: web
     name: qr-pipeline
     runtime: node
-    buildCommand: npm run build
+    buildCommand: npm run build && (pip3 install -r requirements.txt || pip install -r requirements.txt || python3 -m pip install -r requirements.txt)
     startCommand: bash start.sh

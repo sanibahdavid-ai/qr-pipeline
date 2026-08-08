@@ -7,7 +7,7 @@ python-dotenv
 anthropic
 pillow
 fastapi
-uvicorn[standard]
+uvicorn
 pydantic
 itsdangerous
 python-multipart
