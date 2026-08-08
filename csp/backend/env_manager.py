@@ -115,8 +115,10 @@ def bootstrap_auto_keys() -> dict:
         write_env_value("SESSION_SECRET", secrets.token_hex(32))
 
     if not read_env().get("DASHBOARD_PASSWORD"):
-        pwd = _random_password()
-        write_env_value("DASHBOARD_PASSWORD", pwd)
-        result["DASHBOARD_PASSWORD_GENERATED"] = pwd
+        # Fixe (pas aléatoire) : sur un déploiement cloud sans accès aux logs de
+        # build, un mot de passe généré au hasard serait illisible pour tout le
+        # monde. Changeable plus tard via la variable d'env DASHBOARD_PASSWORD.
+        write_env_value("DASHBOARD_PASSWORD", "csp-dav-2026")
+        result["DASHBOARD_PASSWORD_GENERATED"] = "csp-dav-2026"
 
     return result
