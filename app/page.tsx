@@ -13,7 +13,7 @@ import { EDGE_TTS_VOICES } from "../lib/edge-tts-voices";
 import { GOOGLE_TTS_VOICES } from "../lib/google-tts-voices";
 import { GEMINI_STYLE_DEFAULT, GEMINI_PACE_DEFAULT, GEMINI_ACCENT_DEFAULT } from "../lib/gemini-tts-voices";
 import { sanitizeTitle, wordStats } from "../lib/format";
-import type { Provider, Section, AudioState, Step, HistoryEntry, AuthUser } from "../types";
+import type { Provider, Section, AudioState, Step, HistoryEntry, AuthUser, UserRole } from "../types";
 import { SECTIONS } from "../types";
 import { supabase } from "../lib/supabase";
 import type { GenerationRow } from "../lib/supabase";
@@ -172,6 +172,11 @@ export default function Home() {
   const [healthScores, setHealthScores] = useState<Record<string, { score: number; feedback?: string | null }>>({});
   const [correctingLangs, setCorrectingLangs] = useState<Record<string, boolean>>({});
 
+  // PIN Auth
+  const [pinRole, setPinRole] = useState<UserRole>(null);
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pinInput, setPinInput] = useState("");
+
   // Command palette
   const [showPalette, setShowPalette] = useState(false);
 
@@ -203,6 +208,8 @@ export default function Home() {
       const savedTab = localStorage.getItem(TAB_KEY) as Tab | null;
       if (savedTab === "scripts" || savedTab === "download") setActiveTab(savedTab);
       if (localStorage.getItem(AUDIO_ENABLED_KEY) === "1") setAudioEnabled(true);
+      const savedPinRole = localStorage.getItem("dav_pin_role") as UserRole | null;
+      if (savedPinRole) setPinRole(savedPinRole);
     } catch {}
   }, []);
 
@@ -221,14 +228,24 @@ export default function Home() {
     supabase.auth.getUser().then(({ data }) => {
       if (data.user) {
         setUser(data.user as AuthUser);
-        loadCloudHistory();
+        const storedRole = localStorage.getItem("dav_pin_role") as UserRole | null;
+        if (!storedRole) setShowPinModal(true);
+        else loadCloudHistory(data.user.id, storedRole);
       }
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       const u = session?.user ?? null;
       setUser(u as AuthUser | null);
-      if (u) loadCloudHistory();
-      else setCloudHistory([]);
+      if (u) {
+        const storedRole = localStorage.getItem("dav_pin_role") as UserRole | null;
+        if (!storedRole) setShowPinModal(true);
+        else loadCloudHistory(u.id, storedRole);
+      }
+      else {
+        setCloudHistory([]);
+        setPinRole(null);
+        localStorage.removeItem("dav_pin_role");
+      }
     });
     return () => subscription.unsubscribe();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -314,14 +331,41 @@ export default function Home() {
   }
 
   // ── Cloud auth helpers ────────────────────────────────────────────────────
-  async function loadCloudHistory() {
+  async function loadCloudHistory(userId?: string, role?: UserRole) {
     if (!supabase) return;
-    const { data } = await supabase
-      .from("generations")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(50);
+    const activeUserId = userId ?? user?.id;
+    const activeRole = role ?? pinRole;
+    if (!activeUserId || !activeRole) return;
+
+    let query = supabase.from("generations").select("*").order("created_at", { ascending: false }).limit(50);
+    
+    // Si ce n'est pas le DAV (Directeur), on limite aux vidéos de l'utilisateur
+    if (activeRole !== "DAV") {
+      query = query.eq("user_id", activeUserId);
+    }
+
+    const { data } = await query;
     if (data) setCloudHistory(data as GenerationRow[]);
+  }
+
+  function handlePinSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    let newRole: UserRole = null;
+    if (pinInput === "2811") newRole = "DAV";
+    else if (pinInput === "0000") newRole = "ADMIN";
+    else if (pinInput === "1234") newRole = "GUEST";
+    
+    if (newRole) {
+      setPinRole(newRole);
+      localStorage.setItem("dav_pin_role", newRole);
+      setShowPinModal(false);
+      setPinInput("");
+      if (user) loadCloudHistory(user.id, newRole);
+      toast.success(`Connecté en tant que ${newRole}`);
+    } else {
+      toast.error("Code PIN incorrect");
+      setPinInput("");
+    }
   }
 
   async function handleLogin() {
@@ -1059,20 +1103,24 @@ export default function Home() {
               >
                 Sans CTA
               </button>
-              <button
-                onClick={() => chooseCta("ronaldo")}
-                className="px-3 py-1.5 text-[11px] font-mono border border-[#1a2942] text-[#7a9ac2] hover:border-[#00b4ff] hover:text-[#00b4ff] transition-none"
-                style={{ borderRadius: "4px" }}
-              >
-                CTA Ronaldo
-              </button>
-              <button
-                onClick={() => chooseCta("tiktok")}
-                className="px-3 py-1.5 text-[11px] font-mono border border-[#1a2942] text-[#7a9ac2] hover:border-[#00b4ff] hover:text-[#00b4ff] transition-none"
-                style={{ borderRadius: "4px" }}
-              >
-                CTA TikTok Follow
-              </button>
+              {pinRole !== "GUEST" && (
+                <>
+                  <button
+                    onClick={() => chooseCta("ronaldo")}
+                    className="px-3 py-1.5 text-[11px] font-mono border border-[#1a2942] text-[#7a9ac2] hover:border-[#00b4ff] hover:text-[#00b4ff] transition-none"
+                    style={{ borderRadius: "4px" }}
+                  >
+                    CTA Ronaldo
+                  </button>
+                  <button
+                    onClick={() => chooseCta("tiktok")}
+                    className="px-3 py-1.5 text-[11px] font-mono border border-[#1a2942] text-[#7a9ac2] hover:border-[#00b4ff] hover:text-[#00b4ff] transition-none"
+                    style={{ borderRadius: "4px" }}
+                  >
+                    CTA TikTok Follow
+                  </button>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -1233,6 +1281,33 @@ export default function Home() {
 
       {/* Floating actions (mobile) */}
       <FloatingActions onCopyAllQR={() => { copyAllQR(); }} show={step === "done"} />
+
+      {/* PIN Modal */}
+      {showPinModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="bg-[#0d1420] border border-[#1a2942] p-6 w-[320px] shadow-2xl" style={{ borderRadius: "8px" }}>
+            <h3 className="text-[14px] font-mono font-semibold text-[#e0eef8] mb-4 text-center">Code d'accès requis</h3>
+            <form onSubmit={handlePinSubmit} className="space-y-4">
+              <input
+                type="password"
+                value={pinInput}
+                onChange={(e) => setPinInput(e.target.value)}
+                autoFocus
+                className="w-full bg-[#13233a] border border-[#1a2942] text-center text-[24px] font-mono text-[#e0eef8] py-3 focus:outline-none focus:border-[#00b4ff] tracking-[0.5em]"
+                style={{ borderRadius: "4px" }}
+                placeholder="••••"
+              />
+              <button
+                type="submit"
+                className="w-full py-2 bg-[#00b4ff] text-black font-mono text-[12px] font-bold hover:bg-[#33c3ff] transition-colors"
+                style={{ borderRadius: "4px" }}
+              >
+                Valider
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
         </>
       )}

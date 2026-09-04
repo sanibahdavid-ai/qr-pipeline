@@ -41,6 +41,8 @@ export type HistoryEntry = {
   healthScores?: Record<string, number>;
 };
 
+export type UserRole = "DAV" | "ADMIN" | "GUEST" | null;
+
 export type AuthUser = {
   id: string;
   email?: string;
@@ -50,4 +52,5 @@ export type AuthUser = {
     full_name?: string;
     name?: string;
   };
+  role?: UserRole;
 };
