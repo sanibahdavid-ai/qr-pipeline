@@ -674,6 +674,7 @@ export default function Home() {
   // ── TTS ───────────────────────────────────────────────────────────────────
   async function handleTTS(language: "EN" | "DE" | "FR" | "ES", voice: string, speed: number, modelId?: string, geminiParams?: { style: string; pace: string; accent: string }) {
     if (!audioEnabled) return;
+    if (pinRole === "ADMIN") { toast.error("Génération vocale non disponible pour le profil Admin"); return; }
     const sectionKey = `SCRIPT ${language}` as Section;
     const text = getContent(sectionKey);
     if (!text) return;
@@ -834,6 +835,7 @@ export default function Home() {
 
   async function handleGenerateAll() {
     if (!audioEnabled) return;
+    if (pinRole === "ADMIN") { toast.error("Génération vocale non disponible pour le profil Admin"); return; }
     const raw = typeof window !== "undefined" ? localStorage.getItem(VOICE_CONFIG_STORAGE_KEY) : null;
     const configs: Record<string, VoiceConfig> = raw ? JSON.parse(raw) : {};
 
