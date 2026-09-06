@@ -210,6 +210,7 @@ export default function Home() {
       if (localStorage.getItem(AUDIO_ENABLED_KEY) === "1") setAudioEnabled(true);
       const savedPinRole = localStorage.getItem("dav_pin_role") as UserRole | null;
       if (savedPinRole) setPinRole(savedPinRole);
+      else setShowPinModal(true);
     } catch {}
   }, []);
 
@@ -361,11 +362,18 @@ export default function Home() {
       setShowPinModal(false);
       setPinInput("");
       if (user) loadCloudHistory(user.id, newRole);
-      toast.success(`Connecté en tant que ${newRole}`);
+      toast.success(`Connecté en tant que ${newRole === "DAV" ? "DAV (Directeur)" : newRole === "ADMIN" ? "Admin" : "Invité"}`);
     } else {
       toast.error("Code PIN incorrect");
       setPinInput("");
     }
+  }
+
+  function handlePinLogout() {
+    setPinRole(null);
+    localStorage.removeItem("dav_pin_role");
+    setShowPinModal(true);
+    setPinInput("");
   }
 
   async function handleLogin() {
@@ -957,6 +965,48 @@ export default function Home() {
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
+  // Si pas de rôle, on affiche uniquement la fenêtre du code PIN
+  if (!pinRole) {
+    return (
+      <div className="min-h-screen bg-[#060a12] text-[#e0eef8] flex items-center justify-center">
+        <div className="bg-[#0d1420] border border-[#1a2942] p-8 w-[360px] shadow-2xl" style={{ borderRadius: "8px" }}>
+          <div className="h-[2px] w-full mb-6" style={{ background: "linear-gradient(90deg, #00b4ff, #ff3cac)" }} />
+          <h2
+            className="text-[18px] font-bold tracking-tight text-center mb-1"
+            style={{
+              fontFamily: "var(--font-syne)",
+              background: "linear-gradient(135deg, #00b4ff, #ff3cac)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+            }}
+          >
+            DAV PIPELINE
+          </h2>
+          <p className="text-[11px] font-mono text-[#4a6a8a] text-center mb-6">Entrez votre code d&apos;accès</p>
+          <form onSubmit={handlePinSubmit} className="space-y-4">
+            <input
+              type="password"
+              value={pinInput}
+              onChange={(e) => setPinInput(e.target.value)}
+              autoFocus
+              className="w-full bg-[#13233a] border border-[#1a2942] text-center text-[28px] font-mono text-[#e0eef8] py-4 focus:outline-none focus:border-[#00b4ff] tracking-[0.5em]"
+              style={{ borderRadius: "4px" }}
+              placeholder="••••"
+            />
+            <button
+              type="submit"
+              className="w-full py-2.5 bg-[#00b4ff] text-black font-mono text-[12px] font-bold hover:bg-[#33c3ff] transition-colors"
+              style={{ borderRadius: "4px" }}
+            >
+              Connexion
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#060a12] text-[#e0eef8] relative z-[1]">
       <Header
@@ -977,6 +1027,8 @@ export default function Home() {
         onLogin={handleLogin}
         onLogout={handleLogout}
         onRestoreCloud={restoreFromCloudHistory}
+        pinRole={pinRole}
+        onPinLogout={handlePinLogout}
       />
 
       {/* Tab switcher */}
@@ -1282,32 +1334,7 @@ export default function Home() {
       {/* Floating actions (mobile) */}
       <FloatingActions onCopyAllQR={() => { copyAllQR(); }} show={step === "done"} />
 
-      {/* PIN Modal */}
-      {showPinModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-          <div className="bg-[#0d1420] border border-[#1a2942] p-6 w-[320px] shadow-2xl" style={{ borderRadius: "8px" }}>
-            <h3 className="text-[14px] font-mono font-semibold text-[#e0eef8] mb-4 text-center">Code d'accès requis</h3>
-            <form onSubmit={handlePinSubmit} className="space-y-4">
-              <input
-                type="password"
-                value={pinInput}
-                onChange={(e) => setPinInput(e.target.value)}
-                autoFocus
-                className="w-full bg-[#13233a] border border-[#1a2942] text-center text-[24px] font-mono text-[#e0eef8] py-3 focus:outline-none focus:border-[#00b4ff] tracking-[0.5em]"
-                style={{ borderRadius: "4px" }}
-                placeholder="••••"
-              />
-              <button
-                type="submit"
-                className="w-full py-2 bg-[#00b4ff] text-black font-mono text-[12px] font-bold hover:bg-[#33c3ff] transition-colors"
-                style={{ borderRadius: "4px" }}
-              >
-                Valider
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
+
 
         </>
       )}

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Clock, RotateCcw, Command, LogIn, LogOut } from "lucide-react";
-import type { HistoryEntry, AuthUser } from "../types";
+import { Clock, RotateCcw, Command, LogOut } from "lucide-react";
+import type { HistoryEntry, AuthUser, UserRole } from "../types";
 import type { GenerationRow } from "../lib/supabase";
 import { formatDate } from "../lib/format";
 
@@ -26,6 +26,8 @@ type Props = {
   onLogin: () => void;
   onLogout: () => void;
   onRestoreCloud: (gen: GenerationRow) => void;
+  pinRole: UserRole;
+  onPinLogout: () => void;
 };
 
 export function Header({
@@ -33,6 +35,7 @@ export function Header({
   onDeleteHistory, onClearHistory, canReset, onReset, onOpenPalette,
   historyPanelRef, audioEnabled, onAudioToggle,
   user, cloudHistory, onLogin, onLogout, onRestoreCloud,
+  pinRole, onPinLogout,
 }: Props) {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [copiedUrlId, setCopiedUrlId] = useState<string | null>(null);
@@ -282,59 +285,46 @@ export function Header({
             )}
           </div>
 
-          {/* Auth */}
-          {user ? (
-            <div className="relative" ref={userMenuRef}>
-              <button
-                onClick={() => setShowUserMenu((v) => !v)}
-                className="flex items-center gap-1.5 px-2 py-1 border border-[#1a2942] hover:border-[#2a4a75] transition-none"
-                style={{ borderRadius: "2px" }}
-                title={displayName}
-              >
-                {avatarUrl ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img src={avatarUrl} alt="" className="w-5 h-5 rounded-full" />
-                ) : (
-                  <span className="w-5 h-5 rounded-full bg-[#1a2942] flex items-center justify-center text-[9px] font-mono text-[#7a9ac2]">
-                    {displayName.charAt(0).toUpperCase()}
-                  </span>
-                )}
-                <span className="hidden sm:inline text-[11px] font-mono text-[#7a9ac2] max-w-[80px] truncate">
-                  {displayName.split(" ")[0]}
-                </span>
-              </button>
-
-              {showUserMenu && (
-                <div
-                  className="absolute right-0 top-9 w-44 bg-[#0d1420] border border-[#1a2942] shadow-xl z-50 overflow-hidden"
-                  style={{ borderRadius: "4px" }}
-                >
-                  <div className="h-[2px] w-full" style={{ background: "linear-gradient(90deg, #00b4ff, #ff3cac)" }} />
-                  <div className="px-3 py-2 border-b border-[#1a2942]">
-                    <p className="text-[11px] font-mono text-[#e0eef8] truncate">{displayName}</p>
-                    <p className="text-[10px] font-mono text-[#4a6a8a] truncate">{user.email}</p>
-                  </div>
-                  <button
-                    onClick={() => { setShowUserMenu(false); onLogout(); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-[11px] font-mono text-[#4a6a8a] hover:text-[#ff4466] hover:bg-[#13233a] transition-none"
-                  >
-                    <LogOut size={11} />
-                    Déconnexion
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
+          {/* Auth — PIN role badge + logout */}
+          <div className="relative" ref={userMenuRef}>
             <button
-              onClick={onLogin}
-              className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-mono text-[#4a6a8a] border border-[#1a2942] hover:border-[#00b4ff] hover:text-[#00b4ff] transition-none"
+              onClick={() => setShowUserMenu((v) => !v)}
+              className="flex items-center gap-1.5 px-2 py-1 border border-[#1a2942] hover:border-[#2a4a75] transition-none"
               style={{ borderRadius: "2px" }}
-              title="Connexion avec Google"
             >
-              <LogIn size={11} />
-              <span className="hidden sm:inline">Google</span>
+              <span
+                className="text-[9px] font-mono font-bold px-1.5 py-0.5"
+                style={{
+                  borderRadius: "2px",
+                  background: pinRole === "DAV" ? "#00b4ff" : pinRole === "ADMIN" ? "#F59E0B" : "#4a6a8a",
+                  color: "#060a12",
+                }}
+              >
+                {pinRole === "DAV" ? "DAV" : pinRole === "ADMIN" ? "ADMIN" : "INVITÉ"}
+              </span>
             </button>
-          )}
+
+            {showUserMenu && (
+              <div
+                className="absolute right-0 top-9 w-44 bg-[#0d1420] border border-[#1a2942] shadow-xl z-50 overflow-hidden"
+                style={{ borderRadius: "4px" }}
+              >
+                <div className="h-[2px] w-full" style={{ background: "linear-gradient(90deg, #00b4ff, #ff3cac)" }} />
+                <div className="px-3 py-2 border-b border-[#1a2942]">
+                  <p className="text-[11px] font-mono text-[#e0eef8]">
+                    {pinRole === "DAV" ? "DAV (Directeur)" : pinRole === "ADMIN" ? "Admin" : "Invité"}
+                  </p>
+                </div>
+                <button
+                  onClick={() => { setShowUserMenu(false); onPinLogout(); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-[11px] font-mono text-[#4a6a8a] hover:text-[#ff4466] hover:bg-[#13233a] transition-none"
+                >
+                  <LogOut size={11} />
+                  Changer de profil
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* Reset */}
           {canReset && (
