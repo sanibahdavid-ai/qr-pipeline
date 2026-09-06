@@ -353,8 +353,8 @@ export default function Home() {
     e.preventDefault();
     let newRole: UserRole = null;
     if (pinInput === "2811") newRole = "DAV";
-    else if (pinInput === "0000") newRole = "ADMIN";
-    else if (pinInput === "1234") newRole = "GUEST";
+    else if (pinInput === "1234") newRole = "ADMIN";
+    else if (pinInput === "5678") newRole = "GUEST";
     
     if (newRole) {
       setPinRole(newRole);
