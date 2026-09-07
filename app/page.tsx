@@ -352,9 +352,9 @@ export default function Home() {
   function handlePinSubmit(e: React.FormEvent) {
     e.preventDefault();
     let newRole: UserRole = null;
-    if (pinInput === "2811") newRole = "DAV";
-    else if (pinInput === "1234") newRole = "ADMIN";
-    else if (pinInput === "5678") newRole = "GUEST";
+    if (pinInput === "0506") newRole = "DAV";
+    else if (pinInput === "2811") newRole = "ADMIN";
+    else if (pinInput === "2026") newRole = "GUEST";
     
     if (newRole) {
       setPinRole(newRole);
