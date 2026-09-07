@@ -159,6 +159,7 @@ export default function Home() {
   // Per-generation CTA choice (asked after extraction, before rewrite — not persisted)
   const [showCtaChoice, setShowCtaChoice] = useState(false);
   const [pendingRewrite, setPendingRewrite] = useState<{ text: string; title: string } | null>(null);
+  const [activeCtaChoice, setActiveCtaChoice] = useState<CtaChoice>("none");
 
   // History
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -460,6 +461,7 @@ export default function Home() {
     setTargetDuration("original");
     setShowCtaChoice(false);
     setPendingRewrite(null);
+    setActiveCtaChoice("none");
   }
 
   // ── Extract ───────────────────────────────────────────────────────────────
@@ -507,6 +509,7 @@ export default function Home() {
   // ── CTA choice (per-generation only, not persisted) ─────────────────────────
   function chooseCta(choice: CtaChoice) {
     setShowCtaChoice(false);
+    setActiveCtaChoice(choice);
     if (pendingRewrite) {
       const { text, title } = pendingRewrite;
       setPendingRewrite(null);
@@ -921,6 +924,13 @@ export default function Home() {
       setOverrides((o) => ({ ...o, [section]: accumulated }));
     }
     setAdjusting(null);
+    // Replacer le CTA si un CTA était actif pour cette génération
+    if (activeCtaChoice !== "none") {
+      const lang = language;
+      const withCta = await placeCta(accumulated, lang, activeCtaChoice);
+      setOverrides((o) => ({ ...o, [section]: withCta }));
+      accumulated = withCta;
+    }
     void singleLangHealthCheck(language, accumulated, transcriptText).then((h) => {
       setHealthScores((hs) => ({ ...hs, [language]: h }));
     });
