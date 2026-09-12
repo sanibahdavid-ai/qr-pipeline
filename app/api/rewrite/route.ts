@@ -14,6 +14,8 @@ VÉRIFICATION OBLIGATOIRE AVANT CHAQUE GÉNÉRATION :
 ✅ Zéro tiret, zéro mots interdits
 ✅ CTA parasite de la source supprimé s'il existe
 ✅ Noms de lieux localisés par langue
+✅ Noms propres mal transcrits corrigés selon le contexte football réel
+✅ Chaque paire de phrases consécutives reliée par un connecteur explicite (sauf le hook)
 
 DÉFINITION DE LA RÉÉCRITURE :
 Chaque version (FR, EN, DE, ES) raconte exactement la même histoire, dans le même ordre, avec les mêmes faits et les mêmes noms propres. Chaque langue part directement du transcript source, jamais de traduction entre langues. La reformulation doit être suffisamment différente pour échapper à la détection de contenu dupliqué, tout en restant fidèle à l'original. Change la structure des phrases, varie le vocabulaire, recombine les idées, sans ajouter, retirer ou réordonner les faits.
@@ -25,9 +27,13 @@ Chaque script réécrit doit contenir approximativement le même nombre de mots 
 1. Lire le transcript source en entier
 2. Lister TOUS les éléments narratifs dans l'ordre, ne rien oublier
 3. Identifier tous les noms propres, jamais supprimés
-4. Détecter et supprimer tout CTA parasite de la source (toute référence à Cristiano souriant, au bouton plus, 'savais-tu que ton clavier', 'did you know your keyboard', 'type X and let it finish', etc.). Ces phrases ne doivent JAMAIS apparaître dans les réécritures. Le site insère son propre CTA séparément côté client.
-5. Localiser les noms de lieux par langue (Norway devient Norvège en FR, Norwegen en DE, Noruega en ES)
-6. Restaurer mentalement la ponctuation si absente
+4. CORRECTION CONTEXTUELLE DES NOMS MAL TRANSCRITS : les transcriptions automatiques (Whisper, YouTube auto-captions) contiennent souvent des noms propres mal orthographiés ou mal transcrits phonétiquement. Utilise le contexte du football pour corriger ces erreurs AVANT de réécrire. Exemples :
+- 'Siri' dans un contexte italien de trophée de club → 'Supercoppa Italiana' ou 'Supercoupe d'Italie' (jamais 'Siri', qui est une mauvaise transcription phonétique)
+- Vérifie systématiquement : noms de compétitions, noms de joueurs, noms de clubs, noms de stades — s'ils ne correspondent à rien de connu dans le football réel, c'est probablement une erreur de transcription à corriger avec le nom réel le plus probable selon le contexte
+- Si un terme semble être une mauvaise transcription phonétique d'un nom connu, utilise le nom correct dans TOUTES les langues, pas seulement en français
+5. Détecter et supprimer tout CTA parasite de la source (toute référence à Cristiano souriant, au bouton plus, 'savais-tu que ton clavier', 'did you know your keyboard', 'type X and let it finish', etc.). Ces phrases ne doivent JAMAIS apparaître dans les réécritures. Le site insère son propre CTA séparément côté client.
+6. Localiser les noms de lieux par langue (Norway devient Norvège en FR, Norwegen en DE, Noruega en ES)
+7. Restaurer mentalement la ponctuation si absente
 
 RÈGLES ABSOLUES :
 - Zéro tiret comme ponctuation (ni - ni — ni –)
@@ -37,6 +43,13 @@ RÈGLES ABSOLUES :
 - Jamais traduire d'une langue vers une autre
 - Jamais copier la structure de phrases de la source
 - Garder les noms complets dans le hook (Stephen Curry, pas juste Curry)
+
+RÈGLE SOUTH PARK :
+Applique la technique de scénarisation "South Park" (BUT / THEREFORE) : chaque phrase doit découler de la précédente par un lien de causalité explicite, jamais par une simple succession chronologique ("et ensuite... et ensuite"). Entre deux phrases courtes consécutives, remplace le point neutre par un connecteur logique explicite : MAIS (contraste, obstacle, retournement) ou DONC (conséquence, résultat direct). Objectif : une narration qui progresse par cause et effet, jamais par juxtaposition de faits.
+
+COHÉRENCE NARRATIVE OBLIGATOIRE : chaque conséquence doit être explicable par sa cause directe. Si la source contient un raccourci narratif flou (ex: passage direct d'un blocage à une résolution sans expliquer comment), tu DOIS ajouter un connecteur ou une micro-clarification qui comble ce trou logique, sans ajouter de nouveaux faits inventés — reformule pour que la cause-conséquence soit claire. Exemple : si la source dit 'personne ne lui donne le ballon' puis directement 'il marque', ajoute un connecteur du type 'jusqu'à ce que' ou 'finalement' pour montrer la bascule, sans inventer de nouveau fait.
+
+VÉRIFICATION FINALE OBLIGATOIRE : relis ton script phrase par phrase. Si tu trouves un enchaînement de 2 phrases courtes sans AUCUN connecteur MAIS/DONC entre elles (juste un point), tu DOIS soit les fusionner avec un connecteur, soit insérer un connecteur au début de la deuxième phrase. Aucune paire de phrases consécutives ne doit rester sans lien logique explicite, sauf la toute première phrase du script (le hook) qui peut rester seule.
 
 FORMAT DE SORTIE, 13 SECTIONS EXACTEMENT :
 

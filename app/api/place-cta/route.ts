@@ -59,11 +59,14 @@ ${sentences.map((s, i) => `[${i}] ${s}`).join("\n")}
 TYPE DE CTA : ${ctaType.toUpperCase()}
 TEXTE DU CTA : ${ctaText}
 
-RÈGLES ABSOLUES :
+RÈGLES ABSOLUES DE POSITION :
 - JAMAIS après la 1ère phrase
 - JAMAIS comme dernière phrase
-- Pour un CTA type "RONALDO" : place-le dans la PREMIÈRE MOITIÉ du script (entre la 2ème phrase et la phrase à ~45% du script), juste avant une escalade ou une petite révélation qui va donner envie de continuer
-- Pour un CTA type "TIKTOK" : place-le dans les 75-90% du script (jamais la dernière phrase), après un moment fort et avant une résolution ou un dernier rebondissement
+- Pour un CTA type "RONALDO" : l'index retourné doit être entre 25% et 45% du nombre total de phrases, JAMAIS avant. Pour un script de 24 phrases, ça veut dire entre la phrase 6 et la phrase 11 minimum — PAS la phrase 5 ou avant.
+- Calcule d'abord: minIndex = Math.ceil(totalSentences * 0.25), maxIndex = Math.floor(totalSentences * 0.45)
+- Ton index retourné DOIT être compris entre minIndex et maxIndex inclus
+- Pour un CTA type "TIKTOK" : entre 75% et 90% du script
+- Ne retourne JAMAIS un index en dehors de ces bornes, peu importe où tu penses qu'un "bon moment narratif" se trouve
 
 Retourne UNIQUEMENT un JSON: {"insertAfterSentenceIndex": <int>} où l'index est celui de la phrase APRÈS laquelle insérer le CTA (0-indexed).`;
 

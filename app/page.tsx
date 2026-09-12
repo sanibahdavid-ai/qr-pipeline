@@ -72,14 +72,19 @@ function splitSentences(text: string): string[] {
 }
 
 // Calls Claude to find the narratively best placement for the CTA, with a
-// local fallback (30% for Ronaldo, 80% for TikTok) if the API call fails.
+// local fallback (25-45% of sentences for Ronaldo, 75-90% for TikTok) if the API call fails.
 async function placeCta(script: string, lang: string, ctaType: "ronaldo" | "tiktok"): Promise<string> {
   const ctaText = (ctaType === "ronaldo" ? RONALDO_CTA_TEXTS : TIKTOK_CTA_TEXTS)[lang];
   if (!ctaText || !script.trim()) return script;
   const sentences = splitSentences(script);
   if (sentences.length < 3) return `${script.trim()} ${ctaText}`;
 
-  const fallback = () => Math.round(sentences.length * (ctaType === "ronaldo" ? 0.3 : 0.8)) - 1;
+  const fallback = () => {
+    const [lo, hi] = ctaType === "ronaldo" ? [0.25, 0.45] : [0.75, 0.9];
+    const minIndex = Math.ceil(sentences.length * lo);
+    const maxIndex = Math.floor(sentences.length * hi);
+    return Math.round((minIndex + maxIndex) / 2) - 1;
+  };
 
   let index: number;
   try {
