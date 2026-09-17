@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
+// MIGRATED TO GEMINI — was: import Anthropic from "@anthropic-ai/sdk";
+import { geminiStream } from "@/lib/gemini-client";
 
 export const runtime = "edge";
 
@@ -18,15 +19,10 @@ export async function POST(req: NextRequest) {
     return new Response(JSON.stringify({ error: "Paramètres manquants" }), { status: 400 });
   }
 
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  // MIGRATED TO GEMINI — was: new Anthropic + client.messages.stream
   const langName = LANG_NAMES[lang] ?? lang;
 
-  const stream = await client.messages.stream({
-    model: "claude-sonnet-4-6",
-    max_tokens: 1024,
-    messages: [{
-      role: "user",
-      content: `Voici un script en ${langName} qui ne respecte pas toutes les règles de qualité.
+  const userContent = `Voici un script en ${langName} qui ne respecte pas toutes les règles de qualité.
 
 Script à corriger :
 ${script}
@@ -40,21 +36,9 @@ Règles ABSOLUES à respecter :
 4. Conserver les connecteurs narratifs naturels en ${langName} (mais alors, pourtant, voilà ce qui se passe, et là)
 5. Aucun mot banni : incroyable, dingue, fou, amazing, insane, unbelievable, incredible, wahnsinnig, unglaublich, increíble, locura, impresionante
 
-Retourne UNIQUEMENT le script corrigé, sans titre, sans commentaire, sans explication.`,
-    }],
-  });
+Retourne UNIQUEMENT le script corrigé, sans titre, sans commentaire, sans explication.`;
 
-  const readable = new ReadableStream({
-    async start(controller) {
-      const encoder = new TextEncoder();
-      for await (const chunk of stream) {
-        if (chunk.type === "content_block_delta" && chunk.delta.type === "text_delta") {
-          controller.enqueue(encoder.encode(chunk.delta.text));
-        }
-      }
-      controller.close();
-    },
-  });
+  const readable = await geminiStream("", userContent, 1024);
 
   return new Response(readable, {
     headers: { "Content-Type": "text/plain; charset=utf-8" },

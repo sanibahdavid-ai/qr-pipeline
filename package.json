@@ -12,6 +12,7 @@
     "@anthropic-ai/sdk": "^0.40.0",
     "@elevenlabs/elevenlabs-js": "^2.45.0",
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
+    "@google/genai": "^2.22.0",
     "@supabase/auth-helpers-nextjs": "^0.15.0",
     "@supabase/supabase-js": "^2.106.2",
     "clsx": "^2.1.1",

@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
+// MIGRATED TO GEMINI — was: import Anthropic from "@anthropic-ai/sdk";
+import { geminiStream } from "@/lib/gemini-client";
 
 export const runtime = "edge";
 
@@ -41,15 +42,10 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  // MIGRATED TO GEMINI — was: new Anthropic + client.messages.stream
   const langName = LANG_NAMES[language] ?? language;
 
-  const stream = await client.messages.stream({
-    model: "claude-sonnet-4-6",
-    max_tokens: 2048,
-    messages: [{
-      role: "user",
-      content: `Voici un script en ${langName} au format QR (Quad Remix). Réécris-le pour qu'il dure exactement ${durationLabel} à voix haute à 130 mots par minute (environ ${targetWords} mots).
+  const userContent = `Voici un script en ${langName} au format QR (Quad Remix). Réécris-le pour qu'il dure exactement ${durationLabel} à voix haute à 130 mots par minute (environ ${targetWords} mots).
 
 Règles absolues :
 - Conserve les connecteurs de tension narrative naturels en ${langName} (mais alors, pourtant, voilà ce qui se passe, et là, et leurs équivalents)
@@ -59,21 +55,9 @@ Règles absolues :
 - Retourne uniquement le script réécrit, sans titre, sans commentaire, sans explication
 
 Script original :
-${text}`,
-    }],
-  });
+${text}`;
 
-  const readable = new ReadableStream({
-    async start(controller) {
-      const encoder = new TextEncoder();
-      for await (const chunk of stream) {
-        if (chunk.type === "content_block_delta" && chunk.delta.type === "text_delta") {
-          controller.enqueue(encoder.encode(chunk.delta.text));
-        }
-      }
-      controller.close();
-    },
-  });
+  const readable = await geminiStream("", userContent, 2048);
 
   return new Response(readable, {
     headers: { "Content-Type": "text/plain; charset=utf-8" },

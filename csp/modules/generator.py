@@ -38,7 +38,8 @@ from modules.common import (
 )
 from modules.history import is_duplicate, list_history, mark_done
 
-MODEL = "claude-sonnet-5"
+# MIGRATED TO GEMINI — was: MODEL = "claude-sonnet-5"
+MODEL = "gemini-3.1-pro-preview"
 LENGTH_TOLERANCE = 500
 MAX_LENGTH_ATTEMPTS = 4
 
@@ -71,16 +72,15 @@ class DuplicateSubjectError(Exception):
 
 
 def _client():
-    import anthropic
+    # MIGRATED TO GEMINI — was: import anthropic; return anthropic.Anthropic(api_key=...)
+    from google import genai
 
-    return anthropic.Anthropic(api_key=get_env("ANTHROPIC_API_KEY", required=True))
+    return genai.Client(api_key=get_env("GEMINI_API_KEY", required=True))
 
 
 def _response_text(resp) -> str:
-    for block in resp.content:
-        if getattr(block, "type", None) == "text":
-            return block.text
-    raise RuntimeError("Réponse Claude sans bloc texte (uniquement thinking/tool_use ?)")
+    # MIGRATED TO GEMINI — was: iterate resp.content blocks for text type
+    return resp.text or ""
 
 
 def _extract_json(raw_text: str) -> dict:
@@ -133,10 +133,11 @@ Réponds UNIQUEMENT avec un objet JSON valide :
 {{"topics": [{{"subject": "sujet en une phrase, factuel et concret", "why_now": "pourquoi ce sujet est pertinent maintenant, 1 phrase"}}, ...]}}
 """
     try:
-        log_step("GENERATE", f"Proposition de {n} sujets (appel Claude)...")
-        PIPELINE_STATE["step"] = "claude"
+        log_step("GENERATE", f"Proposition de {n} sujets (appel Gemini)...")
+        PIPELINE_STATE["step"] = "gemini"
         client = _client()
-        resp = client.messages.create(model=MODEL, max_tokens=4000, messages=[{"role": "user", "content": prompt}])
+        # MIGRATED TO GEMINI — was: client.messages.create(model=MODEL, max_tokens=4000, messages=[...])
+        resp = client.models.generate_content(model=MODEL, contents=prompt, config={"max_output_tokens": 4000})
         data = _extract_json(_response_text(resp))
         topics = data.get("topics", [])
 
@@ -269,7 +270,8 @@ Script actuel :
 
 Réponds UNIQUEMENT avec le texte complet du script (accroche + développement étendu + chute),
 pas de JSON, pas de commentaire, pas de guillemets englobants, pas de titre."""
-        resp = client.messages.create(model=MODEL, max_tokens=12000, messages=[{"role": "user", "content": prompt}])
+        # MIGRATED TO GEMINI — was: client.messages.create(model=MODEL, max_tokens=12000, messages=[...])
+        resp = client.models.generate_content(model=MODEL, contents=prompt, config={"max_output_tokens": 12000})
         script_body = _response_text(resp).strip()
         PIPELINE_STATE["step"] = "length_check"
 
@@ -313,7 +315,8 @@ def generate_deliverables(subject: str, why_now: str = "", force: bool = False) 
         log_step("GENERATE", f"Génération du script pour : {subject[:70]}")
         PIPELINE_STATE["step"] = "script"
         prompt = build_generation_prompt(subject, why_now, pattern, pattern_md)
-        resp = client.messages.create(model=MODEL, max_tokens=16000, messages=[{"role": "user", "content": prompt}])
+        # MIGRATED TO GEMINI — was: client.messages.create(model=MODEL, max_tokens=16000, messages=[...])
+        resp = client.models.generate_content(model=MODEL, contents=prompt, config={"max_output_tokens": 16000})
         data = _extract_json(_response_text(resp))
 
         script_body, attempts, length_ok = enforce_length(client, data["script_body"], target_min, target_max)

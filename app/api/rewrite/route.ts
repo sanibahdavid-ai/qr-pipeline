@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
+// MIGRATED TO GEMINI — was: import Anthropic from "@anthropic-ai/sdk";
+import { geminiStream } from "@/lib/gemini-client";
 
 export const runtime = "edge";
 
@@ -183,16 +184,10 @@ export async function POST(req: NextRequest) {
 
   const userContent = durationInstruction + transcript;
 
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-  let stream: Awaited<ReturnType<typeof client.messages.stream>>;
+  // MIGRATED TO GEMINI — was: new Anthropic + client.messages.stream
+  let readable: ReadableStream<Uint8Array>;
   try {
-    stream = await client.messages.stream({
-      model: "claude-sonnet-4-6",
-      max_tokens: 10000,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userContent }],
-    });
+    readable = await geminiStream(SYSTEM_PROMPT, userContent, 10000);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     return new Response(JSON.stringify({ error: msg }), {
@@ -200,23 +195,6 @@ export async function POST(req: NextRequest) {
       headers: { "Content-Type": "application/json" },
     });
   }
-
-  const readable = new ReadableStream<Uint8Array>({
-    async start(controller) {
-      const encoder = new TextEncoder();
-      try {
-        for await (const chunk of stream) {
-          if (chunk.type === "content_block_delta" && chunk.delta.type === "text_delta") {
-            controller.enqueue(encoder.encode(chunk.delta.text));
-          }
-        }
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        controller.enqueue(encoder.encode(`\n[ERROR] ${msg}`));
-      }
-      controller.close();
-    },
-  });
 
   return new Response(readable, {
     headers: { "Content-Type": "text/plain; charset=utf-8" },

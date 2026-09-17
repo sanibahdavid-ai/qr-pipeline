@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
+// MIGRATED TO GEMINI — was: import Anthropic from "@anthropic-ai/sdk";
+import { geminiCreateJson } from "@/lib/gemini-client";
 
 export const runtime = "edge";
 
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
   };
   const scripts = stripCtas(rawScripts);
 
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  // MIGRATED TO GEMINI — was: new Anthropic({ apiKey }) + client.messages.create with claude-haiku-4-5
 
   const prompt = `You are a quality control expert for viral short-form video scripts. Score each script (FR, EN, DE, ES) against the original transcript.
 
@@ -88,16 +89,7 @@ Respond ONLY with valid JSON, no markdown, no extra text:
 For feedback: set to null if score >= 80, otherwise write a short specific correction (max 60 chars).`;
 
   try {
-    const response = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 512,
-      messages: [{ role: "user", content: prompt }],
-    });
-
-    const text = response.content[0].type === "text" ? response.content[0].text : "";
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("No JSON in response");
-    const result = JSON.parse(jsonMatch[0]);
+    const result = await geminiCreateJson("", prompt, 512);
     return new Response(JSON.stringify(result), {
       headers: { "Content-Type": "application/json" },
     });

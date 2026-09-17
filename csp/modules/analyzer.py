@@ -43,20 +43,20 @@ from modules.common import (
     write_json,
 )
 
-MODEL = "claude-sonnet-5"
+# MIGRATED TO GEMINI — was: MODEL = "claude-sonnet-5"
+MODEL = "gemini-3.1-pro-preview"
 
 
 def _client():
-    import anthropic
+    # MIGRATED TO GEMINI — was: import anthropic; return anthropic.Anthropic(api_key=...)
+    from google import genai
 
-    return anthropic.Anthropic(api_key=get_env("ANTHROPIC_API_KEY", required=True))
+    return genai.Client(api_key=get_env("GEMINI_API_KEY", required=True))
 
 
 def _response_text(resp) -> str:
-    for block in resp.content:
-        if getattr(block, "type", None) == "text":
-            return block.text
-    raise RuntimeError("Réponse Claude sans bloc texte (uniquement thinking/tool_use ?)")
+    # MIGRATED TO GEMINI — was: iterate resp.content blocks for text type
+    return resp.text or ""
 
 
 def _extract_json(raw_text: str) -> dict:
@@ -137,17 +137,21 @@ def analyze_video(slug: str, video_id: str, force: bool = False) -> dict:
     image_block = None
     if thumb_path.exists():
         b64 = base64.standard_b64encode(thumb_path.read_bytes()).decode("ascii")
-        image_block = {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": b64}}
+        # MIGRATED TO GEMINI — was: Anthropic image block format
+        from google.genai import types as genai_types
+        image_block = genai_types.Part.from_bytes(data=base64.b64decode(b64), mime_type="image/jpeg")
 
     content = []
     if image_block:
         content.append(image_block)
-    content.append({"type": "text", "text": build_video_prompt(meta, transcript)})
+    content.append(build_video_prompt(meta, transcript))
 
-    log_step("ANALYZE", f"{slug} video {video_id} — appel Claude...")
+    log_step("ANALYZE", f"{slug} video {video_id} — appel Gemini...")
     client = _client()
-    resp = client.messages.create(
-        model=MODEL, max_tokens=3000, messages=[{"role": "user", "content": content}]
+    # MIGRATED TO GEMINI — was: client.messages.create(model=MODEL, max_tokens=3000, messages=[...])
+    resp = client.models.generate_content(
+        model=MODEL, contents=content,
+        config={"max_output_tokens": 3000}
     )
     analysis = _extract_json(_response_text(resp))
 
@@ -287,7 +291,11 @@ Rédige une synthèse structurelle de la chaîne au format markdown, avec ces se
 Si une seule vidéo est disponible, dis-le explicitement en introduction (échantillon limité)
 plutôt que de généraliser abusivement.
 """
-    resp = client.messages.create(model=MODEL, max_tokens=3000, messages=[{"role": "user", "content": prompt}])
+    # MIGRATED TO GEMINI — was: client.messages.create(model=MODEL, max_tokens=3000, messages=[...])
+    resp = client.models.generate_content(
+        model=MODEL, contents=prompt,
+        config={"max_output_tokens": 3000}
+    )
     synthesis_md = _response_text(resp)
 
     channel_json = {
@@ -381,7 +389,11 @@ Rédige un pattern consolidé au format markdown, avec ces sections :
 Rappel : ce pattern sert à générer du contenu 100% ORIGINAL (recherche propre, pas de
 reformulation d'un script concurrent précis) qui suit la même structure/style, pas une copie.
 """
-    resp = client.messages.create(model=MODEL, max_tokens=3000, messages=[{"role": "user", "content": prompt}])
+    # MIGRATED TO GEMINI — was: client.messages.create(model=MODEL, max_tokens=3000, messages=[...])
+    resp = client.models.generate_content(
+        model=MODEL, contents=prompt,
+        config={"max_output_tokens": 3000}
+    )
     pattern_md = _response_text(resp)
 
     pattern_json = {
