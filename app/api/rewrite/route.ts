@@ -187,7 +187,7 @@ export async function POST(req: NextRequest) {
   // MIGRATED TO GEMINI — was: new Anthropic + client.messages.stream
   let readable: ReadableStream<Uint8Array>;
   try {
-    readable = await geminiStream(SYSTEM_PROMPT, userContent, 10000);
+    readable = await geminiStream(SYSTEM_PROMPT, userContent, 10000, "gemini-3.1-pro-preview");
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     return new Response(JSON.stringify({ error: msg }), {
