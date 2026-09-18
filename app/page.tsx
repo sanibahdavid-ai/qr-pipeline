@@ -652,12 +652,26 @@ export default function Home() {
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let accumulated = "";
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      accumulated += decoder.decode(value, { stream: true });
-      setQrText(accumulated);
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        accumulated += decoder.decode(value, { stream: true });
+        setQrText(accumulated);
+      }
+    } catch (err) {
+      console.error("Rewrite stream interrupted:", err);
+      setError("La réécriture a été interrompue (connexion perdue avec le modèle). Réessaie.");
+      setStep("idle");
+      return;
     }
+
+    if (!accumulated.includes("SCRIPT FR")) {
+      setError("La réécriture a échoué (réponse incomplète du modèle). Réessaie.");
+      setStep("idle");
+      return;
+    }
+
     setStep("done");
     const parsed = parseQR(accumulated);
     void runHealthCheck(
@@ -1024,6 +1038,39 @@ export default function Home() {
     );
   }
 
+  // Invité : accès bloqué pour préserver le quota Gemini (free tier très limité)
+  if (pinRole === "GUEST") {
+    return (
+      <div className="min-h-screen bg-[#060a12] text-[#e0eef8] flex items-center justify-center">
+        <div className="bg-[#0d1420] border border-[#1a2942] p-8 w-[380px] shadow-2xl text-center" style={{ borderRadius: "8px" }}>
+          <div className="h-[2px] w-full mb-6" style={{ background: "linear-gradient(90deg, #00b4ff, #ff3cac)" }} />
+          <h2
+            className="text-[18px] font-bold tracking-tight mb-3"
+            style={{
+              fontFamily: "var(--font-syne)",
+              background: "linear-gradient(135deg, #00b4ff, #ff3cac)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+            }}
+          >
+            MAINTENANCE
+          </h2>
+          <p className="text-[13px] text-[#8aa4c0] mb-6 leading-relaxed">
+            L&apos;outil est temporairement indisponible pour les invités. Réessaie plus tard.
+          </p>
+          <button
+            onClick={handlePinLogout}
+            className="w-full py-2.5 bg-[#13233a] border border-[#1a2942] text-[#8aa4c0] font-mono text-[12px] hover:bg-[#1a2942] transition-colors"
+            style={{ borderRadius: "4px" }}
+          >
+            Retour
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#060a12] text-[#e0eef8] relative z-[1]">
       <Header
@@ -1172,24 +1219,20 @@ export default function Home() {
               >
                 Sans CTA
               </button>
-              {pinRole !== "GUEST" && (
-                <>
-                  <button
-                    onClick={() => chooseCta("ronaldo")}
-                    className="px-3 py-1.5 text-[11px] font-mono border border-[#1a2942] text-[#7a9ac2] hover:border-[#00b4ff] hover:text-[#00b4ff] transition-none"
-                    style={{ borderRadius: "4px" }}
-                  >
-                    CTA Ronaldo
-                  </button>
-                  <button
-                    onClick={() => chooseCta("tiktok")}
-                    className="px-3 py-1.5 text-[11px] font-mono border border-[#1a2942] text-[#7a9ac2] hover:border-[#00b4ff] hover:text-[#00b4ff] transition-none"
-                    style={{ borderRadius: "4px" }}
-                  >
-                    CTA TikTok Follow
-                  </button>
-                </>
-              )}
+              <button
+                onClick={() => chooseCta("ronaldo")}
+                className="px-3 py-1.5 text-[11px] font-mono border border-[#1a2942] text-[#7a9ac2] hover:border-[#00b4ff] hover:text-[#00b4ff] transition-none"
+                style={{ borderRadius: "4px" }}
+              >
+                CTA Ronaldo
+              </button>
+              <button
+                onClick={() => chooseCta("tiktok")}
+                className="px-3 py-1.5 text-[11px] font-mono border border-[#1a2942] text-[#7a9ac2] hover:border-[#00b4ff] hover:text-[#00b4ff] transition-none"
+                style={{ borderRadius: "4px" }}
+              >
+                CTA TikTok Follow
+              </button>
             </div>
           </div>
         )}
@@ -1197,13 +1240,30 @@ export default function Home() {
         {/* Rewriting — streaming preview + skeleton cards */}
         {step === "rewriting" && (
           <div className="space-y-6">
-            <div className="bg-[#0d1420] border border-[#1a2942] p-4 space-y-2" style={{ borderRadius: "4px" }}>
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-[#F59E0B] animate-pulse" />
-                <span className="text-[10px] font-mono text-[#4a6a8a] tracking-widest uppercase">Réécriture en cours…</span>
-              </div>
+            <div className="bg-[#0d1420] border border-[#1a2942] p-4 space-y-3" style={{ borderRadius: "4px" }}>
+              {(() => {
+                const sectionCount = (qrText.match(/SECTION \d+/g) || []).length;
+                const progress = Math.min(100, Math.round((sectionCount / 13) * 100));
+                return (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-[#F59E0B] animate-pulse" />
+                        <span className="text-[10px] font-mono text-[#4a6a8a] tracking-widest uppercase">Réécriture en cours…</span>
+                      </div>
+                      <span className="text-[10px] font-mono text-[#00b4ff] font-bold">{progress}%</span>
+                    </div>
+                    <div className="w-full bg-[#13233a] h-1.5 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-[#00b4ff] transition-all duration-300 ease-out"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                  </>
+                );
+              })()}
               {qrText && (
-                <p className="text-[12px] font-mono text-[#7a9ac2] whitespace-pre-wrap leading-relaxed line-clamp-6">
+                <p className="text-[12px] font-mono text-[#7a9ac2] whitespace-pre-wrap leading-relaxed line-clamp-6 pt-2 border-t border-[#1a2942] mt-3">
                   {qrText}
                 </p>
               )}
