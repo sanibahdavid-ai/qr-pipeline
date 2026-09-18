@@ -236,22 +236,21 @@ export default function Home() {
       if (data.user) {
         setUser(data.user as AuthUser);
         const storedRole = localStorage.getItem("dav_pin_role") as UserRole | null;
-        if (!storedRole) setShowPinModal(true);
-        else loadCloudHistory(data.user.id, storedRole);
+        if (storedRole) loadCloudHistory(data.user.id, storedRole);
       }
-    });
+    }).catch(() => {}); // Supabase being unreachable must not break the app
+    // PIN access and Supabase sign-in are independent: Supabase only backs the
+    // optional cloud history. Losing a Supabase session (expired token, network,
+    // never signed in) must never revoke the PIN and bounce the user to the
+    // login screen mid-generation.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       const u = session?.user ?? null;
       setUser(u as AuthUser | null);
       if (u) {
         const storedRole = localStorage.getItem("dav_pin_role") as UserRole | null;
-        if (!storedRole) setShowPinModal(true);
-        else loadCloudHistory(u.id, storedRole);
-      }
-      else {
+        if (storedRole) loadCloudHistory(u.id, storedRole);
+      } else {
         setCloudHistory([]);
-        setPinRole(null);
-        localStorage.removeItem("dav_pin_role");
       }
     });
     return () => subscription.unsubscribe();
