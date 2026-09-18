@@ -693,12 +693,16 @@ export default function Home() {
       return;
     }
 
-    if (!accumulated.includes("SCRIPT FR")) {
+    const hasAllScripts = accumulated.includes("SCRIPT FR") &&
+      accumulated.includes("SCRIPT EN") &&
+      accumulated.includes("SCRIPT DE") &&
+      accumulated.includes("SCRIPT ES");
+    if (!hasAllScripts) {
       if (attempt < 3) {
-        await new Promise(r => setTimeout(r, 1500));
+        await new Promise(r => setTimeout(r, 2000 * attempt));
         return handleRewrite(text, title, ctaChoice, attempt + 1);
       }
-      setError("Réponse incomplète du modèle. Réessaie.");
+      setError("Réponse incomplète du modèle (scripts manquants). Réessaie.");
       setStep("idle");
       return;
     }

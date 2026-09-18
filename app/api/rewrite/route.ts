@@ -159,6 +159,26 @@ RAPPEL FINAL :
 Vérifier les règles avant chaque génération. Ne jamais écrêter d'éléments. La réécriture doit avoir la même durée approximative que l'original. Le script est l'âme de la vidéo.`;
 
 
+// Generic TikTok/Ronaldo CTAs that must be stripped before sending to Gemini
+// to prevent the model from including them in output or stopping mid-generation.
+const CTA_PATTERNS = [
+  /By the way,? did you know (?:that )?Cristiano smiles? when you tap (?:the )?(?:plus|the plus) button\??/gi,
+  /En passant,? savais-tu que Cristiano sourit quand tu tapes? (?:sur )?le bouton plus\s*\??/gi,
+  /Übrigens,? wusstest du,? dass Cristiano lächelt,? wenn du auf Plus tippst\??/gi,
+  /Por cierto,? ¿?sabías que Cristiano sonríe cuando tocas el botón plus\??/gi,
+  /did you know your keyboard[^.?!]*/gi,
+  /savais-tu que ton clavier[^.?!]*/gi,
+  /type\s+\w+\s+and let it finish[^.?!]*/gi,
+];
+
+function stripCtasFromTranscript(text: string): string {
+  let clean = text;
+  for (const pattern of CTA_PATTERNS) {
+    clean = clean.replace(pattern, "");
+  }
+  return clean.replace(/\s{2,}/g, " ").trim();
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body?.text) {
@@ -168,18 +188,18 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const transcript: string = body.text;
+  const rawTranscript: string = body.text;
+  const transcript = stripCtasFromTranscript(rawTranscript);
   const targetSeconds: number | "original" = body.targetSeconds ?? "original";
 
-  const transcriptChars = transcript.trim().length;
-
-  const targetChars =
+  const transcriptWords = transcript.trim().split(/\s+/).filter(Boolean).length;
+  const targetWords =
     targetSeconds === "original"
-      ? transcriptChars
-      : Math.round(targetSeconds * 22);
+      ? transcriptWords
+      : Math.round(targetSeconds * 2.5); // ~150 wpm ÷ 60
 
   const durationInstruction =
-    `[INSTRUCTION DURÉE] The script must be exactly ${targetChars} characters long (spaces included). Count carefully.\n\n`;
+    `[INSTRUCTION DURÉE] Le transcript source fait ${transcriptWords} mots. Chaque script réécrit doit faire approximativement ${targetWords} mots (tolérance ±10%). Ne jamais écrêter d'éléments narratifs.\n\n`;
 
   const userContent = durationInstruction + transcript;
 
