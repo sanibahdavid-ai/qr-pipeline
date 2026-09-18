@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 // MIGRATED TO GEMINI — was: import Anthropic from "@anthropic-ai/sdk";
-import { geminiCreate } from "@/lib/gemini-client";
 
 type Platform = "youtube" | "tiktok" | "instagram";
 
@@ -300,27 +299,8 @@ export async function POST(req: NextRequest) {
             : "Vidéo YouTube";
     }
 
-    // Restore punctuation via Claude
-    // MIGRATED TO GEMINI — was: Anthropic claude-sonnet-4-6 punctuation restoration
-    let punctuated = content;
-    try {
-      const maxTokens = Math.min(Math.ceil(content.length / 2) + 200, 4096);
-      const result = await geminiCreate(
-        "",
-        `Add proper punctuation (periods, commas, question marks, exclamation marks) to this transcript without changing any words. Return only the punctuated text, no commentary.\n\n${content}`,
-        maxTokens
-      );
-      const out = result.text.trim();
-      if (out) {
-        punctuated = out;
-        console.log("[transcript] punctuation restored, chars:", punctuated.length);
-      }
-    } catch (e) {
-      console.warn("[transcript] punctuation step failed, using raw:", (e as Error).message);
-    }
-
-    console.log("[transcript] success — title:", title, "chars:", punctuated.length, "lang:", lang);
-    return NextResponse.json({ text: punctuated, title, platform, lang });
+    console.log("[transcript] success — title:", title, "chars:", content.length, "lang:", lang);
+    return NextResponse.json({ text: content, title, platform, lang });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[transcript] all tiers failed:", msg);
