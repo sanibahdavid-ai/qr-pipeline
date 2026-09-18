@@ -4,6 +4,25 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const DEFAULT_MODEL = "gemini-3.6-flash";
 
+const RETRYABLE_STATUS = new Set([429, 503]);
+
+async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
+  let lastError: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      const status = (error as { status?: number })?.status;
+      if (!RETRYABLE_STATUS.has(status as number) || i === attempts - 1) {
+        throw error;
+      }
+      await new Promise((r) => setTimeout(r, 1000 * 2 ** i));
+    }
+  }
+  throw lastError;
+}
+
 export async function geminiStream(
   systemPrompt: string,
   userContent: string,
@@ -28,11 +47,13 @@ export async function geminiStream(
   }
   parts.push({ text: userContent });
 
-  const responseStream = await ai.models.generateContentStream({
-    model: model,
-    contents: parts,
-    config: config,
-  });
+  const responseStream = await withRetry(() =>
+    ai.models.generateContentStream({
+      model: model,
+      contents: parts,
+      config: config,
+    })
+  );
 
   return new ReadableStream({
     async start(controller) {
@@ -75,11 +96,13 @@ export async function geminiCreate(
   }
   parts.push({ text: userContent });
 
-  const response = await ai.models.generateContent({
-    model: model,
-    contents: parts,
-    config: config,
-  });
+  const response = await withRetry(() =>
+    ai.models.generateContent({
+      model: model,
+      contents: parts,
+      config: config,
+    })
+  );
 
   return { text: response.text || "" };
 }
@@ -96,11 +119,13 @@ export async function geminiCreateJson(
     responseMimeType: "application/json",
   };
 
-  const response = await ai.models.generateContent({
-    model: model,
-    contents: [{ text: userContent }],
-    config: config,
-  });
+  const response = await withRetry(() =>
+    ai.models.generateContent({
+      model: model,
+      contents: [{ text: userContent }],
+      config: config,
+    })
+  );
 
   try {
     return JSON.parse(response.text || "{}");

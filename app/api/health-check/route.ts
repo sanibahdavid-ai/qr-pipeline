@@ -2,8 +2,6 @@ import { NextRequest } from "next/server";
 // MIGRATED TO GEMINI — was: import Anthropic from "@anthropic-ai/sdk";
 import { geminiCreateJson } from "@/lib/gemini-client";
 
-export const runtime = "edge";
-
 // CTAs are client-inserted after the rewrite, not part of the model's output —
 // strip them before scoring so they don't affect fidelity/length/wording checks.
 const RONALDO_CTA_TEXTS: Record<string, string> = {

@@ -2,8 +2,6 @@ import { NextRequest } from "next/server";
 // MIGRATED TO GEMINI — was: import Anthropic from "@anthropic-ai/sdk";
 import { geminiCreateJson } from "@/lib/gemini-client";
 
-export const runtime = "edge";
-
 type CtaType = "ronaldo" | "tiktok";
 
 function splitSentences(text: string): string[] {

@@ -2,8 +2,6 @@ import { NextRequest } from "next/server";
 // MIGRATED TO GEMINI — was: import Anthropic from "@anthropic-ai/sdk";
 import { geminiStream } from "@/lib/gemini-client";
 
-export const runtime = "edge";
-
 const DURATION_WORDS: Record<string, number> = {
   "10s":    22,
   "15s":    32,

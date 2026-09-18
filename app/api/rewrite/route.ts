@@ -2,8 +2,6 @@ import { NextRequest } from "next/server";
 // MIGRATED TO GEMINI — was: import Anthropic from "@anthropic-ai/sdk";
 import { geminiStream } from "@/lib/gemini-client";
 
-export const runtime = "edge";
-
 const SYSTEM_PROMPT = `Tu es un moteur de réécriture multilingue pour contenu vidéo court viral.
 
 VÉRIFICATION OBLIGATOIRE AVANT CHAQUE GÉNÉRATION :
@@ -187,7 +185,7 @@ export async function POST(req: NextRequest) {
   // MIGRATED TO GEMINI — was: new Anthropic + client.messages.stream
   let readable: ReadableStream<Uint8Array>;
   try {
-    readable = await geminiStream(SYSTEM_PROMPT, userContent, 10000, "gemini-3.1-pro-preview");
+    readable = await geminiStream(SYSTEM_PROMPT, userContent, 10000);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     return new Response(JSON.stringify({ error: msg }), {
