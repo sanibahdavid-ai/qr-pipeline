@@ -536,7 +536,7 @@ export default function Home() {
     } catch { return { score: 0 }; }
   }
 
-  async function autoCorrect(lang: string, script: string, feedback: string, transcript: string, attempt: number) {
+  async function autoCorrect(lang: string, script: string, feedback: string, transcript: string, attempt: number, ctaChoice: CtaChoice) {
     if (attempt >= 2) {
       setCorrectingLangs((c) => { const n = { ...c }; delete n[lang]; return n; });
       return;
@@ -568,13 +568,20 @@ export default function Home() {
     setHealthScores((h) => ({ ...h, [lang]: newHealth }));
 
     if (newHealth.score < 80 && attempt < 1) {
-      await autoCorrect(lang, accumulated, newHealth.feedback ?? "", transcript, attempt + 1);
+      await autoCorrect(lang, accumulated, newHealth.feedback ?? "", transcript, attempt + 1, ctaChoice);
     } else {
+      // The corrected script replaces the override that applyCtaToScripts wrote,
+      // so put the CTA back — the corrector is deliberately fed the CTA-free
+      // script, and whichever of the two finishes last would otherwise win.
+      if (ctaChoice !== "none") {
+        const withCta = await placeCta(accumulated, lang, ctaChoice);
+        setOverrides((o) => ({ ...o, [section]: withCta }));
+      }
       setCorrectingLangs((c) => { const n = { ...c }; delete n[lang]; return n; });
     }
   }
 
-  async function runHealthCheck(scripts: Record<string, string>, transcript: string) {
+  async function runHealthCheck(scripts: Record<string, string>, transcript: string, ctaChoice: CtaChoice) {
     setHealthScores({});
     try {
       const res = await fetch("/api/health-check", {
@@ -596,7 +603,7 @@ export default function Home() {
         // Auto-correct any language scoring below 80
         for (const lang of ["FR", "EN", "DE", "ES"]) {
           if ((data.scores[lang] ?? 100) < 80 && scripts[lang]) {
-            void autoCorrect(lang, scripts[lang], data.feedback?.[lang] ?? "", transcript, 0);
+            void autoCorrect(lang, scripts[lang], data.feedback?.[lang] ?? "", transcript, 0, ctaChoice);
           }
         }
       }
@@ -715,7 +722,8 @@ export default function Home() {
         DE: parsed["SCRIPT DE"] ?? "",
         ES: parsed["SCRIPT ES"] ?? "",
       },
-      text
+      text,
+      ctaChoice
     );
     const finalTitle = title ?? videoTitle;
     if (finalTitle) {
