@@ -689,9 +689,11 @@ export default function Home() {
         setQrText(accumulated);
       }
     } catch (err) {
+      // An interrupted stream is always incomplete, however much arrived —
+      // partial output is never usable, so retry regardless of what we have.
       console.error("Rewrite stream interrupted:", err);
-      if (attempt < 3 && !accumulated.includes("SCRIPT FR")) {
-        await new Promise(r => setTimeout(r, 1500));
+      if (attempt < 3) {
+        await new Promise(r => setTimeout(r, 1500 * attempt));
         return handleRewrite(text, title, ctaChoice, attempt + 1);
       }
       setError("La réécriture a été interrompue. Réessaie.");
