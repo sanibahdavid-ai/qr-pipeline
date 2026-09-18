@@ -693,22 +693,22 @@ export default function Home() {
       return;
     }
 
-    const hasAllScripts = accumulated.includes("SCRIPT FR") &&
-      accumulated.includes("SCRIPT EN") &&
-      accumulated.includes("SCRIPT DE") &&
-      accumulated.includes("SCRIPT ES");
-    if (!hasAllScripts) {
+    // The model occasionally stops cleanly but short, leaving later sections
+    // empty. Validate against the same parse the UI renders from.
+    const parsed = parseQR(accumulated);
+    const missing = SECTIONS.filter((s) => !parsed[s]?.trim());
+    if (missing.length > 0) {
+      console.error("[rewrite] incomplete response, missing:", missing.join(", "));
       if (attempt < 3) {
         await new Promise(r => setTimeout(r, 2000 * attempt));
         return handleRewrite(text, title, ctaChoice, attempt + 1);
       }
-      setError("Réponse incomplète du modèle (scripts manquants). Réessaie.");
+      setError(`Réponse incomplète du modèle (${missing.length} sections manquantes). Réessaie.`);
       setStep("idle");
       return;
     }
 
     setStep("done");
-    const parsed = parseQR(accumulated);
     void runHealthCheck(
       {
         FR: parsed["SCRIPT FR"] ?? "",
