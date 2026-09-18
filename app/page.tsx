@@ -633,22 +633,40 @@ export default function Home() {
     );
   }
 
-  async function handleRewrite(text: string, title?: string, ctaChoice: CtaChoice = "none") {
+  async function handleRewrite(text: string, title?: string, ctaChoice: CtaChoice = "none", attempt = 1) {
     setStep("rewriting");
+    setError("");
     const targetSeconds = customSeconds !== null ? customSeconds : durationToSeconds(targetDuration);
 
-    const res = await fetch("/api/rewrite", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, targetSeconds }),
-    });
+    let res: Response;
+    try {
+      res = await fetch("/api/rewrite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, targetSeconds }),
+      });
+    } catch (networkErr) {
+      console.error("Rewrite network error:", networkErr);
+      if (attempt < 3) {
+        await new Promise(r => setTimeout(r, 1500));
+        return handleRewrite(text, title, ctaChoice, attempt + 1);
+      }
+      setError("Impossible de joindre le serveur. Vérifie ta connexion et réessaie.");
+      setStep("idle");
+      return;
+    }
 
     if (!res.ok || !res.body) {
-      let errMsg = "Erreur réécriture";
+      let errMsg = `Erreur réécriture (HTTP ${res.status})`;
       try {
         const errData = await res.json();
         errMsg = errData.error ?? errMsg;
       } catch {}
+      console.error("[rewrite] API error:", errMsg);
+      if (attempt < 3) {
+        await new Promise(r => setTimeout(r, 2000 * attempt));
+        return handleRewrite(text, title, ctaChoice, attempt + 1);
+      }
       setError(errMsg);
       setStep("idle");
       return;
@@ -666,13 +684,21 @@ export default function Home() {
       }
     } catch (err) {
       console.error("Rewrite stream interrupted:", err);
-      setError("La réécriture a été interrompue (connexion perdue avec le modèle). Réessaie.");
+      if (attempt < 3 && !accumulated.includes("SCRIPT FR")) {
+        await new Promise(r => setTimeout(r, 1500));
+        return handleRewrite(text, title, ctaChoice, attempt + 1);
+      }
+      setError("La réécriture a été interrompue. Réessaie.");
       setStep("idle");
       return;
     }
 
     if (!accumulated.includes("SCRIPT FR")) {
-      setError("La réécriture a échoué (réponse incomplète du modèle). Réessaie.");
+      if (attempt < 3) {
+        await new Promise(r => setTimeout(r, 1500));
+        return handleRewrite(text, title, ctaChoice, attempt + 1);
+      }
+      setError("Réponse incomplète du modèle. Réessaie.");
       setStep("idle");
       return;
     }
@@ -1165,6 +1191,16 @@ export default function Home() {
               onManualChange={setManualText}
               onManualSubmit={handleManualSubmit}
             />
+            {/* Retry button — shown when rewrite failed but transcript is available */}
+            {step === "idle" && error && transcriptText && (
+              <button
+                onClick={() => { setError(""); void handleRewrite(transcriptText, videoTitle, "none"); }}
+                className="text-[11px] font-mono px-3 py-1.5 border border-[#1a2942] text-[#00b4ff] hover:border-[#00b4ff] transition-none"
+                style={{ borderRadius: "2px" }}
+              >
+                ↺ Réessayer la réécriture
+              </button>
+            )}
             {step === "extracting" && (
               <p className="text-[12px] font-mono text-[#4a6a8a]">Extraction du transcript…</p>
             )}

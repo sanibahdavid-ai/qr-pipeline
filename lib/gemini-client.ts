@@ -50,7 +50,7 @@ export async function geminiStream(
   const responseStream = await withRetry(() =>
     ai.models.generateContentStream({
       model: model,
-      contents: parts,
+      contents: [{ role: "user", parts }],
       config: config,
     })
   );
@@ -99,7 +99,7 @@ export async function geminiCreate(
   const response = await withRetry(() =>
     ai.models.generateContent({
       model: model,
-      contents: parts,
+      contents: [{ role: "user", parts }],
       config: config,
     })
   );
