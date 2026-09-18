@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import { sanitizeStream } from "./sanitize-script";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -103,7 +104,7 @@ export async function geminiStream(
     return { stream: s, usedModel: m };
   }, model);
 
-  return new ReadableStream({
+  const raw = new ReadableStream<Uint8Array>({
     async start(controller) {
       let finishReason: string | undefined;
       let charCount = 0;
@@ -131,6 +132,8 @@ export async function geminiStream(
       }
     },
   });
+
+  return sanitizeStream(raw);
 }
 
 export async function geminiCreate(
