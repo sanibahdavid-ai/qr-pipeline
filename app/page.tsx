@@ -13,6 +13,7 @@ import { EDGE_TTS_VOICES } from "../lib/edge-tts-voices";
 import { GOOGLE_TTS_VOICES } from "../lib/google-tts-voices";
 import { GEMINI_STYLE_DEFAULT, GEMINI_PACE_DEFAULT, GEMINI_ACCENT_DEFAULT } from "../lib/gemini-tts-voices";
 import { sanitizeTitle, wordStats } from "../lib/format";
+import { RONALDO_CTA_TEXTS, TIKTOK_CTA_TEXTS, splitSentences, stripCtaSentences, dedupeCta } from "../lib/cta";
 import type { Provider, Section, AudioState, Step, HistoryEntry, AuthUser, UserRole } from "../types";
 import { SECTIONS } from "../types";
 import { supabase } from "../lib/supabase";
@@ -21,20 +22,6 @@ import { VOICE_CONFIG_STORAGE_KEY, type VoiceConfig } from "../hooks/useVoiceCon
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const SCRIPT_SECTIONS: Section[] = ["SCRIPT FR", "SCRIPT EN", "SCRIPT DE", "SCRIPT ES"];
-
-const RONALDO_CTA_TEXTS: Record<string, string> = {
-  FR: "En passant, savais-tu que Cristiano sourit quand tu tapes sur le bouton plus ?",
-  EN: "By the way, did you know Cristiano smiles when you tap the plus button?",
-  DE: "Übrigens, wusstest du, dass Cristiano lächelt, wenn du auf Plus tippst?",
-  ES: "Por cierto, ¿sabías que Cristiano sonríe cuando tocas el botón plus?",
-};
-
-const TIKTOK_CTA_TEXTS: Record<string, string> = {
-  FR: "Si tu es fan de ce genre d'histoires football, suis-nous dès maintenant, car TikTok risque de ne plus te montrer notre prochain chef-d'œuvre si tu ne le fais pas.",
-  EN: "If you're impressed by football stories like this one, follow us right now, because TikTok might not show you our next masterpiece if you don't.",
-  DE: "Wenn dir solche Fußball-Geschichten gefallen, folge uns jetzt, denn TikTok könnte dir unser nächstes Meisterwerk sonst nicht mehr zeigen.",
-  ES: "Si te gustan este tipo de historias del fútbol, síguenos ahora mismo, porque TikTok podría no mostrarte nuestra próxima obra maestra si no lo haces.",
-};
 
 type CtaChoice = "none" | "ronaldo" | "tiktok";
 
@@ -57,27 +44,17 @@ function filterKeywords(text: string): string {
     .join("\n");
 }
 
-function splitSentences(text: string): string[] {
-  const parts: string[] = [];
-  let pos = 0;
-  const re = /[.!?…]+\s*/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text)) !== null) {
-    const chunk = text.slice(pos, m.index + m[0].length).trim();
-    if (chunk) parts.push(chunk);
-    pos = m.index + m[0].length;
-  }
-  if (pos < text.length) { const tail = text.slice(pos).trim(); if (tail) parts.push(tail); }
-  return parts;
-}
-
 // Calls Claude to find the narratively best placement for the CTA, with a
 // local fallback (25-45% of sentences for Ronaldo, 75-90% for TikTok) if the API call fails.
-async function placeCta(script: string, lang: string, ctaType: "ronaldo" | "tiktok"): Promise<string> {
+// Idempotent: any CTA already in the script — one the model wrote itself, or
+// one carried in from an earlier pass (adjust feeds back the CTA'd text) — is
+// removed first, so exactly one is ever inserted.
+async function placeCta(rawScript: string, lang: string, ctaType: "ronaldo" | "tiktok"): Promise<string> {
   const ctaText = (ctaType === "ronaldo" ? RONALDO_CTA_TEXTS : TIKTOK_CTA_TEXTS)[lang];
+  const script = stripCtaSentences(rawScript);
   if (!ctaText || !script.trim()) return script;
   const sentences = splitSentences(script);
-  if (sentences.length < 3) return `${script.trim()} ${ctaText}`;
+  if (sentences.length < 3) return dedupeCta(`${script.trim()} ${ctaText}`);
 
   const fallback = () => {
     const [lo, hi] = ctaType === "ronaldo" ? [0.25, 0.45] : [0.75, 0.9];
@@ -102,7 +79,7 @@ async function placeCta(script: string, lang: string, ctaType: "ronaldo" | "tikt
   }
 
   const bounded = Math.max(1, Math.min(index, sentences.length - 2));
-  return [...sentences.slice(0, bounded + 1), ctaText, ...sentences.slice(bounded + 1)].join(" ");
+  return dedupeCta([...sentences.slice(0, bounded + 1), ctaText, ...sentences.slice(bounded + 1)].join(" "));
 }
 const ADJUST_DURATIONS = ["10s", "15s", "30s", "45s", "1min30", "2min"] as const;
 type AdjustDuration = (typeof ADJUST_DURATIONS)[number];
@@ -714,6 +691,27 @@ export default function Home() {
       setError(`Réponse incomplète du modèle (${missing.length} sections manquantes). Réessaie.`);
       setStep("idle");
       return;
+    }
+
+    // The model sometimes writes a CTA itself despite the prompt; the site is the
+    // only one allowed to insert them, so strip any from the raw scripts.
+    for (const section of SCRIPT_SECTIONS) {
+      const original = parsed[section];
+      if (!original) continue;
+      const cleaned = stripCtaSentences(original);
+      if (cleaned !== original) {
+        accumulated = accumulated.replace(original, cleaned);
+        parsed[section] = cleaned;
+      }
+    }
+    setQrText(accumulated);
+
+    const counts = SCRIPT_SECTIONS.map((s) => (parsed[s] ?? "").split(/\s+/).filter(Boolean).length);
+    const spread = (Math.max(...counts) - Math.min(...counts)) / Math.max(...counts);
+    if (spread > 0.2) {
+      console.warn(
+        `[rewrite] script lengths differ by ${Math.round(spread * 100)}% — FR/EN/DE/ES = ${counts.join("/")} words`
+      );
     }
 
     setStep("done");

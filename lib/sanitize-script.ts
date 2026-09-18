@@ -3,28 +3,42 @@
 // enforce them deterministically on the way out.
 
 // Replacements are picked to survive substitution blindly:
-// - FR/ES adjectives are invariable, so gender and number can't disagree
+// - each inflected form maps to the same inflection of its replacement
+//   (fous → formidables, unglaubliche → bemerkenswerte), so agreement holds
 // - EN replacements start with a vowel like the words they replace, so a
 //   preceding "an" stays correct
 // - "locura" is a feminine noun, so it needs a feminine noun back
 // - each banned word maps to a distinct term, so two in one sentence don't
 //   collapse into the same word twice
 const BANNED_WORDS: Record<string, string> = {
-  incroyable: "remarquable",
-  dingue: "spectaculaire",
-  fou: "formidable",
+  incroyable: "remarquable", incroyables: "remarquables",
+  dingue: "spectaculaire", dingues: "spectaculaires",
+  fou: "formidable", fous: "formidables", folle: "formidable", folles: "formidables",
   amazing: "outstanding",
   insane: "extraordinary",
   unbelievable: "astonishing",
   incredible: "exceptional",
-  wahnsinnig: "außergewöhnlich",
-  unglaublich: "bemerkenswert",
-  increíble: "excepcional",
-  locura: "hazaña",
-  impresionante: "formidable",
+  increíble: "excepcional", increíbles: "excepcionales",
+  impresionante: "formidable", impresionantes: "formidables",
+  locura: "hazaña", locuras: "hazañas",
 };
 
-const BANNED_RE = new RegExp(`\\b(${Object.keys(BANNED_WORDS).join("|")})\\b`, "gi");
+// German adjectives take an ending (unglaubliche, wahnsinnigen…); keep it.
+const BANNED_STEMS: Record<string, string> = {
+  unglaublich: "bemerkenswert",
+  wahnsinnig: "außergewöhnlich",
+};
+
+// \b only knows ASCII, so "increíbles" would slip past it; use Unicode letter
+// lookarounds instead. "fou rire" is an idiom, not the intensifier.
+const BANNED_RE = new RegExp(
+  `(?<!\\p{L})(${Object.keys(BANNED_WORDS).join("|")})(?!\\p{L})(?!\\s+rires?(?!\\p{L}))`,
+  "giu"
+);
+const BANNED_STEM_RE = new RegExp(
+  `(?<!\\p{L})(${Object.keys(BANNED_STEMS).join("|")})(e[mnrs]?)?(?!\\p{L})`,
+  "giu"
+);
 
 function matchCase(replacement: string, original: string): string {
   if (original === original.toUpperCase() && original.length > 1) return replacement.toUpperCase();
@@ -43,7 +57,13 @@ export function sanitizeScript(text: string): string {
     .replace(/[—–]/g, ", ")
     .replace(/\s+,/g, ",")
     .replace(/,{2,}/g, ",")
-    .replace(BANNED_RE, (m) => matchCase(BANNED_WORDS[m.toLowerCase()], m));
+    .replace(BANNED_RE, (m) => matchCase(BANNED_WORDS[m.toLowerCase()], m))
+    .replace(BANNED_STEM_RE, (m, stem: string, ending = "") =>
+      matchCase(BANNED_STEMS[stem.toLowerCase()] + ending, m))
+    // Drop the invisible U+FE0F only after emoji that already render in colour
+    // without it (⚽️ → ⚽). Characters like ❤ need it, or they fall back to a
+    // monochrome text glyph on many platforms.
+    .replace(/(\p{Emoji_Presentation})️/gu, "$1");
 }
 
 // Longest banned word + padding, so a term never straddles two emitted chunks.

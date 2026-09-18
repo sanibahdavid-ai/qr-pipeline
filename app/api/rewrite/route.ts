@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 // MIGRATED TO GEMINI — was: import Anthropic from "@anthropic-ai/sdk";
 import { geminiStream } from "@/lib/gemini-client";
+import { stripCtaSentences } from "@/lib/cta";
 
 const SYSTEM_PROMPT = `Tu es un moteur de réécriture multilingue pour contenu vidéo court viral. Voici tes règles absolues :
 
@@ -41,6 +42,9 @@ Chaque conséquence doit être explicable par sa cause directe. Si la source con
 
 DISTINCTION ENGAGEMENT HOOK :
 Certaines phrases de fin de script invitent à commenter ou s'abonner et sont directement liées au contenu spécifique de la vidéo (ex: "seulement 1% le savent, écris la réponse en commentaire"). Ces phrases doivent être conservées et réécrites normalement, elles font partie du script.
+
+**INTERDICTION ABSOLUE D'INVENTION : tu ne dois JAMAIS ajouter une phrase, une idée, ou un fait qui n'existe pas dans le script source. Si tu ajoutes du contenu narratif inventé pour "enrichir" le texte, c'est une ERREUR GRAVE qui invalide toute la génération. Chaque phrase de ta réécriture doit correspondre à un élément réellement présent dans la source, juste reformulé différemment.**
+Cela vaut aussi pour les phrases de transition ("et c'est là que ça devient intéressant") et les conclusions ("au final, l'IA a encore beaucoup à apprendre") : si la source ne les contient pas, elles sont interdites. Les 4 langues doivent contenir exactement les mêmes éléments narratifs, aucune langue ne peut en avoir un de plus.
 
 RÈGLES ABSOLUES :
 - Zéro tiret comme ponctuation (ni - ni — ni –)
@@ -116,6 +120,13 @@ RÈGLES KEYWORDS (SECTION 5) :
 
 RÈGLES TITRES :
 - Les 4 titres courts (sections 6 à 9) ne sont PAS des traductions entre eux, chaque langue a sa propre formulation
+- Les 4 titres courts ne doivent PAS suivre la même structure grammaticale sujet-verbe-complément dans les 4 langues. Varie la construction : utilise des questions, des exclamations, des phrases nominales, des structures différentes d'une langue à l'autre. Ne te contente pas de traduire la même phrase type dans 4 langues.
+- Pour garantir cette variété, chaque langue a une FORME IMPOSÉE pour son titre court :
+  • FR (section 6) : une QUESTION qui intrigue (se termine par ?)
+  • EN (section 7) : une PHRASE NOMINALE sans verbe conjugué (ex. "The shot nobody saw coming")
+  • DE (section 8) : une EXCLAMATION centrée sur la réaction ou le résultat (se termine par !)
+  • ES (section 9) : une phrase qui commence par le MOMENT ou le LIEU, puis l'action (ex. "En pleno entrenamiento, ...")
+  Le sujet de la vidéo ne doit PAS être le premier mot dans plus d'une langue.
 - Minimum 1 emoji pertinent au contenu
 - Maximum 4 hashtags pertinents
 - Zéro points de suspension
@@ -159,26 +170,6 @@ RAPPEL FINAL :
 Vérifier les règles avant chaque génération. Ne jamais écrêter d'éléments. La réécriture doit avoir la même durée approximative que l'original. Le script est l'âme de la vidéo.`;
 
 
-// Generic TikTok/Ronaldo CTAs that must be stripped before sending to Gemini
-// to prevent the model from including them in output or stopping mid-generation.
-const CTA_PATTERNS = [
-  /By the way,? did you know (?:that )?Cristiano smiles? when you tap (?:the )?(?:plus|the plus) button\??/gi,
-  /En passant,? savais-tu que Cristiano sourit quand tu tapes? (?:sur )?le bouton plus\s*\??/gi,
-  /Übrigens,? wusstest du,? dass Cristiano lächelt,? wenn du auf Plus tippst\??/gi,
-  /Por cierto,? ¿?sabías que Cristiano sonríe cuando tocas el botón plus\??/gi,
-  /did you know your keyboard[^.?!]*/gi,
-  /savais-tu que ton clavier[^.?!]*/gi,
-  /type\s+\w+\s+and let it finish[^.?!]*/gi,
-];
-
-function stripCtasFromTranscript(text: string): string {
-  let clean = text;
-  for (const pattern of CTA_PATTERNS) {
-    clean = clean.replace(pattern, "");
-  }
-  return clean.replace(/\s{2,}/g, " ").trim();
-}
-
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body?.text) {
@@ -189,7 +180,7 @@ export async function POST(req: NextRequest) {
   }
 
   const rawTranscript: string = body.text;
-  const transcript = stripCtasFromTranscript(rawTranscript);
+  const transcript = stripCtaSentences(rawTranscript);
   const targetSeconds: number | "original" = body.targetSeconds ?? "original";
 
   const transcriptWords = transcript.trim().split(/\s+/).filter(Boolean).length;
@@ -206,7 +197,9 @@ export async function POST(req: NextRequest) {
     `Chaque script réécrit (SECTIONS 1 à 4) doit contenir entre ${minWords} et ${maxWords} mots. ` +
     `Cible : ${targetWords} mots. Dépasser ${maxWords} mots est une ERREUR. ` +
     `Compte les mots de chaque script avant de le rendre et raccourcis les formulations trop longues ` +
-    `sans jamais supprimer un fait, un nom propre ou un moment de l'histoire.\n\n`;
+    `sans jamais supprimer un fait, un nom propre ou un moment de l'histoire. ` +
+    `Si un script tombe naturellement sous ${minWords} mots, c'est acceptable : ` +
+    `n'invente JAMAIS de phrase pour atteindre le minimum.\n\n`;
 
   const userContent = durationInstruction + transcript;
 
