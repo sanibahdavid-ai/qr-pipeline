@@ -644,7 +644,12 @@ export default function Home() {
     });
 
     if (!res.ok || !res.body) {
-      setError("Erreur réécriture");
+      let errMsg = "Erreur réécriture";
+      try {
+        const errData = await res.json();
+        errMsg = errData.error ?? errMsg;
+      } catch {}
+      setError(errMsg);
       setStep("idle");
       return;
     }
