@@ -198,8 +198,15 @@ export async function POST(req: NextRequest) {
       ? transcriptWords
       : Math.round(targetSeconds * 2.5); // ~150 wpm ÷ 60
 
+  const minWords = Math.round(targetWords * 0.9);
+  const maxWords = Math.round(targetWords * 1.1);
+
   const durationInstruction =
-    `[INSTRUCTION DURÉE] Le transcript source fait ${transcriptWords} mots. Chaque script réécrit doit faire approximativement ${targetWords} mots (tolérance ±10%). Ne jamais écrêter d'éléments narratifs.\n\n`;
+    `[INSTRUCTION DURÉE] Le transcript source fait ${transcriptWords} mots. ` +
+    `Chaque script réécrit (SECTIONS 1 à 4) doit contenir entre ${minWords} et ${maxWords} mots. ` +
+    `Cible : ${targetWords} mots. Dépasser ${maxWords} mots est une ERREUR. ` +
+    `Compte les mots de chaque script avant de le rendre et raccourcis les formulations trop longues ` +
+    `sans jamais supprimer un fait, un nom propre ou un moment de l'histoire.\n\n`;
 
   const userContent = durationInstruction + transcript;
 
