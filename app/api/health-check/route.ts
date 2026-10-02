@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
-// MIGRATED TO GEMINI — was: import Anthropic from "@anthropic-ai/sdk";
-import { geminiCreateJson } from "@/lib/gemini-client";
+import Anthropic from "@anthropic-ai/sdk";
 import { stripCtaSentences } from "@/lib/cta";
 
 // CTAs are client-inserted after the rewrite, not part of the model's output —
@@ -64,12 +63,33 @@ SCORING CRITERIA — score each script 0 to 100 points total:
 IMPORTANT CALIBRATION: A script that faithfully tells the same story with clearly different phrasing, correct sentence count, correct length, no dashes, and no banned words should score 90-98. Reserve scores below 80 for scripts that have actual problems: wrong facts, missing names, reordered events, near-copy phrasing, dashes, banned words, or a word count outside the ±10% tolerance.
 
 Respond ONLY with valid JSON, no markdown, no extra text:
-{"scores":{"FR":0,"EN":0,"DE":0,"ES":0},"feedback":{"FR":null,"EN":null,"DE":null,"ES":null}}
+{"scores":{"FR":0,"EN":0,"DE":0,"ES":0},"feedback":{"FR":null,"EN":null,"DE":null,"ES":null},"breakdown":{"FR":{"fidelity":0,"rewording":0,"sentenceCount":0,"noDashes":0,"noBannedWords":0,"lengthFidelity":0},"EN":{...same 6 keys...},"DE":{...same 6 keys...},"ES":{...same 6 keys...}}}
+
+breakdown gives the raw points awarded per criterion (matching the point values above: fidelity/20, rewording/20, sentenceCount/15, noDashes/15, noBannedWords/15, lengthFidelity/15) for every language, even when the total is high — this is required, not optional.
 
 For feedback: set to null if score >= 80, otherwise write a short specific correction (max 60 chars).`;
 
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
   try {
-    const result = await geminiCreateJson("", prompt, 512);
+    const response = await client.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 768,
+      temperature: 0.2,
+      messages: [{ role: "user", content: prompt }],
+    });
+
+    const text = response.content
+      .filter((b): b is Anthropic.TextBlock => b.type === "text")
+      .map((b) => b.text)
+      .join("");
+
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("No JSON in response");
+    const result = JSON.parse(jsonMatch[0]);
+
+    console.log("[health-check] breakdown:", JSON.stringify(result.breakdown, null, 2));
+    console.log("[health-check] scores:", JSON.stringify(result.scores));
     return new Response(JSON.stringify(result), {
       headers: { "Content-Type": "application/json" },
     });

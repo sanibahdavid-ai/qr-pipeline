@@ -29,7 +29,7 @@ const GOOGLE_LANG_MAP: Record<LangCode, keyof typeof GOOGLE_TTS_VOICES> = {
 const EDGE_RATE_MIN = -50;
 const EDGE_RATE_MAX = 200;
 const SPEED_MIN = 0.5;
-const SPEED_MAX = 2.0;
+const SPEED_MAX = 1.5;
 const GEMINI_SPEED_MIN = 0.5;
 const GEMINI_SPEED_MAX = 1.5;
 

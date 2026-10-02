@@ -13,12 +13,12 @@ import { EDGE_TTS_VOICES } from "../lib/edge-tts-voices";
 import { GOOGLE_TTS_VOICES } from "../lib/google-tts-voices";
 import { GEMINI_STYLE_DEFAULT, GEMINI_PACE_DEFAULT, GEMINI_ACCENT_DEFAULT } from "../lib/gemini-tts-voices";
 import { sanitizeTitle, wordStats } from "../lib/format";
-import { RONALDO_CTA_TEXTS, TIKTOK_CTA_TEXTS, splitSentences, stripCtaSentences, dedupeCta } from "../lib/cta";
+import { RONALDO_CTA_TEXTS, TIKTOK_CTA_TEXTS, splitSentences, stripCtaSentences, dedupeCta, scriptContainsCta } from "../lib/cta";
 import type { Provider, Section, AudioState, Step, HistoryEntry, AuthUser, UserRole } from "../types";
 import { SECTIONS } from "../types";
 import { supabase } from "../lib/supabase";
 import type { GenerationRow } from "../lib/supabase";
-import { VOICE_CONFIG_STORAGE_KEY, type VoiceConfig } from "../hooks/useVoiceConfig";
+import { VOICE_CONFIG_STORAGE_KEY, clampSpeed, type VoiceConfig } from "../hooks/useVoiceConfig";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const SCRIPT_SECTIONS: Section[] = ["SCRIPT FR", "SCRIPT EN", "SCRIPT DE", "SCRIPT ES"];
@@ -53,6 +53,17 @@ async function placeCta(rawScript: string, lang: string, ctaType: "ronaldo" | "t
   const ctaText = (ctaType === "ronaldo" ? RONALDO_CTA_TEXTS : TIKTOK_CTA_TEXTS)[lang];
   const script = stripCtaSentences(rawScript);
   if (!ctaText || !script.trim()) return script;
+
+  // Last-resort guard: stripCtaSentences only removes a CTA that stands as its
+  // own short sentence. If a rewrite (e.g. /api/adjust) folded a paraphrased
+  // CTA into a longer narrative sentence, it survives stripping undetected —
+  // check the whole script for the CTA's keyword signature before inserting
+  // a second one, and skip insertion rather than duplicate it.
+  if (scriptContainsCta(script)) {
+    console.warn(`[placeCta] ${ctaType} CTA-like text already present in ${lang} script, skipping insertion`);
+    return script;
+  }
+
   const sentences = splitSentences(script);
   if (sentences.length < 3) return dedupeCta(`${script.trim()} ${ctaText}`);
 
@@ -905,7 +916,8 @@ export default function Home() {
 
     function getVoiceConfig(lang: string): VoiceConfig {
       const key = `${provider}__${lang}`;
-      return configs[key] ?? getDefaultVoiceConfig(provider, lang);
+      const cfg = configs[key] ?? getDefaultVoiceConfig(provider, lang);
+      return { ...cfg, speed: clampSpeed(cfg.speed) };
     }
 
     function getModelId(lang: string): string | undefined {
@@ -998,14 +1010,19 @@ export default function Home() {
   }
 
   async function handleAdjust(section: Section, dur: AdjustDuration) {
-    const text = getContent(section);
-    if (!text || adjusting) return;
+    const raw = getContent(section);
+    if (!raw || adjusting) return;
+    // Strip any already-inserted CTA before sending to the model — it's
+    // re-added after via placeCta, and letting it through as "content to
+    // preserve" gets it paraphrased into the story and re-inserted twice.
+    const text = stripCtaSentences(raw);
     await handleAdjustCore(section, { text, targetDuration: dur });
   }
 
   async function handleAdjustCustom(section: Section, seconds: number) {
-    const text = getContent(section);
-    if (!text || adjusting) return;
+    const raw = getContent(section);
+    if (!raw || adjusting) return;
+    const text = stripCtaSentences(raw);
     await handleAdjustCore(section, { text, customSeconds: seconds });
   }
 
@@ -1205,7 +1222,7 @@ export default function Home() {
             {/* Retry button — shown when rewrite failed but transcript is available */}
             {step === "idle" && error && transcriptText && (
               <button
-                onClick={() => { setError(""); void handleRewrite(transcriptText, videoTitle, "none"); }}
+                onClick={() => { setError(""); void handleRewrite(transcriptText, videoTitle, activeCtaChoice); }}
                 className="text-[11px] font-mono px-3 py-1.5 border border-[#1a2942] text-[#00b4ff] hover:border-[#00b4ff] transition-none"
                 style={{ borderRadius: "2px" }}
               >

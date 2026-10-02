@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
-// MIGRATED TO GEMINI — was: import Anthropic from "@anthropic-ai/sdk";
-import { geminiStream } from "@/lib/gemini-client";
+import Anthropic from "@anthropic-ai/sdk";
+import { sanitizeStream } from "@/lib/sanitize-script";
 
 const DURATION_WORDS: Record<string, number> = {
   "10s":    22,
@@ -40,7 +40,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // MIGRATED TO GEMINI — was: new Anthropic + client.messages.stream
   const langName = LANG_NAMES[language] ?? language;
 
   const userContent = `Voici un script en ${langName} au format QR (Quad Remix). Réécris-le pour qu'il dure exactement ${durationLabel} à voix haute à 130 mots par minute (environ ${targetWords} mots).
@@ -50,14 +49,41 @@ Règles absolues :
 - Aucun gras, aucun italique, aucun tiret dans le script
 - Même style, ton et structure narrative que l'original
 - Adapte uniquement la longueur sans changer le sens ni le registre
+- N'ajoute JAMAIS de phrase mentionnant Cristiano, un bouton plus, "did you know your keyboard"/"savais-tu que ton clavier", ou tout autre appel à l'action générique de ce type : ces CTAs sont insérés séparément côté client, jamais par toi, même si l'original en contenait un
 - Retourne uniquement le script réécrit, sans titre, sans commentaire, sans explication
 
 Script original :
 ${text}`;
 
-  const readable = await geminiStream("", userContent, 2048);
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-  return new Response(readable, {
+  const stream = client.messages.stream({
+    model: "claude-sonnet-4-6",
+    max_tokens: 2048,
+    temperature: 0.3,
+    messages: [{ role: "user", content: userContent }],
+  });
+
+  const encoder = new TextEncoder();
+  const raw = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      try {
+        for await (const event of stream) {
+          if (
+            event.type === "content_block_delta" &&
+            event.delta.type === "text_delta"
+          ) {
+            controller.enqueue(encoder.encode(event.delta.text));
+          }
+        }
+        controller.close();
+      } catch (error) {
+        controller.error(error);
+      }
+    },
+  });
+
+  return new Response(sanitizeStream(raw), {
     headers: { "Content-Type": "text/plain; charset=utf-8" },
   });
 }

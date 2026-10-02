@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
-// MIGRATED TO GEMINI — was: import Anthropic from "@anthropic-ai/sdk";
-import { geminiStream } from "@/lib/gemini-client";
+import Anthropic from "@anthropic-ai/sdk";
 import { stripCtaSentences } from "@/lib/cta";
+import { sanitizeStream } from "@/lib/sanitize-script";
 
 const SYSTEM_PROMPT = `Tu es un moteur de réécriture multilingue pour contenu vidéo court viral. Voici tes règles absolues :
 
@@ -203,10 +203,38 @@ export async function POST(req: NextRequest) {
 
   const userContent = durationInstruction + transcript;
 
-  // MIGRATED TO GEMINI — was: new Anthropic + client.messages.stream
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
   let readable: ReadableStream<Uint8Array>;
   try {
-    readable = await geminiStream(SYSTEM_PROMPT, userContent, 30000);
+    const stream = client.messages.stream({
+      model: "claude-sonnet-4-6",
+      max_tokens: 10000,
+      temperature: 0.3,
+      system: SYSTEM_PROMPT,
+      messages: [{ role: "user", content: userContent }],
+    });
+
+    const encoder = new TextEncoder();
+    const raw = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        try {
+          for await (const event of stream) {
+            if (
+              event.type === "content_block_delta" &&
+              event.delta.type === "text_delta"
+            ) {
+              controller.enqueue(encoder.encode(event.delta.text));
+            }
+          }
+          controller.close();
+        } catch (error) {
+          controller.error(error);
+        }
+      },
+    });
+
+    readable = sanitizeStream(raw);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     return new Response(JSON.stringify({ error: msg }), {

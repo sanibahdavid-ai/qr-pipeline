@@ -25,8 +25,7 @@ export function normalize(text: string): string {
 
 // Recognises the site's own CTAs and the source videos' keyboard CTAs in any of
 // the four languages, however they were transcribed or reworded.
-export function isCtaSentence(sentence: string): boolean {
-  const n = ` ${normalize(sentence)} `;
+function matchesCta(n: string): boolean {
   const ronaldo = n.includes(" cristiano ") &&
     /\b(sourit|smiles?|lachelt|sonrie)\b/.test(n) &&
     /\bplus\b/.test(n);
@@ -35,6 +34,19 @@ export function isCtaSentence(sentence: string): boolean {
   const keyboard = /\b(ton clavier|your keyboard|deine tastatur|tu teclado)\b/.test(n) ||
     /\blet it finish\b/.test(n);
   return ronaldo || tiktok || keyboard;
+}
+
+export function isCtaSentence(sentence: string): boolean {
+  return matchesCta(` ${normalize(sentence)} `);
+}
+
+// Same keyword detection as isCtaSentence, but run over the WHOLE script
+// (not one sentence at a time, and with no word-count cap). Catches a
+// paraphrased CTA that a rewrite model folded into a longer narrative
+// sentence — long enough to dodge isShortCtaSentence's 35-word ceiling —
+// so callers can refuse to insert a second CTA on top of it.
+export function scriptContainsCta(text: string): boolean {
+  return matchesCta(` ${normalize(text)} `);
 }
 
 export function splitSentences(text: string): string[] {

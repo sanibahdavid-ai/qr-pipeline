@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
-// MIGRATED TO GEMINI — was: import Anthropic from "@anthropic-ai/sdk";
-import { geminiStream } from "@/lib/gemini-client";
+import Anthropic from "@anthropic-ai/sdk";
+import { sanitizeStream } from "@/lib/sanitize-script";
 
 const LANG_NAMES: Record<string, string> = {
   FR: "français",
@@ -17,7 +17,6 @@ export async function POST(req: NextRequest) {
     return new Response(JSON.stringify({ error: "Paramètres manquants" }), { status: 400 });
   }
 
-  // MIGRATED TO GEMINI — was: new Anthropic + client.messages.stream
   const langName = LANG_NAMES[lang] ?? lang;
 
   const userContent = `Voici un script en ${langName} qui ne respecte pas toutes les règles de qualité.
@@ -36,9 +35,35 @@ Règles ABSOLUES à respecter :
 
 Retourne UNIQUEMENT le script corrigé, sans titre, sans commentaire, sans explication.`;
 
-  const readable = await geminiStream("", userContent, 1024);
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-  return new Response(readable, {
+  const stream = client.messages.stream({
+    model: "claude-sonnet-4-6",
+    max_tokens: 1024,
+    temperature: 0.3,
+    messages: [{ role: "user", content: userContent }],
+  });
+
+  const encoder = new TextEncoder();
+  const raw = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      try {
+        for await (const event of stream) {
+          if (
+            event.type === "content_block_delta" &&
+            event.delta.type === "text_delta"
+          ) {
+            controller.enqueue(encoder.encode(event.delta.text));
+          }
+        }
+        controller.close();
+      } catch (error) {
+        controller.error(error);
+      }
+    },
+  });
+
+  return new Response(sanitizeStream(raw), {
     headers: { "Content-Type": "text/plain; charset=utf-8" },
   });
 }

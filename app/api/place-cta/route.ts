@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
-// MIGRATED TO GEMINI — was: import Anthropic from "@anthropic-ai/sdk";
-import { geminiCreateJson } from "@/lib/gemini-client";
+import Anthropic from "@anthropic-ai/sdk";
 
 type CtaType = "ronaldo" | "tiktok";
 
@@ -48,8 +47,6 @@ export async function POST(req: NextRequest) {
 
   const bound = (idx: number) => Math.max(1, Math.min(idx, sentences.length - 2));
 
-  // MIGRATED TO GEMINI — was: new Anthropic + client.messages.create
-
   const prompt = `Tu reçois un script vidéo court et un CTA. Ton rôle est de placer le CTA à l'emplacement narrativement le plus stratégique.
 
 SCRIPT (phrases numérotées, 0-indexed) :
@@ -69,8 +66,23 @@ RÈGLES ABSOLUES DE POSITION :
 
 Retourne UNIQUEMENT un JSON: {"insertAfterSentenceIndex": <int>} où l'index est celui de la phrase APRÈS laquelle insérer le CTA (0-indexed).`;
 
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
   try {
-    const result = await geminiCreateJson("", prompt, 128) as { insertAfterSentenceIndex?: number };
+    const response = await client.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 128,
+      temperature: 0.2,
+      messages: [{ role: "user", content: prompt }],
+    });
+
+    const text = response.content
+      .filter((b): b is Anthropic.TextBlock => b.type === "text")
+      .map((b) => b.text)
+      .join("");
+
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const result = jsonMatch ? JSON.parse(jsonMatch[0]) as { insertAfterSentenceIndex?: number } : {};
     const raw = Number(result.insertAfterSentenceIndex);
     const insertAfterSentenceIndex = Number.isFinite(raw) ? bound(raw) : fallbackIndex(ctaType, sentences.length);
 
