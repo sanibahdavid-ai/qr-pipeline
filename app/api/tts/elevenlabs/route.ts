@@ -11,11 +11,11 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "text manquant" }, { status: 400 });
   }
 
-  const apiKey = process.env.ELEVENLABS_API_KEY;
-  console.log("[EL] ELEVENLABS_API_KEY présente :", !!apiKey);
+  const apiKey = process.env.ELEVENLABS_API_KEY_DIRECTOR ?? process.env.ELEVENLABS_API_KEY;
+  console.log("[EL] ELEVENLABS_API_KEY_DIRECTOR présente :", !!process.env.ELEVENLABS_API_KEY_DIRECTOR);
 
   if (!apiKey) {
-    return Response.json({ error: "ELEVENLABS_API_KEY manquante" }, { status: 500 });
+    return Response.json({ error: "ELEVENLABS_API_KEY_DIRECTOR manquante" }, { status: 500 });
   }
 
   try {

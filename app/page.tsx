@@ -98,7 +98,6 @@ type AdjustDuration = (typeof ADJUST_DURATIONS)[number];
 const HISTORY_KEY = "qr_pipeline_history";
 const MAX_HISTORY = 50;
 const TAB_KEY = "dav_active_tab";
-const AUDIO_ENABLED_KEY = "dav_audio_enabled";
 type Tab = "scripts" | "download";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -146,8 +145,8 @@ export default function Home() {
   const [targetDuration, setTargetDuration] = useState<AdjustDuration | "original">("original");
   const [customSeconds, setCustomSeconds] = useState<number | null>(null);
 
-  // Hidden audio toggle (blue dot) — gates all TTS generation, everywhere
-  const [audioEnabled, setAudioEnabled] = useState(false);
+  // Director session — password-gated, gates all TTS generation
+  const [directorSessionUnlocked, setDirectorSessionUnlocked] = useState(false);
 
   // Per-generation CTA choice (asked after extraction, before rewrite — not persisted)
   const [showCtaChoice, setShowCtaChoice] = useState(false);
@@ -201,7 +200,7 @@ export default function Home() {
       }
       const savedTab = localStorage.getItem(TAB_KEY) as Tab | null;
       if (savedTab === "scripts" || savedTab === "download") setActiveTab(savedTab);
-      if (localStorage.getItem(AUDIO_ENABLED_KEY) === "1") setAudioEnabled(true);
+      try { if (sessionStorage.getItem("dav_director_session") === "1") setDirectorSessionUnlocked(true); } catch {}
       const savedPinRole = localStorage.getItem("dav_pin_role") as UserRole | null;
       if (savedPinRole) setPinRole(savedPinRole);
       else setShowPinModal(true);
@@ -748,7 +747,7 @@ export default function Home() {
 
   // ── TTS ───────────────────────────────────────────────────────────────────
   async function handleTTS(language: "EN" | "DE" | "FR" | "ES", voice: string, speed: number, modelId?: string, geminiParams?: { style: string; pace: string; accent: string }) {
-    if (!audioEnabled) return;
+    if (!directorSessionUnlocked) return;
     if (pinRole === "ADMIN") { toast.error("Génération vocale non disponible pour le profil Admin"); return; }
     const sectionKey = `SCRIPT ${language}` as Section;
     const text = getContent(sectionKey);
@@ -909,7 +908,7 @@ export default function Home() {
   }
 
   async function handleGenerateAll() {
-    if (!audioEnabled) return;
+    if (!directorSessionUnlocked) return;
     if (pinRole === "ADMIN") { toast.error("Génération vocale non disponible pour le profil Admin"); return; }
     const raw = typeof window !== "undefined" ? localStorage.getItem(VOICE_CONFIG_STORAGE_KEY) : null;
     const configs: Record<string, VoiceConfig> = raw ? JSON.parse(raw) : {};
@@ -1041,12 +1040,13 @@ export default function Home() {
     return configs[`${provider}__${lang}`] ?? getDefaultVoiceConfig(provider, lang);
   }
 
-  function toggleAudioEnabled() {
-    setAudioEnabled((v) => {
-      const next = !v;
-      try { localStorage.setItem(AUDIO_ENABLED_KEY, next ? "1" : "0"); } catch {}
-      return next;
-    });
+  function handleDirectorUnlock(code: string): boolean {
+    if (code === "0506") {
+      setDirectorSessionUnlocked(true);
+      try { sessionStorage.setItem("dav_director_session", "1"); } catch {}
+      return true;
+    }
+    return false;
   }
 
   function switchTab(tab: Tab) {
@@ -1143,8 +1143,8 @@ export default function Home() {
         onReset={reset}
         onOpenPalette={() => setShowPalette(true)}
         historyPanelRef={historyPanelRef}
-        audioEnabled={audioEnabled}
-        onAudioToggle={toggleAudioEnabled}
+        directorUnlocked={directorSessionUnlocked}
+        onDirectorUnlock={handleDirectorUnlock}
         user={user}
         cloudHistory={cloudHistory}
         onLogin={handleLogin}
@@ -1377,7 +1377,7 @@ export default function Home() {
               onGenerateAll={handleGenerateAll}
               onCopyAllQR={copyAllQR}
               disabled={isLoading}
-              audioEnabled={audioEnabled}
+              audioEnabled={directorSessionUnlocked}
             />
 
             {/* Script cards — grid 4-col on md+ */}

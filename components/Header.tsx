@@ -6,7 +6,7 @@ import type { HistoryEntry, AuthUser, UserRole } from "../types";
 import type { GenerationRow } from "../lib/supabase";
 import { formatDate } from "../lib/format";
 
-const APP_VERSION = "5.8";
+const APP_VERSION = "5.9";
 
 type Props = {
   history: HistoryEntry[];
@@ -19,8 +19,8 @@ type Props = {
   onReset: () => void;
   onOpenPalette: () => void;
   historyPanelRef: React.RefObject<HTMLDivElement | null>;
-  audioEnabled: boolean;
-  onAudioToggle: () => void;
+  directorUnlocked: boolean;
+  onDirectorUnlock: (code: string) => boolean;
   user: AuthUser | null;
   cloudHistory: GenerationRow[];
   onLogin: () => void;
@@ -33,7 +33,7 @@ type Props = {
 export function Header({
   history, showHistory, onToggleHistory, onRestoreHistory,
   onDeleteHistory, onClearHistory, canReset, onReset, onOpenPalette,
-  historyPanelRef, audioEnabled, onAudioToggle,
+  historyPanelRef, directorUnlocked, onDirectorUnlock,
   user, cloudHistory, onLogin, onLogout, onRestoreCloud,
   pinRole, onPinLogout,
 }: Props) {
@@ -41,6 +41,10 @@ export function Header({
   const [copiedUrlId, setCopiedUrlId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const [showDirectorInput, setShowDirectorInput] = useState(false);
+  const [directorCode, setDirectorCode] = useState("");
+  const [directorShake, setDirectorShake] = useState(false);
+  const directorInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -84,20 +88,57 @@ export function Header({
             v{APP_VERSION}
           </span>
 
-          {/* Hidden audio toggle — invisible when off, small blue dot when on */}
-          <button
-            onClick={onAudioToggle}
-            tabIndex={-1}
-            aria-hidden="true"
-            className="w-2 h-2 shrink-0 select-none"
-            style={{
-              background: audioEnabled ? "#3b82f6" : "transparent",
-              border: "none",
-              borderRadius: "50%",
-              padding: 0,
-              cursor: "pointer",
-            }}
-          />
+          {/* Hidden director session gate — invisible when locked, blue dot when unlocked */}
+          <div className="relative flex items-center">
+            <button
+              onClick={() => {
+                if (directorUnlocked) return;
+                setShowDirectorInput(true);
+                setDirectorCode("");
+                setTimeout(() => directorInputRef.current?.focus(), 50);
+              }}
+              tabIndex={-1}
+              aria-hidden="true"
+              className="w-2 h-2 shrink-0 select-none"
+              style={{
+                background: directorUnlocked ? "#3b82f6" : "transparent",
+                border: "none",
+                borderRadius: "50%",
+                padding: 0,
+                cursor: directorUnlocked ? "default" : "pointer",
+              }}
+            />
+            {showDirectorInput && !directorUnlocked && (
+              <input
+                ref={directorInputRef}
+                type="password"
+                inputMode="numeric"
+                maxLength={4}
+                value={directorCode}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, "").slice(0, 4);
+                  setDirectorCode(val);
+                  if (val.length === 4) {
+                    if (onDirectorUnlock(val)) {
+                      setShowDirectorInput(false);
+                      setDirectorCode("");
+                    } else {
+                      setDirectorShake(true);
+                      setTimeout(() => { setDirectorShake(false); setDirectorCode(""); }, 400);
+                    }
+                  }
+                }}
+                onBlur={() => { setTimeout(() => { setShowDirectorInput(false); setDirectorCode(""); }, 150); }}
+                onKeyDown={(e) => { if (e.key === "Escape") { setShowDirectorInput(false); setDirectorCode(""); } }}
+                className="absolute left-4 top-1/2 -translate-y-1/2 w-16 px-1.5 py-0.5 text-[11px] font-mono bg-[#13233a] border border-[#2a4a75] text-[#e0eef8] text-center tracking-[0.3em] focus:outline-none focus:border-[#00b4ff]"
+                style={{
+                  borderRadius: "2px",
+                  animation: directorShake ? "shake 0.3s ease-in-out" : undefined,
+                }}
+                placeholder="••••"
+              />
+            )}
+          </div>
         </div>
 
         {/* Actions */}

@@ -109,3 +109,11 @@ input[type="range"]::-moz-range-thumb {
 ::-webkit-scrollbar-thumb:hover {
   background: #2a4a75;
 }
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0) translateY(-50%); }
+  20% { transform: translateX(-4px) translateY(-50%); }
+  40% { transform: translateX(4px) translateY(-50%); }
+  60% { transform: translateX(-3px) translateY(-50%); }
+  80% { transform: translateX(3px) translateY(-50%); }
+}
