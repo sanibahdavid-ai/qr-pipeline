@@ -6,7 +6,7 @@ import type { HistoryEntry, AuthUser, UserRole } from "../types";
 import type { GenerationRow } from "../lib/supabase";
 import { formatDate } from "../lib/format";
 
-const APP_VERSION = "5.9";
+const APP_VERSION = "6.0";
 
 type Props = {
   history: HistoryEntry[];
@@ -239,7 +239,7 @@ export function Header({
                               className="flex-1 min-w-0 text-left"
                             >
                               <p className="text-[12px] text-[#e0eef8] truncate font-medium leading-snug">
-                                {entry.title || "Sans titre"}
+                                {entry.summaryTitle || entry.title || "Sans titre"}
                               </p>
                             </button>
                             {entry.url && (

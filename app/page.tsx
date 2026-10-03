@@ -272,6 +272,27 @@ export default function Home() {
     });
   }
 
+  async function generateSummaryTitle(historyId: string, qrText: string) {
+    try {
+      const parsed = parseQR(qrText);
+      const frScript = parsed["SCRIPT FR"];
+      if (!frScript) return;
+      const res = await fetch("/api/generate-title", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ script: frScript }),
+      });
+      if (!res.ok) return;
+      const { title: summaryTitle } = await res.json();
+      if (!summaryTitle) return;
+      setHistory((prev) => {
+        const updated = prev.map((h) => h.id === historyId ? { ...h, summaryTitle } : h);
+        try { localStorage.setItem(HISTORY_KEY, JSON.stringify(updated)); } catch {}
+        return updated;
+      });
+    } catch {}
+  }
+
   function updateHistoryHealthScores(id: string, scores: Record<string, { score: number; feedback?: string | null }>) {
     const simpleScores: Record<string, number> = {};
     for (const [lang, data] of Object.entries(scores)) {
@@ -739,6 +760,7 @@ export default function Home() {
     if (finalTitle) {
       saveToHistory(finalTitle, url, accumulated, text);
       saveToCloud(accumulated, finalTitle);
+      void generateSummaryTitle(latestHistoryIdRef.current!, accumulated);
     }
     if (ctaChoice !== "none") {
       void applyCtaToScripts(parsed, ctaChoice);

@@ -39,6 +39,7 @@ export type HistoryEntry = {
   step: "done";
   transcriptText?: string;
   healthScores?: Record<string, number>;
+  summaryTitle?: string;
 };
 
 export type UserRole = "DAV" | "ADMIN" | "GUEST" | null;
