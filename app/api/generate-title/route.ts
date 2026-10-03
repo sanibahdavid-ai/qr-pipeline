@@ -1,8 +1,6 @@
 import { NextRequest } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 
-const client = new Anthropic();
-
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const { script } = body ?? {};
@@ -10,6 +8,8 @@ export async function POST(req: NextRequest) {
   if (!script || typeof script !== "string") {
     return Response.json({ error: "script manquant" }, { status: 400 });
   }
+
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
   try {
     const response = await client.messages.create({
