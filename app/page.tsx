@@ -124,6 +124,18 @@ function cleanContent(raw: string): string {
 }
 
 function parseQR(text: string): Partial<Record<Section, string>> {
+  // Fallback: header names missing, only "SECTION N" markers. Map by number.
+  if (!SECTIONS.some((s) => text.includes(s))) {
+    const parts = text.split(/^\s*SECTION\s+(\d{1,2})\s*$/m);
+    const byNum: Partial<Record<Section, string>> = {};
+    for (let i = 1; i + 1 < parts.length; i += 2) {
+      const sec = SECTIONS[Number(parts[i]) - 1];
+      const content = cleanContent(parts[i + 1].trim());
+      if (sec && content) byNum[sec] = content;
+    }
+    sanitizeTitles(byNum);
+    return byNum;
+  }
   const positions: Array<{ section: Section; index: number }> = [];
   for (const section of SECTIONS) {
     const idx = text.indexOf(section);
