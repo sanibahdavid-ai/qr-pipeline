@@ -34,7 +34,7 @@ const GEMINI_SPEED_MIN = 0.5;
 const GEMINI_SPEED_MAX = 1.5;
 
 const AI33_VOICES: { id: string; label: string }[] = [
-  { id: "elevenlabs_6DsgX00trsI64jl83WWS", label: "Alex Upbeat (ElevenLabs) ⭐" },
+  { id: "elevenlabs_yl2ZDV1MzN4HbQJbMihG", label: "Alex Upbeat, Energetic and Clear (ElevenLabs) ⭐" },
   { id: "clone_2608233",                   label: "ALEX CLONED" },
   { id: "clone_2580971",                   label: "Foot French" },
   { id: "clone_2607201",                   label: "NARATEUR ANIME" },
@@ -48,7 +48,7 @@ const AI33_VOICES: { id: string; label: string }[] = [
 ];
 
 const ELEVENLABS_DIRECT_VOICES: { id: string; label: string }[] = [
-  { id: "6DsgX00trsI64jl83WWS", label: "Alex Upbeat ⭐" },
+  { id: "yl2ZDV1MzN4HbQJbMihG", label: "Alex Upbeat, Energetic and Clear ⭐" },
   { id: "CwhRBWXzGAHq8TQ4Fs17", label: "Brian" },
   { id: "JBFqnCBsd6RMkjVDRZzb", label: "George - Storyteller" },
   { id: "21m00Tcm4TlvDq8ikWAM", label: "Rachel" },

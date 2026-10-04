@@ -6,7 +6,7 @@ import type { HistoryEntry, AuthUser, UserRole } from "../types";
 import type { GenerationRow } from "../lib/supabase";
 import { formatDate } from "../lib/format";
 
-const APP_VERSION = "6.4";
+const APP_VERSION = "6.5";
 
 type Props = {
   history: HistoryEntry[];

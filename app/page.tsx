@@ -1051,8 +1051,8 @@ export default function Home() {
   function getDefaultVoiceConfig(p: Provider, lang: string): VoiceConfig {
     const defaults: Record<string, Record<string, VoiceConfig>> = {
       "ai33-minimax":    { FR: { voice: "clone_2580971", speed: 1.0 }, EN: { voice: "clone_2608233", speed: 1.0 }, DE: { voice: "clone_2608233", speed: 1.0 }, ES: { voice: "clone_2608233", speed: 1.0 } },
-      "ai33-elevenlabs": { FR: { voice: "elevenlabs_6DsgX00trsI64jl83WWS", speed: 1.0 }, EN: { voice: "elevenlabs_6DsgX00trsI64jl83WWS", speed: 1.0 }, DE: { voice: "elevenlabs_6DsgX00trsI64jl83WWS", speed: 1.0 }, ES: { voice: "elevenlabs_6DsgX00trsI64jl83WWS", speed: 1.0 } },
-      "elevenlabs":      { FR: { voice: "6DsgX00trsI64jl83WWS", speed: 1.0 }, EN: { voice: "6DsgX00trsI64jl83WWS", speed: 1.0 }, DE: { voice: "6DsgX00trsI64jl83WWS", speed: 1.0 }, ES: { voice: "6DsgX00trsI64jl83WWS", speed: 1.0 } },
+      "ai33-elevenlabs": { FR: { voice: "elevenlabs_yl2ZDV1MzN4HbQJbMihG", speed: 1.0 }, EN: { voice: "elevenlabs_yl2ZDV1MzN4HbQJbMihG", speed: 1.0 }, DE: { voice: "elevenlabs_yl2ZDV1MzN4HbQJbMihG", speed: 1.0 }, ES: { voice: "elevenlabs_yl2ZDV1MzN4HbQJbMihG", speed: 1.0 } },
+      "elevenlabs":      { FR: { voice: "yl2ZDV1MzN4HbQJbMihG", speed: 1.0 }, EN: { voice: "yl2ZDV1MzN4HbQJbMihG", speed: 1.0 }, DE: { voice: "yl2ZDV1MzN4HbQJbMihG", speed: 1.0 }, ES: { voice: "yl2ZDV1MzN4HbQJbMihG", speed: 1.0 } },
       "edge-tts":        { FR: { voice: "fr-FR-HenriNeural", speed: 0 }, EN: { voice: "en-US-GuyNeural", speed: 0 }, DE: { voice: "de-DE-KillianNeural", speed: 0 }, ES: { voice: "es-ES-AlvaroNeural", speed: 0 } },
       "google-tts":      { FR: { voice: "fr-FR-Neural2-B", speed: 1.0 }, EN: { voice: "en-US-Neural2-D", speed: 1.0 }, DE: { voice: "de-DE-Neural2-B", speed: 1.0 }, ES: { voice: "es-ES-Neural2-B", speed: 1.0 } },
       "google-ai-studio": {
