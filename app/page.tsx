@@ -44,6 +44,16 @@ function filterKeywords(text: string): string {
     .join("\n");
 }
 
+function sanitizeTitles(parsed: Partial<Record<Section, string>>): void {
+  const nonFrTitleSections: Section[] = [
+    "TITRE ET HASHTAGS EN", "TITRE ET HASHTAGS DE", "TITRE ET HASHTAGS ES",
+    "TITRE ET HASHTAGS EN B", "TITRE ET HASHTAGS DE B", "TITRE ET HASHTAGS ES B",
+  ];
+  for (const s of nonFrTitleSections) {
+    if (parsed[s]) parsed[s] = parsed[s]!.replace(/\s+([!?])/g, "$1");
+  }
+}
+
 // Calls Claude to find the narratively best placement for the CTA, with a
 // local fallback (25-45% of sentences for Ronaldo, 75-90% for TikTok) if the API call fails.
 // Idempotent: any CTA already in the script — one the model wrote itself, or
@@ -105,6 +115,11 @@ function cleanContent(raw: string): string {
   return raw
     .replace(/\n*SECTION\s+\d+[^\n]*$/i, "")
     .replace(/\n*Prêt pour le prochain script\s*!?\s*$/i, "")
+    .replace(/^\s*\*{0,2}\s*\(?\s*[Cc]ompte\s*:.*mots.*\)?\s*\*{0,2}\s*$/gm, "")
+    .replace(/\*\*/g, "")
+    .replace(/^-{3,}\s*$/gm, "")
+    .replace(/✓/g, "")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
@@ -123,6 +138,7 @@ function parseQR(text: string): Partial<Record<Section, string>> {
     const content = cleanContent(text.slice(start, end).trim());
     if (content) result[section] = content;
   }
+  sanitizeTitles(result);
   return result;
 }
 
@@ -202,10 +218,56 @@ export default function Home() {
       if (savedTab === "scripts" || savedTab === "download") setActiveTab(savedTab);
       try { if (sessionStorage.getItem("dav_director_session") === "1") setDirectorSessionUnlocked(true); } catch {}
       const savedPinRole = localStorage.getItem("dav_pin_role") as UserRole | null;
-      if (savedPinRole) setPinRole(savedPinRole);
+      if (savedPinRole) {
+        setPinRole(savedPinRole);
+        if (savedPinRole === "DAV") {
+          setDirectorSessionUnlocked(true);
+          try { sessionStorage.setItem("dav_director_session", "1"); } catch {}
+          setProvider("elevenlabs");
+        }
+      }
       else setShowPinModal(true);
     } catch {}
   }, []);
+
+  useEffect(() => {
+    async function backfillTitles() {
+      const stale = history.filter(
+        (h) =>
+          !h.summaryTitle &&
+          h.qrText &&
+          (h.title === "Vidéo TikTok" || h.title === "Vidéo Instagram" || h.title === "Vidéo YouTube" || h.title === "Transcript manuel" || h.title === "Titre en cours...")
+      );
+      if (stale.length === 0) return;
+      const batch = stale.slice(0, 2);
+      for (const entry of batch) {
+        try {
+          const parsed = parseQR(entry.qrText);
+          const frScript = parsed["SCRIPT FR"];
+          if (!frScript) continue;
+          let summaryTitle = "";
+          try {
+            const res = await fetch("/api/generate-title", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ script: frScript }),
+            });
+            if (res.ok) {
+              const data = await res.json();
+              summaryTitle = data.title ?? "";
+            }
+          } catch {}
+          if (!summaryTitle) summaryTitle = frScript.split(/\s+/).slice(0, 8).join(" ");
+          setHistory((prev) => {
+            const updated = prev.map((h) => h.id === entry.id ? { ...h, summaryTitle } : h);
+            try { localStorage.setItem(HISTORY_KEY, JSON.stringify(updated)); } catch {}
+            return updated;
+          });
+        } catch {}
+      }
+    }
+    if (history.length > 0) void backfillTitles();
+  }, [history.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -277,14 +339,22 @@ export default function Home() {
       const parsed = parseQR(qrText);
       const frScript = parsed["SCRIPT FR"];
       if (!frScript) return;
-      const res = await fetch("/api/generate-title", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ script: frScript }),
-      });
-      if (!res.ok) return;
-      const { title: summaryTitle } = await res.json();
-      if (!summaryTitle) return;
+      let summaryTitle = "";
+      try {
+        const res = await fetch("/api/generate-title", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ script: frScript }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          summaryTitle = data.title ?? "";
+        }
+      } catch {}
+      if (!summaryTitle) {
+        summaryTitle = frScript.split(/\s+/).slice(0, 8).join(" ");
+      }
+      setVideoTitle(summaryTitle);
       setHistory((prev) => {
         const updated = prev.map((h) => h.id === historyId ? { ...h, summaryTitle } : h);
         try { localStorage.setItem(HISTORY_KEY, JSON.stringify(updated)); } catch {}
@@ -374,6 +444,11 @@ export default function Home() {
       localStorage.setItem("dav_pin_role", newRole);
       setShowPinModal(false);
       setPinInput("");
+      if (newRole === "DAV") {
+        setDirectorSessionUnlocked(true);
+        try { sessionStorage.setItem("dav_director_session", "1"); } catch {}
+        setProvider("elevenlabs");
+      }
       if (user) loadCloudHistory(user.id, newRole);
       toast.success(`Connecté en tant que ${newRole === "DAV" ? "DAV (Directeur)" : newRole === "ADMIN" ? "Admin" : "Invité"}`);
     } else {
@@ -510,10 +585,9 @@ export default function Home() {
     if (!text || isLoading) return;
     setError("");
     setQrText("");
-    const title = "Transcript manuel";
-    setVideoTitle(title);
+    setVideoTitle("Titre en cours...");
     setTranscriptText(text);
-    setPendingRewrite({ text, title });
+    setPendingRewrite({ text, title: "Titre en cours..." });
     setStep("transcript");
     setShowCtaChoice(true);
   }

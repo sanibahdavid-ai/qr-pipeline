@@ -294,9 +294,7 @@ export async function POST(req: NextRequest) {
       if (videoId) title = await fetchVideoTitle(videoId);
     }
     if (!title) {
-      title = platform === "tiktok" ? "Vidéo TikTok"
-            : platform === "instagram" ? "Vidéo Instagram"
-            : "Vidéo YouTube";
+      title = "Titre en cours...";
     }
 
     console.log("[transcript] success — title:", title, "chars:", content.length, "lang:", lang);
