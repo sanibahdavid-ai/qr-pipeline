@@ -861,7 +861,11 @@ export default function Home() {
     const text = getContent(sectionKey);
     if (!text) return;
 
-    const filename = `DAV_${language}_${Date.now()}.mp3`;
+    const titleSource = videoTitle && videoTitle !== "Titre en cours..." ? videoTitle : text.split(/\s+/).slice(0, 6).join(" ");
+    const titleSlug = titleSource
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40).replace(/-+$/g, "") || "video";
+    const filename = `DAV_${language}_${titleSlug}_${Date.now()}.mp3`;
 
     if (provider === "edge-tts") {
       const audioKey = `EDGE_${language}`;
@@ -934,7 +938,7 @@ export default function Home() {
         }
         const blob = await res.blob();
         const audioUrl = URL.createObjectURL(blob);
-        setAudio((s) => ({ ...s, [audioKey]: { status: "done", label: "Prêt", audioUrl, filename: `DAV_${language}_gemini_${Date.now()}.wav` } }));
+        setAudio((s) => ({ ...s, [audioKey]: { status: "done", label: "Prêt", audioUrl, filename: `DAV_${language}_${titleSlug}_gemini_${Date.now()}.wav` } }));
       } catch (err) {
         setAudio((a) => ({ ...a, [audioKey]: { status: "error", label: String(err) } }));
       }

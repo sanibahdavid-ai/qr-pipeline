@@ -49,15 +49,19 @@ const AI33_VOICES: { id: string; label: string }[] = [
 
 const ELEVENLABS_DIRECT_VOICES: { id: string; label: string }[] = [
   { id: "yl2ZDV1MzN4HbQJbMihG", label: "Alex Upbeat, Energetic and Clear ⭐" },
-  { id: "CwhRBWXzGAHq8TQ4Fs17", label: "Brian" },
-  { id: "JBFqnCBsd6RMkjVDRZzb", label: "George - Storyteller" },
-  { id: "21m00Tcm4TlvDq8ikWAM", label: "Rachel" },
-  { id: "TxGEqnHWrfWFTfGW9XjX", label: "Josh" },
 ];
 
 const EL_MODELS: { id: string; label: string }[] = [
   { id: "eleven_multilingual_v2", label: "Multilingual v2" },
   { id: "eleven_v3",              label: "Eleven v3 (default)" },
+  { id: "eleven_flash_v2_5",      label: "Flash v2.5" },
+];
+
+// Models the ElevenLabs API itself exposes for text to speech (Direct only).
+const EL_MODELS_DIRECT: { id: string; label: string }[] = [
+  { id: "eleven_v3",              label: "Eleven v3 (default)" },
+  { id: "eleven_v4",              label: "Eleven v4" },
+  { id: "eleven_multilingual_v2", label: "Multilingual v2" },
   { id: "eleven_flash_v2_5",      label: "Flash v2.5" },
 ];
 
@@ -385,7 +389,7 @@ export function LanguageRow({ lang, provider, audioState, onGenerate, audioEnabl
             style={{ borderRadius: "2px" }}
             title="ElevenLabs model"
           >
-            {EL_MODELS.map((m) => (
+            {(isDirect ? EL_MODELS_DIRECT : EL_MODELS).map((m) => (
               <option key={m.id} value={m.id}>{m.label}</option>
             ))}
           </select>
