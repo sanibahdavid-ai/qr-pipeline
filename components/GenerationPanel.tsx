@@ -46,8 +46,6 @@ export function GenerationPanel({
   const [copiedAll, setCopiedAll] = useState(false);
   const [customInput, setCustomInput] = useState("");
 
-  const groups = ["AI33", "Direct", "Free"];
-
   function handleCopyAll() {
     onCopyAllQR();
     setCopiedAll(true);
@@ -87,34 +85,34 @@ export function GenerationPanel({
 
       {/* Provider selector */}
       <div className="px-4 pt-4 pb-3 border-b border-[#1a2942]">
-        <div className="flex items-stretch gap-1 flex-wrap">
-          {groups.map((group, gi) => (
-            <div key={group} className="flex items-center gap-1">
-              {gi > 0 && <div className="w-px h-5 bg-[#1a2942] mx-1" />}
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[9px] font-mono text-[#4a6a8a] uppercase tracking-widest px-1">{group}</span>
-                <div className="flex gap-1">
-                  {PROVIDERS_UI.filter((p) => p.group === group).map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => onProviderChange(p.id)}
-                      className={`px-2.5 py-1 text-[11px] font-mono font-medium transition-none ${
-                        provider === p.id
-                          ? "text-black"
-                          : "text-[#7a9ac2] hover:text-[#e0eef8] hover:bg-[#13233a]"
-                      }`}
-                      style={{
-                        borderRadius: "2px",
-                        background: provider === p.id ? "linear-gradient(135deg, #00b4ff, #0084d1)" : undefined,
-                      }}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ))}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Pinned: ElevenLabs Direct */}
+          <button
+            onClick={() => onProviderChange("elevenlabs")}
+            className={`px-2.5 py-1 text-[11px] font-mono font-medium transition-none ${
+              provider === "elevenlabs" ? "text-black" : "text-[#7a9ac2] hover:text-[#e0eef8] hover:bg-[#13233a]"
+            }`}
+            style={{
+              borderRadius: "2px",
+              background: provider === "elevenlabs" ? "linear-gradient(135deg, #00b4ff, #0084d1)" : undefined,
+            }}
+          >
+            ElevenLabs Direct
+          </button>
+
+          {/* Everything else stays hidden in a dropdown */}
+          <select
+            value={provider === "elevenlabs" ? "" : provider}
+            onChange={(e) => { if (e.target.value) onProviderChange(e.target.value as Provider); }}
+            className="bg-[#0a1420] border border-[#1a2942] text-[10px] font-mono text-[#4a6a8a] px-2 py-1 focus:outline-none focus:border-[#00b4ff] cursor-pointer"
+            style={{ borderRadius: "2px" }}
+            title="Autres moteurs vocaux"
+          >
+            <option value="">Autres moteurs…</option>
+            {PROVIDERS_UI.filter((p) => p.id !== "elevenlabs").map((p) => (
+              <option key={p.id} value={p.id}>{p.label}</option>
+            ))}
+          </select>
         </div>
       </div>
 

@@ -104,6 +104,15 @@ export function ScriptCard({
   onAdjustCustom, onRestore, healthScore, healthFeedback,
 }: Props) {
   const [customSec, setCustomSec] = useState("");
+  const [textCopied, setTextCopied] = useState(false);
+
+  async function copyTextOnly() {
+    try {
+      await navigator.clipboard.writeText(content);
+      setTextCopied(true);
+      setTimeout(() => setTextCopied(false), 1500);
+    } catch {}
+  }
 
   function submitCustom() {
     const sec = parseFloat(customSec);
@@ -160,6 +169,16 @@ export function ScriptCard({
         <p className="text-[13px] font-mono text-[#e0eef8] whitespace-pre-wrap leading-[1.7]">
           {content}
         </p>
+      </div>
+
+      {/* Copy script text only (no header) */}
+      <div className="px-3 py-1.5 border-t border-[#1a2942] flex justify-end">
+        <button
+          onClick={copyTextOnly}
+          className="text-[10px] font-mono text-[#4a6a8a] hover:text-[#00b4ff] transition-none"
+        >
+          {textCopied ? "Copié ✓" : "Copier le texte"}
+        </button>
       </div>
 
       {/* Audio player */}
