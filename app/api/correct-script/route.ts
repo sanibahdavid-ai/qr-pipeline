@@ -35,7 +35,10 @@ Règles ABSOLUES à respecter :
 
 Retourne UNIQUEMENT le script corrigé, sans titre, sans commentaire, sans explication.`;
 
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const client = new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY,
+    defaultHeaders: { "anthropic-workspace-id": process.env.ANTHROPIC_WORKSPACE_ID || "wrkspc_01LoLru2nFBmZfTd2bsRkN7V" },
+  });
 
   const stream = client.messages.stream({
     model: "claude-sonnet-4-6",

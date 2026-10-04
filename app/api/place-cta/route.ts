@@ -66,7 +66,10 @@ RÈGLES ABSOLUES DE POSITION :
 
 Retourne UNIQUEMENT un JSON: {"insertAfterSentenceIndex": <int>} où l'index est celui de la phrase APRÈS laquelle insérer le CTA (0-indexed).`;
 
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const client = new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY,
+    defaultHeaders: { "anthropic-workspace-id": process.env.ANTHROPIC_WORKSPACE_ID || "wrkspc_01LoLru2nFBmZfTd2bsRkN7V" },
+  });
 
   try {
     const response = await client.messages.create({

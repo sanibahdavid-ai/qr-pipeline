@@ -69,7 +69,10 @@ breakdown gives the raw points awarded per criterion (matching the point values 
 
 For feedback: set to null if score >= 80, otherwise write a short specific correction (max 60 chars).`;
 
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const client = new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY,
+    defaultHeaders: { "anthropic-workspace-id": process.env.ANTHROPIC_WORKSPACE_ID || "wrkspc_01LoLru2nFBmZfTd2bsRkN7V" },
+  });
 
   try {
     const response = await client.messages.create({

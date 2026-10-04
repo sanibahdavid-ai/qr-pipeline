@@ -203,7 +203,10 @@ export async function POST(req: NextRequest) {
 
   const userContent = durationInstruction + transcript;
 
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const client = new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY,
+    defaultHeaders: { "anthropic-workspace-id": process.env.ANTHROPIC_WORKSPACE_ID || "wrkspc_01LoLru2nFBmZfTd2bsRkN7V" },
+  });
 
   let readable: ReadableStream<Uint8Array>;
   try {

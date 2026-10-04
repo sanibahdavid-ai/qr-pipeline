@@ -9,7 +9,10 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "script manquant" }, { status: 400 });
   }
 
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const client = new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY,
+    defaultHeaders: { "anthropic-workspace-id": process.env.ANTHROPIC_WORKSPACE_ID || "wrkspc_01LoLru2nFBmZfTd2bsRkN7V" },
+  });
 
   try {
     const response = await client.messages.create({
