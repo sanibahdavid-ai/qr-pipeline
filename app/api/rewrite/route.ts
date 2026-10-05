@@ -125,10 +125,23 @@ export async function POST(req: NextRequest) {
   const targetSeconds: number | "original" = body.targetSeconds ?? "original";
 
   const transcriptWords = transcript.trim().split(/\s+/).filter(Boolean).length;
-  const targetWords =
+
+  // "Original" has no fixed target, so it otherwise just mirrors however
+  // short the source was. A 1min floor (~150 words at normal speaking pace)
+  // plus a 15% cushion keeps the generated audio from landing under a minute,
+  // without padding scripts the person deliberately asked to keep short.
+  const MIN_FLOOR_WORDS = 150;
+  const PADDING = 1.15;
+
+  const baseTargetWords =
     targetSeconds === "original"
       ? transcriptWords
       : Math.round(targetSeconds * 2.5); // ~150 wpm ÷ 60
+
+  const targetWords =
+    targetSeconds === "original" && baseTargetWords < MIN_FLOOR_WORDS
+      ? Math.round(MIN_FLOOR_WORDS * PADDING)
+      : Math.round(baseTargetWords * PADDING);
 
   const minWords = Math.round(targetWords * 0.9);
   const maxWords = Math.round(targetWords * 1.1);
