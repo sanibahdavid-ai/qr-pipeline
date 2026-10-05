@@ -228,17 +228,24 @@ export default function Home() {
       }
       const savedTab = localStorage.getItem(TAB_KEY) as Tab | null;
       if (savedTab === "scripts" || savedTab === "download") setActiveTab(savedTab);
-      try { if (sessionStorage.getItem("dav_director_session") === "1") setDirectorSessionUnlocked(true); } catch {}
       const savedPinRole = localStorage.getItem("dav_pin_role") as UserRole | null;
       if (savedPinRole) {
         setPinRole(savedPinRole);
-        if (savedPinRole === "DAV") {
-          setDirectorSessionUnlocked(true);
-          try { sessionStorage.setItem("dav_director_session", "1"); } catch {}
-          setProvider("elevenlabs");
-        }
-      }
-      else setShowPinModal(true);
+        if (savedPinRole === "DAV") setProvider("elevenlabs");
+        // Audio is unlocked only when the server confirms the director cookie.
+        fetch("/api/director/status")
+          .then((r) => r.json())
+          .then((d) => {
+            if (d?.ok) {
+              setDirectorSessionUnlocked(true);
+              try { sessionStorage.setItem("dav_director_session", "1"); } catch {}
+            } else {
+              setDirectorSessionUnlocked(false);
+              try { sessionStorage.removeItem("dav_director_session"); } catch {}
+            }
+          })
+          .catch(() => {});
+      } else setShowPinModal(true);
     } catch {}
   }, []);
 
@@ -444,12 +451,23 @@ export default function Home() {
     if (data) setCloudHistory(data as GenerationRow[]);
   }
 
-  function handlePinSubmit(e: React.FormEvent) {
+  async function handlePinSubmit(e: React.FormEvent) {
     e.preventDefault();
     let newRole: UserRole = null;
-    if (pinInput === "0506") newRole = "DAV";
-    else if (pinInput === "2811") newRole = "ADMIN";
+    if (pinInput === "2811") newRole = "ADMIN";
     else if (pinInput === "2026") newRole = "GUEST";
+    else if (pinInput.length === 4) {
+      // The director code is checked on the server, which also sets the cookie
+      // the audio routes require.
+      try {
+        const r = await fetch("/api/director/unlock", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code: pinInput }),
+        });
+        if (r.ok) newRole = "DAV";
+      } catch {}
+    }
     
     if (newRole) {
       setPinRole(newRole);
@@ -1152,13 +1170,20 @@ export default function Home() {
     return configs[`${provider}__${lang}`] ?? getDefaultVoiceConfig(provider, lang);
   }
 
-  function handleDirectorUnlock(code: string): boolean {
-    if (code === "0506") {
-      setDirectorSessionUnlocked(true);
-      try { sessionStorage.setItem("dav_director_session", "1"); } catch {}
-      return true;
+  async function handleDirectorUnlock(code: string): Promise<boolean> {
+    try {
+      const r = await fetch("/api/director/unlock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      if (!r.ok) return false;
+    } catch {
+      return false;
     }
-    return false;
+    setDirectorSessionUnlocked(true);
+    try { sessionStorage.setItem("dav_director_session", "1"); } catch {}
+    return true;
   }
 
   function switchTab(tab: Tab) {

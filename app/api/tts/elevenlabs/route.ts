@@ -1,9 +1,12 @@
 import { NextRequest } from "next/server";
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
+import { requireDirector } from "@/lib/director-auth";
 
 const DEFAULT_VOICE_ID = "aTTiK3YzK3dXETpuDE2h"; // Ben — Direct ElevenLabs fallback
 
 export async function POST(req: NextRequest) {
+  const denied = await requireDirector(req);
+  if (denied) return denied;
   const body = await req.json().catch(() => null);
   const { text, voice_id, model_id, speed } = body ?? {};
 

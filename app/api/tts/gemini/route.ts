@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireDirector } from "@/lib/director-auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -50,6 +51,8 @@ function extractSampleRate(mimeType: string | undefined): number {
 }
 
 export async function POST(req: NextRequest) {
+  const denied = await requireDirector(req);
+  if (denied) return denied;
   const body = await req.json().catch(() => null);
   const text: string | undefined = body?.text;
 

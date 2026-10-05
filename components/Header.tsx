@@ -6,7 +6,7 @@ import type { HistoryEntry, AuthUser, UserRole } from "../types";
 import type { GenerationRow } from "../lib/supabase";
 import { formatDate } from "../lib/format";
 
-const APP_VERSION = "6.8";
+const APP_VERSION = "6.9";
 
 type Props = {
   history: HistoryEntry[];
@@ -20,7 +20,7 @@ type Props = {
   onOpenPalette: () => void;
   historyPanelRef: React.RefObject<HTMLDivElement | null>;
   directorUnlocked: boolean;
-  onDirectorUnlock: (code: string) => boolean;
+  onDirectorUnlock: (code: string) => boolean | Promise<boolean>;
   user: AuthUser | null;
   cloudHistory: GenerationRow[];
   onLogin: () => void;
@@ -119,13 +119,15 @@ export function Header({
                   const val = e.target.value.replace(/\D/g, "").slice(0, 4);
                   setDirectorCode(val);
                   if (val.length === 4) {
-                    if (onDirectorUnlock(val)) {
-                      setShowDirectorInput(false);
-                      setDirectorCode("");
-                    } else {
-                      setDirectorShake(true);
-                      setTimeout(() => { setDirectorShake(false); setDirectorCode(""); }, 400);
-                    }
+                    Promise.resolve(onDirectorUnlock(val)).then((ok) => {
+                      if (ok) {
+                        setShowDirectorInput(false);
+                        setDirectorCode("");
+                      } else {
+                        setDirectorShake(true);
+                        setTimeout(() => { setDirectorShake(false); setDirectorCode(""); }, 400);
+                      }
+                    });
                   }
                 }}
                 onBlur={() => { setTimeout(() => { setShowDirectorInput(false); setDirectorCode(""); }, 150); }}

@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { EdgeTTS } from 'edge-tts-universal'
+import { requireDirector } from "@/lib/director-auth";
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
+  const denied = await requireDirector(req);
+  if (denied) return denied;
   try {
     const { text, voice, rate } = await req.json()
 

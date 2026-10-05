@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { requireDirector } from "@/lib/director-auth";
 
 export const runtime = "nodejs";
 
@@ -15,6 +16,8 @@ function normalizeVoiceId(voiceId: string): string {
 }
 
 export async function POST(req: NextRequest) {
+  const denied = await requireDirector(req);
+  if (denied) return denied;
   const body = await req.json().catch(() => null);
   const { text, language, provider, title, speed, voice, model_id } = body ?? {};
 
