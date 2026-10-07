@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Loader2, ClipboardPaste } from "lucide-react";
+import { ArrowRight, Loader2, ClipboardPaste, Link2 } from "lucide-react";
 import { useRef } from "react";
 import { toast } from "sonner";
 
@@ -13,10 +13,10 @@ function detectPlatform(url: string): Platform {
   return null;
 }
 
-const PLATFORM_COLORS: Record<NonNullable<Platform>, string> = {
-  YT: "#FF0000",
-  TT: "#010101",
-  IG: "#C13584",
+const PLATFORM_LABEL: Record<NonNullable<Platform>, { name: string; className: string }> = {
+  YT: { name: "YouTube", className: "bg-[#ff3b47]/15 text-[#ff8a92]" },
+  TT: { name: "TikTok", className: "bg-fg/10 text-fg" },
+  IG: { name: "Instagram", className: "bg-[#d6409f]/15 text-[#f08bc9]" },
 };
 
 type Props = {
@@ -58,7 +58,7 @@ export function UrlInput({
   }
 
   function handleTextareaKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    // Plain Enter submits; Shift+Enter inserts newline
+    // Entrée envoie, Maj+Entrée va à la ligne
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       if (manualText.trim()) onManualSubmit();
@@ -66,93 +66,88 @@ export function UrlInput({
   }
 
   return (
-    <div className="space-y-2">
-      {/* ── URL input ── */}
-      <div className="relative flex items-center">
-        {platform && (
-          <div className="absolute left-3 flex items-center z-10">
-            <span
-              className="text-[10px] font-mono font-semibold text-[#e0eef8] px-1.5 py-0.5"
-              style={{ borderRadius: "2px", background: PLATFORM_COLORS[platform] }}
-            >
-              {platform}
-            </span>
-          </div>
-        )}
-
-        <input
-          ref={inputRef}
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onPaste={handlePaste}
-          placeholder="youtube.com/watch?v=…  ·  tiktok.com/@…  ·  instagram.com/p/…"
-          className={`w-full h-12 bg-[#0a1420] border text-sm font-mono placeholder-[#4a6a8a] text-[#e0eef8] focus:outline-none pr-[84px] transition-none ${
-            isLoading
-              ? "border-[#2a4a75] animate-pulse"
-              : error
-              ? "border-[#ff4466]"
-              : "border-[#1a2942] focus:border-[#00b4ff]"
-          } ${platform ? "pl-12" : "pl-4"}`}
-          style={{ borderRadius: "2px" }}
-          disabled={isLoading}
-        />
-
-        <button
-          onClick={handleClickPaste}
-          disabled={isLoading}
-          title="Coller depuis le presse-papier"
-          className="absolute right-[44px] flex items-center justify-center w-8 h-8 border border-[#1a2942] text-[#4a6a8a] hover:border-[#00b4ff] hover:text-[#00b4ff] disabled:opacity-40 transition-none"
-          style={{ borderRadius: "2px" }}
-        >
-          <ClipboardPaste size={13} />
-        </button>
-
-        <button
-          onClick={onSubmit}
-          disabled={!value.trim() || isLoading}
-          className="absolute right-2 flex items-center justify-center w-8 h-8 text-black disabled:opacity-40 transition-none"
-          style={{ background: "linear-gradient(135deg, #00b4ff, #0084d1)", borderRadius: "2px" }}
-        >
-          {isLoading
-            ? <Loader2 size={14} className="animate-spin text-black" />
-            : <ArrowRight size={14} />}
-        </button>
-      </div>
-
-      {error && <p className="text-[12px] font-mono text-[#ff4466]">{error}</p>}
-
-      {/* ── OU divider ── */}
-      <div className="flex items-center gap-3 py-1">
-        <div className="flex-1 h-px bg-[#1a2942]" />
-        <span className="text-[10px] font-mono font-semibold text-[#4a6a8a] tracking-widest">OU</span>
-        <div className="flex-1 h-px bg-[#1a2942]" />
-      </div>
-
-      {/* ── Manual transcript textarea ── */}
-      <div className="relative">
-        <textarea
-          value={manualText}
-          onChange={(e) => onManualChange(e.target.value)}
-          onKeyDown={handleTextareaKeyDown}
-          placeholder="Colle ton transcript ici..."
-          className={`w-full bg-[#0a1420] border text-sm font-mono placeholder-[#4a6a8a] text-[#e0eef8] focus:outline-none px-4 py-3 pr-12 resize-y transition-none ${
-            isLoading
-              ? "border-[#2a4a75] opacity-50"
-              : "border-[#1a2942] focus:border-[#00b4ff]"
+    <div className="space-y-5">
+      {/* Lien vidéo : le point de départ de tout */}
+      <div>
+        <div
+          className={`group flex items-center gap-2 p-2 rounded-[22px] bg-deck border transition-[border-color,box-shadow] duration-200 ${
+            error
+              ? "border-bad/60"
+              : isLoading
+              ? "border-accent/40"
+              : "border-line focus-within:border-accent/70 focus-within:shadow-[0_0_0_4px_rgba(76,141,255,0.12),0_24px_60px_-24px_rgba(76,141,255,0.45)]"
           }`}
-          style={{ borderRadius: "2px", minHeight: "80px", maxHeight: "200px" }}
-          disabled={isLoading}
-        />
-        <button
-          onClick={() => { if (manualText.trim() && !isLoading) onManualSubmit(); }}
-          disabled={!manualText.trim() || isLoading}
-          className="absolute right-2 bottom-2 flex items-center justify-center w-8 h-8 text-black disabled:opacity-40 transition-none"
-          style={{ background: "linear-gradient(135deg, #00b4ff, #0084d1)", borderRadius: "2px" }}
         >
-          <ArrowRight size={14} />
-        </button>
+          <span className="pl-2.5 shrink-0">
+            {platform ? (
+              <span className={`h-7 px-2.5 rounded-full text-[13px] font-semibold grid place-items-center ${PLATFORM_LABEL[platform].className}`}>
+                {PLATFORM_LABEL[platform].name}
+              </span>
+            ) : (
+              <Link2 size={18} className="text-dim" />
+            )}
+          </span>
+
+          <input
+            ref={inputRef}
+            type="text"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
+            placeholder="Colle un lien vidéo"
+            className="flex-1 min-w-0 h-12 bg-transparent text-[16px] text-fg placeholder:text-dim focus:outline-none"
+            disabled={isLoading}
+            aria-label="Lien de la vidéo"
+          />
+
+          <button
+            onClick={handleClickPaste}
+            disabled={isLoading}
+            title="Coller depuis le presse-papier"
+            className="shrink-0 inline-flex items-center gap-2 h-11 px-3 sm:px-4 rounded-[14px] text-[14px] font-medium text-muted hover:text-fg hover:bg-raised disabled:opacity-40 transition-colors"
+          >
+            <ClipboardPaste size={16} />
+            <span className="hidden sm:inline">Coller</span>
+          </button>
+
+          <button
+            onClick={onSubmit}
+            disabled={!value.trim() || isLoading}
+            aria-label="Extraire le transcript"
+            className="shrink-0 w-11 h-11 rounded-[14px] grid place-items-center bg-accent-deep text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] hover:bg-accent disabled:bg-raised disabled:text-dim disabled:shadow-none transition-colors"
+          >
+            {isLoading ? <Loader2 size={18} className="animate-spin" /> : <ArrowRight size={18} />}
+          </button>
+        </div>
+
+        {error && <p className="mt-2.5 px-2 text-[14px] text-bad">{error}</p>}
+        {isLoading && <p className="mt-2.5 px-2 text-[14px] text-muted">Extraction du transcript en cours…</p>}
+      </div>
+
+      {/* Transcript collé à la main */}
+      <div>
+        <p className="px-2 mb-2 text-[14px] text-dim">Ou colle directement un transcript</p>
+        <div className="relative rounded-[18px] bg-deck/60 border border-line-soft focus-within:border-accent/50 transition-colors">
+          <textarea
+            value={manualText}
+            onChange={(e) => onManualChange(e.target.value)}
+            onKeyDown={handleTextareaKeyDown}
+            placeholder="Le texte de la vidéo…"
+            className="block w-full bg-transparent text-[15px] leading-relaxed text-fg placeholder:text-dim focus:outline-none px-4 py-3.5 pr-16 resize-y"
+            style={{ minHeight: "92px", maxHeight: "260px" }}
+            disabled={isLoading}
+            aria-label="Transcript"
+          />
+          <button
+            onClick={() => { if (manualText.trim() && !isLoading) onManualSubmit(); }}
+            disabled={!manualText.trim() || isLoading}
+            aria-label="Réécrire ce transcript"
+            className="absolute right-2.5 bottom-2.5 w-10 h-10 rounded-[12px] grid place-items-center bg-accent-deep text-white hover:bg-accent disabled:bg-raised disabled:text-dim transition-colors"
+          >
+            <ArrowRight size={17} />
+          </button>
+        </div>
       </div>
     </div>
   );

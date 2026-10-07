@@ -55,14 +55,14 @@ export function CommandPalette({
       value: "paste-url",
       label: "Coller une URL",
       shortcut: "⌘V",
-      icon: <Link size={13} />,
+      icon: <Link size={16} />,
       action: () => { onPasteUrl(); onClose(); },
     },
     {
       value: "generate-fr",
       label: "Générer FR",
       shortcut: "GF",
-      icon: <Languages size={13} />,
+      icon: <Languages size={16} />,
       action: () => { onGenerateFR(); onClose(); },
       disabled: !hasContent,
     },
@@ -70,7 +70,7 @@ export function CommandPalette({
       value: "generate-en",
       label: "Générer EN",
       shortcut: "GE",
-      icon: <Languages size={13} />,
+      icon: <Languages size={16} />,
       action: () => { onGenerateEN(); onClose(); },
       disabled: !hasContent,
     },
@@ -78,7 +78,7 @@ export function CommandPalette({
       value: "generate-de",
       label: "Générer DE",
       shortcut: "GD",
-      icon: <Languages size={13} />,
+      icon: <Languages size={16} />,
       action: () => { onGenerateDE(); onClose(); },
       disabled: !hasContent,
     },
@@ -86,7 +86,7 @@ export function CommandPalette({
       value: "generate-es",
       label: "Générer ES",
       shortcut: "GS",
-      icon: <Languages size={13} />,
+      icon: <Languages size={16} />,
       action: () => { onGenerateES(); onClose(); },
       disabled: !hasContent,
     },
@@ -94,7 +94,7 @@ export function CommandPalette({
       value: "generate-all",
       label: "Générer les 4 langues",
       shortcut: "GA",
-      icon: <RefreshCw size={13} />,
+      icon: <RefreshCw size={16} />,
       action: () => { onGenerateAll(); onClose(); },
       disabled: !hasContent,
     },
@@ -102,47 +102,37 @@ export function CommandPalette({
       value: "copy-qr",
       label: "Tout copier (QR)",
       shortcut: "⌘⇧C",
-      icon: <Copy size={13} />,
+      icon: <Copy size={16} />,
       action: () => { onCopyAllQR(); onClose(); },
       disabled: !hasContent,
     },
     {
       value: "reset",
-      label: "Réinitialiser",
-      icon: <RotateCcw size={13} />,
+      label: "Nouvelle vidéo",
+      icon: <RotateCcw size={16} />,
       action: () => { onReset(); onClose(); },
     },
   ];
 
   return (
     <>
-      {/* Backdrop */}
-      <div className="fixed inset-0 z-50 bg-black/75" onClick={onClose} />
+      <div className="fixed inset-0 z-50 bg-ink/70 backdrop-blur-sm" onClick={onClose} />
 
-      {/* Panel */}
-      <div className="fixed top-[20vh] left-1/2 -translate-x-1/2 z-50 w-full max-w-md" style={{ borderRadius: "4px" }}>
-        <Command
-          className="bg-[#0d1420] border border-[#1a2942] overflow-hidden shadow-2xl"
-          style={{ borderRadius: "4px" }}
-        >
-          {/* Gradient top bar */}
-          <div className="h-[2px] w-full" style={{ background: "linear-gradient(90deg, #00b4ff, #ff3cac)" }} />
-
-          {/* Input */}
-          <div className="flex items-center border-b border-[#1a2942] px-3 gap-2">
-            <span className="text-[#4a6a8a] shrink-0 text-[11px] font-mono">⌘</span>
+      <div className="fixed top-[16vh] left-1/2 -translate-x-1/2 z-50 w-[calc(100%-24px)] max-w-lg">
+        <Command className="rounded-[22px] bg-deck border border-line shadow-[0_40px_90px_-20px_rgba(0,0,0,0.8)] overflow-hidden dav-rise">
+          <div className="flex items-center px-5 gap-3 border-b border-line-soft">
             <Command.Input
               ref={inputRef}
-              placeholder="Rechercher une action…"
-              className="flex-1 h-11 bg-transparent text-[13px] font-mono text-[#e0eef8] placeholder-[#4a6a8a] outline-none"
+              placeholder="Rechercher une action"
+              className="flex-1 h-14 bg-transparent text-[16px] text-fg placeholder:text-dim outline-none"
             />
-            <button onClick={onClose} className="shrink-0 text-[#4a6a8a] hover:text-[#e0eef8] transition-none">
-              <X size={13} />
+            <button onClick={onClose} className="shrink-0 w-8 h-8 rounded-lg grid place-items-center text-dim hover:text-fg hover:bg-raised transition-colors" aria-label="Fermer">
+              <X size={15} />
             </button>
           </div>
 
-          <Command.List className="max-h-72 overflow-y-auto py-1">
-            <Command.Empty className="py-6 text-center text-[12px] font-mono text-[#4a6a8a]">
+          <Command.List className="max-h-80 overflow-y-auto p-2">
+            <Command.Empty className="py-8 text-center text-[14px] text-dim">
               Aucune action trouvée
             </Command.Empty>
 
@@ -150,19 +140,17 @@ export function CommandPalette({
               <Command.Item
                 key={item.value}
                 value={item.value}
+                keywords={[item.label]}
                 disabled={item.disabled}
                 onSelect={item.disabled ? undefined : item.action}
-                className="flex items-center justify-between px-3 py-2.5 cursor-pointer text-[#7a9ac2] data-[selected=true]:bg-[#13233a] data-[selected=true]:text-[#e0eef8] aria-disabled:opacity-40 aria-disabled:cursor-default transition-none"
+                className="flex items-center justify-between px-3 h-11 rounded-xl cursor-pointer text-muted data-[selected=true]:bg-raised data-[selected=true]:text-fg aria-disabled:opacity-40 aria-disabled:cursor-default transition-colors"
               >
-                <div className="flex items-center gap-2.5">
-                  <span className="text-[#4a6a8a]">{item.icon}</span>
-                  <span className="text-[13px] font-mono">{item.label}</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-dim">{item.icon}</span>
+                  <span className="text-[15px]">{item.label}</span>
                 </div>
                 {item.shortcut && (
-                  <span
-                    className="text-[10px] font-mono text-[#4a6a8a] border border-[#1a2942] px-1.5 py-0.5"
-                    style={{ borderRadius: "2px" }}
-                  >
+                  <span className="text-[12px] font-medium text-dim bg-ink/60 px-2 h-6 rounded-md grid place-items-center">
                     {item.shortcut}
                   </span>
                 )}

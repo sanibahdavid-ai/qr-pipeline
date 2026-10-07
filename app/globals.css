@@ -1,31 +1,26 @@
 @import "tailwindcss";
 
 @theme {
-  /* DAV Pipeline — cyber-blue palette */
-  --color-bg: #060a12;
-  --color-surface: #0d1420;
-  --color-surface-hover: #13233a;
-  --color-border: #1a2942;
-  --color-border-strong: #2a4a75;
-  --color-text: #e0eef8;
-  --color-text-muted: #7a9ac2;
-  --color-text-dim: #4a6a8a;
-  --color-accent: #00b4ff;
-  --color-accent2: #ff3cac;
-  --color-accent-fg: #000000;
-  --color-success: #00b4ff;
-  --color-warning: #F59E0B;
-  --color-danger: #ff4466;
+  /* DAV Pipeline v8 — "match de nuit" : encre bleue, blanc projecteur, un seul bleu d'action */
+  --color-ink: #0a1322;
+  --color-deck: #101c30;
+  --color-raised: #16243b;
+  --color-hover: #1c2d49;
+  --color-line: #22365a;
+  --color-line-soft: #1a2a45;
+  --color-fg: #eef3fb;
+  --color-muted: #9aacc6;
+  --color-dim: #7184a6;
+  --color-accent: #4c8dff;
+  --color-accent-hi: #6ea4ff;
+  --color-accent-deep: #2c68e6;
+  --color-ok: #3dd6a3;
+  --color-warn: #f5b54a;
+  --color-bad: #ff6b7d;
 
-  /* Typography */
-  --font-mono: var(--font-space-mono), "Space Mono", ui-monospace, monospace;
-  --font-display: var(--font-syne), "Syne", sans-serif;
-  --font-sans: var(--font-space-mono), "Space Mono", ui-monospace, monospace;
-
-  /* Radius — sharp */
-  --radius-sm: 2px;
-  --radius-md: 4px;
-  --radius-lg: 4px;
+  /* Typographie : Barlow pour lire, Barlow Condensed pour les titres (langage des habillages foot) */
+  --font-sans: "Barlow", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Barlow Condensed", "Barlow", ui-sans-serif, system-ui, sans-serif;
 }
 
 * {
@@ -34,37 +29,31 @@
 
 html {
   scroll-behavior: smooth;
+  color-scheme: dark;
 }
 
 body {
-  background-color: #060a12;
-  color: #e0eef8;
-  font-family: var(--font-space-mono), "Space Mono", ui-monospace, monospace;
+  background-color: var(--color-ink);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  font-size: 15px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
-/* Grid background overlay */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image:
-    linear-gradient(#00b4ff 1px, transparent 1px),
-    linear-gradient(90deg, #00b4ff 1px, transparent 1px);
-  background-size: 40px 40px;
-  opacity: 0.03;
-  pointer-events: none;
-  z-index: 0;
+::selection {
+  background: rgba(76, 141, 255, 0.35);
+  color: #fff;
 }
 
-/* Brutalist slider — square thumb */
+/* Slider : piste fine, curseur rond */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
-  height: 2px;
-  background: #1a2942;
-  border-radius: 1px;
+  height: 4px;
+  background: var(--color-line);
+  border-radius: 999px;
   outline: none;
   cursor: pointer;
 }
@@ -72,48 +61,112 @@ input[type="range"] {
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 12px;
-  height: 12px;
-  border-radius: 2px;
-  background: #00b4ff;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--color-fg);
+  border: 3px solid var(--color-accent);
   cursor: pointer;
 }
 
 input[type="range"]::-moz-range-thumb {
-  width: 12px;
-  height: 12px;
-  border-radius: 2px;
-  background: #00b4ff;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--color-fg);
+  border: 3px solid var(--color-accent);
   cursor: pointer;
-  border: none;
 }
 
-/* Focus ring */
+input[type="range"]:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Champs numériques sans flèches */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* Selects : flèche personnalisée */
+select.dav-select {
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239aacc6' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 34px;
+}
+select.dav-select option {
+  background: var(--color-deck);
+  color: var(--color-fg);
+}
+
+/* Focus clavier visible */
 *:focus-visible {
-  outline: 1px solid rgba(0, 180, 255, 0.4);
+  outline: 2px solid rgba(76, 141, 255, 0.7);
   outline-offset: 2px;
 }
 
-/* Scrollbar */
+/* Barre de défilement discrète */
 ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1a2942;
-  border-radius: 2px;
+  background: var(--color-line);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #2a4a75;
+  background: #2e4672;
+  background-clip: padding-box;
+}
+
+/* Le seul moment animé : l'arrivée des résultats */
+@keyframes dav-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.dav-rise {
+  animation: dav-rise 0.35s ease-out both;
+}
+
+@keyframes dav-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.dav-skeleton {
+  background: linear-gradient(90deg, var(--color-raised) 0%, var(--color-hover) 50%, var(--color-raised) 100%);
+  background-size: 200% 100%;
+  animation: dav-shimmer 1.6s linear infinite;
 }
 
 @keyframes shake {
-  0%, 100% { transform: translateX(0) translateY(-50%); }
-  20% { transform: translateX(-4px) translateY(-50%); }
-  40% { transform: translateX(4px) translateY(-50%); }
-  60% { transform: translateX(-3px) translateY(-50%); }
-  80% { transform: translateX(3px) translateY(-50%); }
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+.dav-shake {
+  animation: shake 0.35s ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

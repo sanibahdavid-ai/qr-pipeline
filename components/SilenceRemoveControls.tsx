@@ -112,46 +112,38 @@ export function SilenceRemoveControls({ audioUrl, filename, onReplace }: Props) 
       <button
         onClick={handleRemoveSilence}
         disabled={isLoading}
-        title="Enlever silences"
-        className="shrink-0 w-9 h-9 flex items-center justify-center border border-[#1a2942] text-[#4a6a8a] hover:border-[#00b4ff] hover:text-[#00b4ff] disabled:opacity-50 transition-none"
-        style={{ borderRadius: "2px" }}
+        title="Enlever les silences"
+        className="shrink-0 w-10 h-10 rounded-xl grid place-items-center text-muted hover:text-fg hover:bg-raised disabled:opacity-50 transition-colors"
       >
-        {isLoading ? <Loader2 size={14} className="animate-spin" /> : <Scissors size={14} />}
+        {isLoading ? <Loader2 size={17} className="animate-spin" /> : <Scissors size={17} />}
       </button>
 
       <div className="relative" ref={settingsRef}>
         <button
           onClick={() => setShowSettings((v) => !v)}
-          title="Réglages silence"
-          className="shrink-0 w-6 h-6 flex items-center justify-center text-[#4a6a8a] hover:text-[#00b4ff] transition-none"
-          style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
+          title="Réglages des silences"
+          className={`shrink-0 w-8 h-10 rounded-xl grid place-items-center transition-colors ${showSettings ? "text-fg bg-raised" : "text-dim hover:text-fg hover:bg-raised"}`}
         >
-          <Settings size={12} />
+          <Settings size={15} />
         </button>
 
         {showSettings && (
-          <div
-            className="absolute right-0 top-full mt-1.5 z-[70] w-56 bg-[#0d1420] border border-[#1a2942] shadow-2xl overflow-hidden"
-            style={{ borderRadius: "4px" }}
-          >
-            <div className="h-[2px] w-full" style={{ background: "linear-gradient(90deg, #00b4ff, #ff3cac)" }} />
-            <div className="flex items-center justify-between px-3 py-2 border-b border-[#1a2942]">
-              <span className="text-[10px] font-mono font-semibold text-[#7a9ac2] tracking-widest uppercase">
-                Réglages silence
-              </span>
+          <div className="absolute right-0 bottom-[calc(100%+8px)] z-[70] w-64 rounded-2xl bg-deck border border-line shadow-[0_28px_70px_-16px_rgba(0,0,0,0.75)] overflow-hidden dav-rise">
+            <div className="flex items-center justify-between px-4 h-12 border-b border-line-soft">
+              <span className="text-[15px] font-semibold text-fg">Réglages des silences</span>
               <button
                 onClick={() => setShowSettings(false)}
-                className="text-[#4a6a8a] hover:text-[#e0eef8] transition-none"
-                style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
+                className="w-7 h-7 rounded-lg grid place-items-center text-dim hover:text-fg hover:bg-raised transition-colors"
+                aria-label="Fermer"
               >
-                <X size={12} />
+                <X size={14} />
               </button>
             </div>
-            <div className="px-3 py-3 space-y-3">
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-[10px] font-mono text-[#7a9ac2]">
+            <div className="px-4 py-4 space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-[13px] text-muted">
                   <span>Seuil</span>
-                  <span>{settings.thresholdDb} dB</span>
+                  <span className="tabular-nums text-fg">{settings.thresholdDb} dB</span>
                 </div>
                 <input
                   type="range"
@@ -160,14 +152,13 @@ export function SilenceRemoveControls({ audioUrl, filename, onReplace }: Props) 
                   step={1}
                   value={settings.thresholdDb}
                   onChange={(e) => updateSetting("thresholdDb", parseInt(e.target.value, 10))}
-                  className="w-full h-0.5 bg-[#1a2942] cursor-pointer"
-                  style={{ accentColor: "#00b4ff" }}
+                  className="w-full"
                 />
               </div>
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-[10px] font-mono text-[#7a9ac2]">
-                  <span>Silence min.</span>
-                  <span>{settings.minSilenceMs} ms</span>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-[13px] text-muted">
+                  <span>Silence minimum</span>
+                  <span className="tabular-nums text-fg">{settings.minSilenceMs} ms</span>
                 </div>
                 <input
                   type="range"
@@ -176,14 +167,13 @@ export function SilenceRemoveControls({ audioUrl, filename, onReplace }: Props) 
                   step={50}
                   value={settings.minSilenceMs}
                   onChange={(e) => updateSetting("minSilenceMs", parseInt(e.target.value, 10))}
-                  className="w-full h-0.5 bg-[#1a2942] cursor-pointer"
-                  style={{ accentColor: "#00b4ff" }}
+                  className="w-full"
                 />
               </div>
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-[10px] font-mono text-[#7a9ac2]">
-                  <span>Garder</span>
-                  <span>{settings.keepSilenceMs} ms</span>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-[13px] text-muted">
+                  <span>Silence gardé</span>
+                  <span className="tabular-nums text-fg">{settings.keepSilenceMs} ms</span>
                 </div>
                 <input
                   type="range"
@@ -192,8 +182,7 @@ export function SilenceRemoveControls({ audioUrl, filename, onReplace }: Props) 
                   step={25}
                   value={settings.keepSilenceMs}
                   onChange={(e) => updateSetting("keepSilenceMs", parseInt(e.target.value, 10))}
-                  className="w-full h-0.5 bg-[#1a2942] cursor-pointer"
-                  style={{ accentColor: "#00b4ff" }}
+                  className="w-full"
                 />
               </div>
             </div>
@@ -203,15 +192,15 @@ export function SilenceRemoveControls({ audioUrl, filename, onReplace }: Props) 
 
       {status.kind === "done" && (
         <span
-          title={`Silence removed: ${status.before.toFixed(1)}s → ${status.after.toFixed(1)}s (saved ${(status.before - status.after).toFixed(1)}s)`}
-          className="text-[10px] font-mono text-[#00b4ff] whitespace-nowrap"
+          title={`Silences enlevés : ${status.before.toFixed(1)} s, puis ${status.after.toFixed(1)} s`}
+          className="text-[13px] font-medium text-ok whitespace-nowrap tabular-nums"
         >
-          −{(status.before - status.after).toFixed(1)}s
+          −{(status.before - status.after).toFixed(1)} s
         </span>
       )}
       {status.kind === "error" && (
-        <span className="text-[10px] font-mono text-[#ff4466] whitespace-nowrap" title={status.message}>
-          Erreur
+        <span className="text-[13px] font-medium text-bad whitespace-nowrap" title={status.message}>
+          Échec
         </span>
       )}
     </div>

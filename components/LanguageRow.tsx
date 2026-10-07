@@ -1,6 +1,6 @@
 "use client";
 
-import { Play, RefreshCw, Loader2, Pause, X, Download } from "lucide-react";
+import { Play, RefreshCw, Loader2, Pause, RotateCcw, Download, Check } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
 import { useVoiceConfig } from "../hooks/useVoiceConfig";
 import { SilenceRemoveControls } from "./SilenceRemoveControls";
@@ -19,6 +19,13 @@ import {
 
 type LangCode = "FR" | "EN" | "DE" | "ES";
 
+const LANG_NAMES: Record<LangCode, string> = {
+  FR: "Français",
+  EN: "Anglais",
+  DE: "Allemand",
+  ES: "Espagnol",
+};
+
 const EDGE_LANG_MAP: Record<LangCode, keyof typeof EDGE_TTS_VOICES> = {
   FR: "fr", EN: "en", DE: "de", ES: "es",
 };
@@ -34,22 +41,22 @@ const GEMINI_SPEED_MIN = 0.5;
 const GEMINI_SPEED_MAX = 1.5;
 
 const AI33_VOICES: { id: string; label: string }[] = [
-  { id: "elevenlabs_yl2ZDV1MzN4HbQJbMihG", label: "Alex Upbeat, Energetic and Clear (ElevenLabs) ⭐" },
+  { id: "elevenlabs_yl2ZDV1MzN4HbQJbMihG", label: "Alex Upbeat, Energetic and Clear" },
 ];
 
 const ELEVENLABS_DIRECT_VOICES: { id: string; label: string }[] = [
-  { id: "yl2ZDV1MzN4HbQJbMihG", label: "Alex Upbeat, Energetic and Clear ⭐" },
+  { id: "yl2ZDV1MzN4HbQJbMihG", label: "Alex Upbeat, Energetic and Clear" },
 ];
 
 const EL_MODELS: { id: string; label: string }[] = [
   { id: "eleven_multilingual_v2", label: "Multilingual v2" },
-  { id: "eleven_v3",              label: "Eleven v3 (default)" },
+  { id: "eleven_v3",              label: "Eleven v3 (défaut)" },
   { id: "eleven_flash_v2_5",      label: "Flash v2.5" },
 ];
 
-// Models the ElevenLabs API itself exposes for text to speech (Direct only).
+// Modèles que l'API ElevenLabs expose pour la synthèse vocale (Direct uniquement).
 const EL_MODELS_DIRECT: { id: string; label: string }[] = [
-  { id: "eleven_v3",              label: "Eleven v3 (default)" },
+  { id: "eleven_v3",              label: "Eleven v3 (défaut)" },
   { id: "eleven_v4",              label: "Eleven v4" },
   { id: "eleven_multilingual_v2", label: "Multilingual v2" },
   { id: "eleven_flash_v2_5",      label: "Flash v2.5" },
@@ -57,8 +64,7 @@ const EL_MODELS_DIRECT: { id: string; label: string }[] = [
 
 const EL_MODEL_DEFAULT = "eleven_v3";
 
-// Real API-enforced speed ranges: ElevenLabs' own voice_settings.speed only
-// accepts 0.7–1.2; AI33 applies its own post-processing on top and accepts 0.5–1.5.
+// Plages réellement acceptées : ElevenLabs Direct 0.7 à 1.2, AI33 0.5 à 1.5.
 const EL_SPEED_MIN_DIRECT = 0.7;
 const EL_SPEED_MAX_DIRECT = 1.2;
 const EL_SPEED_MIN_AI33 = 0.5;
@@ -73,13 +79,6 @@ type Props = {
   onGenerate: (lang: LangCode, voice: string, speed: number, modelId?: string, geminiParams?: GeminiParams) => void;
   audioEnabled?: boolean;
 };
-
-function StatusDot({ state }: { state?: AudioState }) {
-  if (!state) return <span className="w-2 h-2 rounded-full border border-[#2a4a75] inline-block" title="idle" />;
-  if (state.status === "loading") return <Loader2 size={12} className="text-[#7a9ac2] animate-spin" />;
-  if (state.status === "done") return <span className="w-2 h-2 rounded-full bg-[#00b4ff] inline-block" title="ready" />;
-  return <span className="w-2 h-2 rounded-full bg-[#ff4466] inline-block" title="error" />;
-}
 
 function fmt(s: number): string {
   if (!isFinite(s) || s < 0) return "0:00";
@@ -126,10 +125,7 @@ function AudioPlayer({ audioUrl, filename, showSilenceRemoval, onReplace }: Audi
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div
-      className="w-full flex items-center gap-4 px-4 py-2.5 border border-[#1a2942]"
-      style={{ background: "#0d1420", borderRadius: "2px" }}
-    >
+    <div className="mt-3 flex flex-wrap sm:flex-nowrap items-center gap-x-2 gap-y-1 sm:gap-3 p-2 pr-2 sm:pr-3 rounded-2xl bg-ink/60 border border-line-soft">
       <audio
         ref={audioRef}
         src={audioUrl}
@@ -141,35 +137,28 @@ function AudioPlayer({ audioUrl, filename, showSilenceRemoval, onReplace }: Audi
 
       <button
         onClick={toggle}
-        className="shrink-0 w-9 h-9 flex items-center justify-center border border-[#2a4a75] text-[#7a9ac2] hover:border-[#00b4ff] hover:text-[#00b4ff] transition-none"
-        style={{ borderRadius: "2px" }}
-        aria-label={playing ? "Pause" : "Play"}
+        className="shrink-0 w-10 h-10 rounded-xl grid place-items-center bg-accent-deep text-white hover:bg-accent transition-colors"
+        aria-label={playing ? "Pause" : "Lecture"}
       >
-        {playing ? <Pause size={14} /> : <Play size={14} />}
+        {playing ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" className="translate-x-px" />}
       </button>
 
       <div
-        ref={barRef}
         onClick={seek}
-        className="flex-1 min-w-0 relative h-2 cursor-pointer group"
-        style={{ borderRadius: "2px" }}
-        title="Cliquer pour naviguer"
+        className="order-last basis-full px-1 sm:px-0 sm:order-none sm:basis-auto sm:flex-1 min-w-0 relative h-6 cursor-pointer group flex items-center"
+        title="Cliquer pour avancer"
       >
-        <div className="absolute inset-0 bg-[#1a2942]" style={{ borderRadius: "2px" }} />
-        <div
-          className="absolute inset-y-0 left-0 bg-[#00b4ff]"
-          style={{ width: `${progress}%`, borderRadius: "2px" }}
-        />
-        <div
-          className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-[#00b4ff] opacity-0 group-hover:opacity-100 transition-opacity"
-          style={{ left: `calc(${progress}% - 5px)`, borderRadius: "50%" }}
-        />
+        <div ref={barRef} className="relative w-full h-1.5">
+          <div className="absolute inset-0 rounded-full bg-line" />
+          <div className="absolute inset-y-0 left-0 rounded-full bg-accent" style={{ width: `${progress}%` }} />
+          <div
+            className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-fg shadow-[0_0_0_3px_var(--color-accent)] opacity-0 group-hover:opacity-100 transition-opacity"
+            style={{ left: `calc(${progress}% - 7px)` }}
+          />
+        </div>
       </div>
 
-      <span
-        className="shrink-0 text-[11px] text-[#7a9ac2] tabular-nums"
-        style={{ fontFamily: "var(--font-space-mono, monospace)", minWidth: "84px", textAlign: "center" }}
-      >
+      <span className="shrink-0 mr-auto sm:mr-0 text-[13px] text-muted tabular-nums text-center min-w-[78px]">
         {fmt(currentTime)} / {fmt(duration)}
       </span>
 
@@ -177,11 +166,10 @@ function AudioPlayer({ audioUrl, filename, showSilenceRemoval, onReplace }: Audi
         <a
           href={audioUrl}
           download={filename}
-          className="shrink-0 w-9 h-9 flex items-center justify-center border border-[#1a2942] text-[#4a6a8a] hover:border-[#00b4ff] hover:text-[#00b4ff] transition-none"
-          style={{ borderRadius: "2px" }}
-          title="Télécharger"
+          className="shrink-0 w-10 h-10 rounded-xl grid place-items-center text-muted hover:text-fg hover:bg-raised transition-colors"
+          title="Télécharger l'audio"
         >
-          <Download size={14} />
+          <Download size={17} />
         </a>
       )}
 
@@ -191,6 +179,9 @@ function AudioPlayer({ audioUrl, filename, showSilenceRemoval, onReplace }: Audi
     </div>
   );
 }
+
+const selectClass =
+  "dav-select w-full h-10 pl-3.5 rounded-xl bg-raised border border-transparent text-[14px] text-fg focus:outline-none focus:border-accent/60 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50";
 
 export function LanguageRow({ lang, provider, audioState, onGenerate, audioEnabled }: Props) {
   const audioDisabled = !audioEnabled;
@@ -225,7 +216,12 @@ export function LanguageRow({ lang, provider, audioState, onGenerate, audioEnabl
     return [];
   })();
 
-  const hasVoiceSelect = voices.length > 0;
+  // Une seule voix proposée : on s'assure que c'est bien elle qui part à la génération.
+  const singleVoice = voices.length === 1 ? voices[0] : null;
+  useEffect(() => {
+    if (singleVoice && config.voice !== singleVoice.id) update({ voice: singleVoice.id });
+  }, [singleVoice, config.voice, update]);
+
   const showModelSelect = config.voice.startsWith("elevenlabs_") || isDirect;
   const speedMin = isGemini ? GEMINI_SPEED_MIN : showModelSelect ? (isDirect ? EL_SPEED_MIN_DIRECT : EL_SPEED_MIN_AI33) : SPEED_MIN;
   const speedMax = isGemini ? GEMINI_SPEED_MAX : showModelSelect ? (isDirect ? EL_SPEED_MAX_DIRECT : EL_SPEED_MAX_AI33) : SPEED_MAX;
@@ -236,8 +232,7 @@ export function LanguageRow({ lang, provider, audioState, onGenerate, audioEnabl
 
   const currentAudioUrl = audioState?.audioUrl;
 
-  // Silence-removed audio overrides the generated one for playback/download until
-  // a fresh generation replaces audioState — reset whenever the base audio changes.
+  // L'audio sans silences remplace l'original jusqu'à la prochaine génération.
   const [processedAudio, setProcessedAudio] = useState<{ url: string; filename: string } | null>(null);
   useEffect(() => { setProcessedAudio(null); }, [currentAudioUrl]);
   const displayAudioUrl = processedAudio?.url ?? currentAudioUrl;
@@ -251,47 +246,57 @@ export function LanguageRow({ lang, provider, audioState, onGenerate, audioEnabl
           accent: config.accent ?? GEMINI_ACCENT_DEFAULT,
         }
       : undefined;
-    onGenerate(lang, config.voice, config.speed, showModelSelect ? modelId : undefined, geminiParams);
+    onGenerate(lang, singleVoice ? singleVoice.id : config.voice, config.speed, showModelSelect ? modelId : undefined, geminiParams);
   }
 
   return (
-    <div className="flex flex-col py-2 gap-1.5">
-
-      {/* ── Controls row — stacks on mobile, single line from sm+ ──────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-
-        {/* Lang badge + voice select — own group, free to shrink/grow */}
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <span className="text-[11px] font-mono font-semibold text-[#7a9ac2] w-6 shrink-0 uppercase tracking-wider">
+    <div className="px-3 sm:px-4 py-3.5 rounded-2xl hover:bg-raised/30 transition-colors">
+      <div className="flex flex-col lg:flex-row lg:items-center gap-3">
+        {/* Langue + voix + modèle */}
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <span
+            className="shrink-0 w-11 h-11 rounded-[14px] grid place-items-center bg-raised font-display text-[18px] font-semibold text-fg"
+            title={LANG_NAMES[lang]}
+          >
             {lang}
           </span>
 
-          {hasVoiceSelect ? (
-            <select
-              value={config.voice}
-              onChange={(e) => update({ voice: e.target.value })}
-              className="flex-1 min-w-0 bg-[#0a1420] border border-[#1a2942] text-[11px] font-mono text-[#e0eef8] px-2 py-1 focus:outline-none focus:border-[#00b4ff] cursor-pointer"
-              style={{ borderRadius: "2px" }}
-            >
-              {voices.map((v) => (
-                <option key={v.id} value={v.id}>{v.label}</option>
-              ))}
-            </select>
-          ) : (
-            <span
-              className="flex-1 min-w-0 text-[11px] font-mono text-[#4a6a8a] px-2 py-1 border border-[#1a2942] truncate"
-              style={{ borderRadius: "2px" }}
-            >
-              ElevenLabs Direct
-            </span>
-          )}
+          <div className={`min-w-0 flex-1 grid gap-2 ${showModelSelect ? "sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]" : ""}`}>
+            {singleVoice ? (
+              <div className="h-10 px-3.5 rounded-xl bg-raised/60 flex items-center min-w-0">
+                <span className="text-[14px] text-fg truncate">{singleVoice.label}</span>
+              </div>
+            ) : (
+              <select
+                value={config.voice}
+                onChange={(e) => update({ voice: e.target.value })}
+                className={selectClass}
+                aria-label={`Voix ${LANG_NAMES[lang]}`}
+              >
+                {voices.map((v) => (
+                  <option key={v.id} value={v.id}>{v.label}</option>
+                ))}
+              </select>
+            )}
+
+            {showModelSelect && (
+              <select
+                value={modelId}
+                onChange={(e) => handleModelChange(e.target.value)}
+                className={selectClass}
+                aria-label={`Modèle ${LANG_NAMES[lang]}`}
+              >
+                {(isDirect ? EL_MODELS_DIRECT : EL_MODELS).map((m) => (
+                  <option key={m.id} value={m.id}>{m.label}</option>
+                ))}
+              </select>
+            )}
+          </div>
         </div>
 
-        {/* Speed slider + value + Generate + status — own group, never collides with the select */}
-        <div className="flex items-center gap-2 shrink-0 flex-wrap">
-
-          {/* Speed slider */}
-          <div className="flex items-center gap-1.5 shrink-0">
+        {/* Vitesse + action */}
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2.5 shrink-0" title="Vitesse de la voix">
             <input
               type="range"
               min={isEdge ? EDGE_RATE_MIN : speedMin}
@@ -299,145 +304,91 @@ export function LanguageRow({ lang, provider, audioState, onGenerate, audioEnabl
               step={isEdge ? 5 : 0.05}
               value={config.speed}
               onChange={(e) => update({ speed: parseFloat(e.target.value) })}
-              className="w-16 sm:w-20 h-0.5 bg-[#1a2942] cursor-pointer shrink-0"
-              style={{ accentColor: "#00b4ff" }}
+              className="w-20 sm:w-24"
+              aria-label={`Vitesse ${LANG_NAMES[lang]}`}
             />
-            {/* Speed value — dedicated bordered badge, own space, never overlaps the button */}
-            <span
-              className="shrink-0 text-[10px] font-mono text-[#7a9ac2] px-1.5 py-0.5 border border-[#1a2942] bg-[#0a1420] text-center tabular-nums"
-              style={{ borderRadius: "2px", minWidth: "44px" }}
-            >
-              {isEdge
-                ? `${config.speed >= 0 ? "+" : ""}${config.speed}%`
-                : `×${config.speed.toFixed(2)}`}
+            <span className="w-12 text-[14px] font-medium text-muted tabular-nums text-right">
+              {isEdge ? `${config.speed >= 0 ? "+" : ""}${config.speed}%` : `${config.speed.toFixed(2)}×`}
             </span>
-          </div>
+          </label>
 
-          {/* Generate / Régénérer */}
-          {isDone ? (
-            <button
-              onClick={handleGenerate}
-              disabled={audioDisabled}
-              title={audioDisabled ? "Audio generation is disabled" : undefined}
-              className={`shrink-0 w-32 sm:w-36 px-3 py-1 text-[11px] font-mono border transition-none flex items-center justify-center gap-1.5 ${
-                audioDisabled
-                  ? "cursor-not-allowed bg-transparent border-[#1a2942] text-[#4a6a8a] opacity-50"
-                  : "border-[#1a2942] text-[#4a6a8a] hover:border-[#00b4ff] hover:text-[#00b4ff]"
-              }`}
-              style={{ borderRadius: "2px" }}
-            >
-              <RefreshCw size={10} />
-              Régénérer
-            </button>
-          ) : (
-            <button
-              onClick={handleGenerate}
-              disabled={isLoading || audioDisabled}
-              title={audioDisabled ? "Audio generation is disabled" : undefined}
-              className={`shrink-0 w-32 sm:w-36 px-3 py-1 text-[11px] font-mono font-semibold border transition-none flex items-center justify-center gap-1.5 disabled:opacity-50 ${
-                audioDisabled
-                  ? "cursor-not-allowed bg-transparent border-[#1a2942] text-[#4a6a8a]"
-                  : isError
-                  ? "bg-transparent border-[#ff4466] text-[#ff4466] hover:bg-[#ff4466] hover:text-black"
-                  : "bg-transparent border-[#1a2942] text-[#e0eef8] hover:border-[#00b4ff] hover:text-[#00b4ff]"
-              }`}
-              style={{ borderRadius: "2px" }}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 size={10} className="animate-spin" />
-                  <span className="truncate max-w-[80px]">{audioState?.label ?? "..."}</span>
-                </>
-              ) : isError && !audioDisabled ? (
-                <>
-                  <X size={10} />
-                  Réessayer
-                </>
-              ) : (
-                <>
-                  <Play size={10} />
-                  Générer
-                </>
-              )}
-            </button>
-          )}
-
-          {/* Status dot */}
-          <div className="shrink-0 w-4 flex items-center justify-center">
-            <StatusDot state={audioState} />
-          </div>
+          <button
+            onClick={handleGenerate}
+            disabled={isLoading || audioDisabled}
+            title={audioDisabled ? "Réservé au profil directeur" : undefined}
+            className={`flex-1 min-w-0 lg:flex-none lg:w-[150px] h-10 rounded-xl inline-flex items-center justify-center gap-2 text-[14px] font-semibold transition-colors disabled:cursor-not-allowed ${
+              audioDisabled
+                ? "bg-raised/60 text-dim"
+                : isError
+                ? "bg-bad/15 text-bad hover:bg-bad/25"
+                : isDone
+                ? "bg-raised text-muted hover:text-fg hover:bg-hover"
+                : isLoading
+                ? "bg-raised text-muted"
+                : "bg-accent/15 text-accent-hi hover:bg-accent/25"
+            }`}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 size={15} className="animate-spin" />
+                <span className="truncate max-w-[96px]">{audioState?.label ?? "En cours"}</span>
+              </>
+            ) : isError && !audioDisabled ? (
+              <>
+                <RotateCcw size={15} />
+                Réessayer
+              </>
+            ) : isDone ? (
+              <>
+                <RefreshCw size={15} />
+                Régénérer
+              </>
+            ) : (
+              <>
+                <Play size={15} />
+                Générer
+              </>
+            )}
+          </button>
         </div>
       </div>
 
-      {/* ── Model dropdown (ElevenLabs voices only) ──────────────────────── */}
-      {showModelSelect && (
-        <div className="flex items-center gap-2 ml-8">
-          <select
-            value={modelId}
-            onChange={(e) => handleModelChange(e.target.value)}
-            className="w-full bg-[#0a1420] border border-[#1a2942] text-[10px] font-mono text-[#7a9ac2] px-2 py-1 focus:outline-none focus:border-[#00b4ff] cursor-pointer"
-            style={{ borderRadius: "2px" }}
-            title="ElevenLabs model"
-          >
-            {(isDirect ? EL_MODELS_DIRECT : EL_MODELS).map((m) => (
-              <option key={m.id} value={m.id}>{m.label}</option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      {/* ── Style / Pace / Accent (Google AI Studio only) ─────────────────── */}
+      {/* Réglages Google AI Studio */}
       {isGemini && (
-        <div className="flex items-center gap-2 ml-8">
-          <select
-            value={config.style ?? GEMINI_STYLE_DEFAULT}
-            onChange={(e) => update({ style: e.target.value })}
-            className="flex-1 bg-[#0a1420] border border-[#1a2942] text-[10px] font-mono text-[#7a9ac2] px-2 py-1 focus:outline-none focus:border-[#00b4ff] cursor-pointer"
-            style={{ borderRadius: "2px" }}
-            title="Style"
-          >
-            {GEMINI_STYLES.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
+        <div className="mt-3 grid grid-cols-3 gap-2 lg:pl-14">
+          <select value={config.style ?? GEMINI_STYLE_DEFAULT} onChange={(e) => update({ style: e.target.value })} className={selectClass} aria-label="Style">
+            {GEMINI_STYLES.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
-          <select
-            value={config.pace ?? GEMINI_PACE_DEFAULT}
-            onChange={(e) => update({ pace: e.target.value })}
-            className="flex-1 bg-[#0a1420] border border-[#1a2942] text-[10px] font-mono text-[#7a9ac2] px-2 py-1 focus:outline-none focus:border-[#00b4ff] cursor-pointer"
-            style={{ borderRadius: "2px" }}
-            title="Pace"
-          >
-            {GEMINI_PACES.map((p) => (
-              <option key={p} value={p}>{p}</option>
-            ))}
+          <select value={config.pace ?? GEMINI_PACE_DEFAULT} onChange={(e) => update({ pace: e.target.value })} className={selectClass} aria-label="Rythme">
+            {GEMINI_PACES.map((p) => <option key={p} value={p}>{p}</option>)}
           </select>
-          <select
-            value={config.accent ?? GEMINI_ACCENT_DEFAULT}
-            onChange={(e) => update({ accent: e.target.value })}
-            className="flex-1 bg-[#0a1420] border border-[#1a2942] text-[10px] font-mono text-[#7a9ac2] px-2 py-1 focus:outline-none focus:border-[#00b4ff] cursor-pointer"
-            style={{ borderRadius: "2px" }}
-            title="Accent"
-          >
-            {GEMINI_ACCENTS.map((a) => (
-              <option key={a} value={a}>{a}</option>
-            ))}
+          <select value={config.accent ?? GEMINI_ACCENT_DEFAULT} onChange={(e) => update({ accent: e.target.value })} className={selectClass} aria-label="Accent">
+            {GEMINI_ACCENTS.map((a) => <option key={a} value={a}>{a}</option>)}
           </select>
         </div>
       )}
 
-      {/* ── Audio player ─────────────────────────────────────────────────── */}
+      {/* Message d'erreur lisible */}
+      {isError && audioState?.label && (
+        <p className="mt-2.5 lg:pl-14 text-[14px] text-bad">{audioState.label}</p>
+      )}
+
+      {/* Lecteur */}
       {isDone && displayAudioUrl && (
-        <AudioPlayer
-          key={displayAudioUrl}
-          audioUrl={displayAudioUrl}
-          filename={displayFilename}
-          showSilenceRemoval={audioEnabled}
-          onReplace={(url, fname) => setProcessedAudio({ url, filename: fname })}
-        />
+        <div className="lg:pl-14">
+          <AudioPlayer
+            key={displayAudioUrl}
+            audioUrl={displayAudioUrl}
+            filename={displayFilename}
+            showSilenceRemoval={audioEnabled}
+            onReplace={(url, fname) => setProcessedAudio({ url, filename: fname })}
+          />
+          <p className="mt-1.5 px-1 flex items-center gap-1.5 text-[12px] text-dim truncate">
+            <Check size={13} className="text-ok shrink-0" />
+            <span className="truncate">{displayFilename}</span>
+          </p>
+        </div>
       )}
     </div>
   );
 }
-
-
-

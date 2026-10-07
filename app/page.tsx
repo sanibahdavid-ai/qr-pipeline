@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { toast } from "sonner";
-import { Header } from "../components/Header";
+import { AudioLines, Check, ChevronRight, Copy, Link2, Loader2, RotateCcw, Wrench } from "lucide-react";
+import { Header, TabSwitch, APP_VERSION } from "../components/Header";
 import { UrlInput } from "../components/UrlInput";
 import { GenerationPanel } from "../components/GenerationPanel";
 import { ScriptCard } from "../components/ScriptCard";
@@ -105,6 +106,35 @@ async function placeCta(rawScript: string, lang: string, ctaType: "ronaldo" | "t
 const ADJUST_DURATIONS = ["10s", "15s", "30s", "45s", "1min30", "2min"] as const;
 type AdjustDuration = (typeof ADJUST_DURATIONS)[number];
 
+const DURATION_LABELS: Record<AdjustDuration, string> = {
+  "10s": "10 s",
+  "15s": "15 s",
+  "30s": "30 s",
+  "45s": "45 s",
+  "1min30": "1 min 30",
+  "2min": "2 min",
+};
+
+const CTA_OPTIONS: { id: CtaChoice; title: string; hint: string }[] = [
+  { id: "none", title: "Sans CTA", hint: "Les scripts seuls" },
+  { id: "ronaldo", title: "CTA Ronaldo", hint: "Cristiano et le bouton plus, avant le milieu" },
+  { id: "tiktok", title: "CTA TikTok", hint: "L'invitation à s'abonner, vers la fin" },
+];
+
+const TITLE_SHORT: Array<[Section, string]> = [
+  ["TITRE ET HASHTAGS FR", "FR"],
+  ["TITRE ET HASHTAGS EN", "EN"],
+  ["TITRE ET HASHTAGS DE", "DE"],
+  ["TITRE ET HASHTAGS ES", "ES"],
+];
+
+const TITLE_LONG: Array<[Section, string]> = [
+  ["TITRE ET HASHTAGS FR B", "FR"],
+  ["TITRE ET HASHTAGS EN B", "EN"],
+  ["TITRE ET HASHTAGS DE B", "DE"],
+  ["TITRE ET HASHTAGS ES B", "ES"],
+];
+
 const HISTORY_KEY = "qr_pipeline_history";
 const MAX_HISTORY = 50;
 const TAB_KEY = "dav_active_tab";
@@ -197,6 +227,9 @@ export default function Home() {
   const [pinRole, setPinRole] = useState<UserRole>(null);
   const [showPinModal, setShowPinModal] = useState(false);
   const [pinInput, setPinInput] = useState("");
+  const [pinNotice, setPinNotice] = useState("");
+  const [pinError, setPinError] = useState(false);
+  const [pinBusy, setPinBusy] = useState(false);
 
   // Command palette
   const [showPalette, setShowPalette] = useState(false);
@@ -231,20 +264,30 @@ export default function Home() {
       const savedPinRole = localStorage.getItem("dav_pin_role") as UserRole | null;
       if (savedPinRole) {
         setPinRole(savedPinRole);
-        if (savedPinRole === "DAV") setProvider("elevenlabs");
-        // Audio is unlocked only when the server confirms the director cookie.
-        fetch("/api/director/status")
-          .then((r) => r.json())
-          .then((d) => {
-            if (d?.ok) {
-              setDirectorSessionUnlocked(true);
-              try { sessionStorage.setItem("dav_director_session", "1"); } catch {}
-            } else {
-              setDirectorSessionUnlocked(false);
-              try { sessionStorage.removeItem("dav_director_session"); } catch {}
-            }
-          })
-          .catch(() => {});
+        if (savedPinRole === "DAV") {
+          setProvider("elevenlabs");
+          // Le profil directeur donne l'audio sur n'importe quel appareil : le
+          // serveur le reconnaît grâce au cookie posé à la connexion. Si ce cookie
+          // manque (session ouverte avant la v6.9, cookies effacés), on redemande
+          // le code une fois au lieu de laisser un profil directeur sans audio.
+          fetch("/api/director/status")
+            .then((r) => r.json())
+            .then((d) => {
+              if (d?.ok) {
+                setDirectorSessionUnlocked(true);
+              } else {
+                setDirectorSessionUnlocked(false);
+                setPinRole(null);
+                try { localStorage.removeItem("dav_pin_role"); } catch {}
+                setPinNotice("Reconnecte-toi au profil directeur pour réactiver la génération audio.");
+                setShowPinModal(true);
+              }
+            })
+            .catch(() => {});
+        } else {
+          // Un autre profil ne doit garder aucun droit audio sur ce navigateur.
+          void fetch("/api/director/logout", { method: "POST" }).catch(() => {});
+        }
       } else setShowPinModal(true);
     } catch {}
   }, []);
@@ -406,7 +449,7 @@ export default function Home() {
     setCopiedUrl(false);
     // Restore entry state
     setUrl(entry.url);
-    setVideoTitle(entry.title);
+    setVideoTitle(entry.summaryTitle || entry.title);
     setQrText(entry.qrText);
     setProvider(entry.provider);
     setTranscriptText(entry.transcriptText ?? "");
@@ -453,6 +496,8 @@ export default function Home() {
 
   async function handlePinSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (pinBusy) return;
+    setPinBusy(true);
     let newRole: UserRole = null;
     if (pinInput === "2811") newRole = "ADMIN";
     else if (pinInput === "2026") newRole = "GUEST";
@@ -469,29 +514,38 @@ export default function Home() {
       } catch {}
     }
     
+    setPinBusy(false);
     if (newRole) {
       setPinRole(newRole);
       localStorage.setItem("dav_pin_role", newRole);
       setShowPinModal(false);
       setPinInput("");
+      setPinNotice("");
       if (newRole === "DAV") {
         setDirectorSessionUnlocked(true);
-        try { sessionStorage.setItem("dav_director_session", "1"); } catch {}
         setProvider("elevenlabs");
+      } else {
+        setDirectorSessionUnlocked(false);
+        void fetch("/api/director/logout", { method: "POST" }).catch(() => {});
       }
       if (user) loadCloudHistory(user.id, newRole);
-      toast.success(`Connecté en tant que ${newRole === "DAV" ? "DAV (Directeur)" : newRole === "ADMIN" ? "Admin" : "Invité"}`);
+      toast.success(`Connecté au profil ${newRole === "DAV" ? "directeur" : newRole === "ADMIN" ? "admin" : "invité"}`);
     } else {
-      toast.error("Code PIN incorrect");
+      setPinError(true);
+      toast.error("Code incorrect");
+      setTimeout(() => setPinError(false), 400);
       setPinInput("");
     }
   }
 
   function handlePinLogout() {
     setPinRole(null);
+    setDirectorSessionUnlocked(false);
     localStorage.removeItem("dav_pin_role");
+    void fetch("/api/director/logout", { method: "POST" }).catch(() => {});
     setShowPinModal(true);
     setPinInput("");
+    setPinNotice("");
   }
 
   async function handleLogin() {
@@ -576,6 +630,7 @@ export default function Home() {
     setTranscriptText("");
     setCopiedTranscript(false);
     setTargetDuration("original");
+    setCustomSeconds(null);
     setShowCtaChoice(false);
     setPendingRewrite(null);
     setActiveCtaChoice("none");
@@ -1170,105 +1225,113 @@ export default function Home() {
     return configs[`${provider}__${lang}`] ?? getDefaultVoiceConfig(provider, lang);
   }
 
-  async function handleDirectorUnlock(code: string): Promise<boolean> {
-    try {
-      const r = await fetch("/api/director/unlock", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code }),
-      });
-      if (!r.ok) return false;
-    } catch {
-      return false;
-    }
-    setDirectorSessionUnlocked(true);
-    try { sessionStorage.setItem("dav_director_session", "1"); } catch {}
-    return true;
-  }
-
   function switchTab(tab: Tab) {
     setActiveTab(tab);
     try { localStorage.setItem(TAB_KEY, tab); } catch {}
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
-  // Si pas de rôle, on affiche uniquement la fenêtre du code PIN
+  // Sans profil : uniquement l'écran du code d'accès
   if (!pinRole) {
     return (
-      <div className="min-h-screen bg-[#060a12] text-[#e0eef8] flex items-center justify-center">
-        <div className="bg-[#0d1420] border border-[#1a2942] p-8 w-[360px] shadow-2xl" style={{ borderRadius: "8px" }}>
-          <div className="h-[2px] w-full mb-6" style={{ background: "linear-gradient(90deg, #00b4ff, #ff3cac)" }} />
-          <h2
-            className="text-[18px] font-bold tracking-tight text-center mb-1"
-            style={{
-              fontFamily: "var(--font-syne)",
-              background: "linear-gradient(135deg, #00b4ff, #ff3cac)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
-            }}
-          >
-            DAV PIPELINE
-          </h2>
-          <p className="text-[11px] font-mono text-[#4a6a8a] text-center mb-6">Entrez votre code d&apos;accès</p>
-          <form onSubmit={handlePinSubmit} className="space-y-4">
+      <div className="min-h-screen flex items-center justify-center px-4 py-10">
+        <div className="w-full max-w-[380px]">
+          <div className="flex flex-col items-center text-center">
+            <span className="w-14 h-14 rounded-[18px] grid place-items-center bg-gradient-to-br from-accent to-accent-deep text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_22px_50px_-16px_rgba(76,141,255,0.65)]">
+              <AudioLines size={26} strokeWidth={2.25} />
+            </span>
+            <h1 className="mt-5 font-display text-[36px] font-semibold leading-none">DAV Pipeline</h1>
+            <p className="mt-3 text-[15px] text-muted">Entre ton code d&apos;accès pour continuer.</p>
+          </div>
+
+          {pinNotice && (
+            <p className="mt-6 px-4 py-3 rounded-2xl bg-accent/10 text-[14px] leading-snug text-accent-hi text-center">{pinNotice}</p>
+          )}
+
+          <form onSubmit={handlePinSubmit} className="mt-6 space-y-3">
             <input
               type="password"
+              inputMode="numeric"
+              autoComplete="off"
               value={pinInput}
               onChange={(e) => setPinInput(e.target.value)}
               autoFocus
-              className="w-full bg-[#13233a] border border-[#1a2942] text-center text-[28px] font-mono text-[#e0eef8] py-4 focus:outline-none focus:border-[#00b4ff] tracking-[0.5em]"
-              style={{ borderRadius: "4px" }}
+              aria-label="Code d'accès"
               placeholder="••••"
+              className={`w-full h-16 rounded-[18px] bg-deck border text-center text-[30px] tracking-[0.6em] pl-[0.6em] text-fg placeholder:text-line focus:outline-none transition-[border-color,box-shadow] ${
+                pinError ? "border-bad/70 dav-shake" : "border-line focus:border-accent/70 focus:shadow-[0_0_0_4px_rgba(76,141,255,0.12)]"
+              }`}
             />
             <button
               type="submit"
-              className="w-full py-2.5 bg-[#00b4ff] text-black font-mono text-[12px] font-bold hover:bg-[#33c3ff] transition-colors"
-              style={{ borderRadius: "4px" }}
+              disabled={!pinInput || pinBusy}
+              className="w-full h-12 rounded-[14px] inline-flex items-center justify-center gap-2 bg-accent-deep text-white text-[15px] font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] hover:bg-accent disabled:bg-raised disabled:text-dim disabled:shadow-none transition-colors"
             >
-              Connexion
+              {pinBusy ? <Loader2 size={17} className="animate-spin" /> : "Se connecter"}
             </button>
           </form>
+
+          <p className="mt-10 text-center text-[13px] text-dim tabular-nums">Version {APP_VERSION}</p>
         </div>
       </div>
     );
   }
 
-  // Invité : accès bloqué pour préserver le quota Gemini (free tier très limité)
+  // Invité : accès bloqué pour préserver le quota
   if (pinRole === "GUEST") {
     return (
-      <div className="min-h-screen bg-[#060a12] text-[#e0eef8] flex items-center justify-center">
-        <div className="bg-[#0d1420] border border-[#1a2942] p-8 w-[380px] shadow-2xl text-center" style={{ borderRadius: "8px" }}>
-          <div className="h-[2px] w-full mb-6" style={{ background: "linear-gradient(90deg, #00b4ff, #ff3cac)" }} />
-          <h2
-            className="text-[18px] font-bold tracking-tight mb-3"
-            style={{
-              fontFamily: "var(--font-syne)",
-              background: "linear-gradient(135deg, #00b4ff, #ff3cac)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
-            }}
-          >
-            MAINTENANCE
-          </h2>
-          <p className="text-[13px] text-[#8aa4c0] mb-6 leading-relaxed">
+      <div className="min-h-screen flex items-center justify-center px-4 py-10">
+        <div className="w-full max-w-[400px] text-center rounded-[26px] bg-deck border border-line-soft px-7 py-9">
+          <span className="mx-auto w-12 h-12 rounded-2xl grid place-items-center bg-raised text-muted">
+            <Wrench size={20} />
+          </span>
+          <h1 className="mt-5 font-display text-[32px] font-semibold leading-none">Maintenance</h1>
+          <p className="mt-3 text-[15px] text-muted leading-relaxed">
             L&apos;outil est temporairement indisponible pour les invités. Réessaie plus tard.
           </p>
           <button
             onClick={handlePinLogout}
-            className="w-full py-2.5 bg-[#13233a] border border-[#1a2942] text-[#8aa4c0] font-mono text-[12px] hover:bg-[#1a2942] transition-colors"
-            style={{ borderRadius: "4px" }}
+            className="mt-7 w-full h-12 rounded-[14px] bg-raised text-fg text-[15px] font-medium hover:bg-hover transition-colors"
           >
-            Retour
+            Changer de profil
           </button>
+          <p className="mt-6 text-[13px] text-dim tabular-nums">Version {APP_VERSION}</p>
         </div>
       </div>
     );
   }
 
+  const isIdle = step === "idle" || step === "extracting";
+  const titlePending = !videoTitle || videoTitle === "Titre en cours...";
+
+  function renderTitleItem(section: Section, label: string) {
+    const content = getContent(section);
+    if (!content && !sections[section]) return null;
+    const text = content ?? "";
+    const isCopied = copied === section;
+    return (
+      <div key={section} className="p-4 rounded-2xl bg-raised/50">
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <span className="h-6 px-2 rounded-md bg-ink/60 text-[12px] font-semibold text-muted grid place-items-center">{label}</span>
+          <button
+            onClick={() => copySection(section, text)}
+            className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-[13px] font-medium text-muted hover:text-fg hover:bg-raised transition-colors"
+          >
+            {isCopied ? <Check size={14} className="text-ok" /> : <Copy size={14} />}
+            {isCopied ? "Copié" : "Copier"}
+          </button>
+        </div>
+        <p className="text-[15px] text-fg/95 leading-relaxed whitespace-pre-wrap">{text}</p>
+      </div>
+    );
+  }
+
+  const keywordsRaw = getContent("SEARCH KEYWORDS EN") ?? "";
+  const keywordsText = filterKeywords(keywordsRaw);
+  const keywordList = keywordsText.split("\n").filter(Boolean);
+
   return (
-    <div className="min-h-screen bg-[#060a12] text-[#e0eef8] relative z-[1]">
+    <div className="min-h-screen flex flex-col">
       <Header
         history={history}
         showHistory={showHistory}
@@ -1280,8 +1343,6 @@ export default function Home() {
         onReset={reset}
         onOpenPalette={() => setShowPalette(true)}
         historyPanelRef={historyPanelRef}
-        directorUnlocked={directorSessionUnlocked}
-        onDirectorUnlock={handleDirectorUnlock}
         user={user}
         cloudHistory={cloudHistory}
         onLogin={handleLogin}
@@ -1289,26 +1350,12 @@ export default function Home() {
         onRestoreCloud={restoreFromCloudHistory}
         pinRole={pinRole}
         onPinLogout={handlePinLogout}
+        activeTab={activeTab}
+        onTabChange={switchTab}
       />
 
-      {/* Tab switcher */}
-      <div style={{ borderBottom: "1px solid #1a2942" }}>
-        <div className="max-w-5xl mx-auto px-4 flex">
-          {(["scripts", "download"] as Tab[]).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => switchTab(tab)}
-              className="px-4 py-2.5 text-[11px] font-mono font-semibold tracking-widest uppercase transition-none"
-              style={{
-                color: activeTab === tab ? "#00b4ff" : "#4a6a8a",
-                borderBottom: activeTab === tab ? "2px solid #00b4ff" : "2px solid transparent",
-                marginBottom: "-1px",
-              }}
-            >
-              {tab === "scripts" ? "Scripts" : "Download"}
-            </button>
-          ))}
-        </div>
+      <div className="md:hidden px-4 pt-3">
+        <TabSwitch activeTab={activeTab} onTabChange={switchTab} className="flex w-full" />
       </div>
 
       {activeTab === "download" ? (
@@ -1319,309 +1366,337 @@ export default function Home() {
         />
       ) : (
         <>
-      <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
-
-        {/* Video title */}
-        {videoTitle && (
-          <div className="flex items-center gap-2 min-w-0">
-            <p className="text-[12px] font-mono text-[#4a6a8a] truncate min-w-0 flex-1">
-              <span className="text-[#2a4a75]">▸ </span>{videoTitle}
-            </p>
-            {url && (
-              <button
-                onClick={async () => {
-                  await navigator.clipboard.writeText(url);
-                  setCopiedUrl(true);
-                  setTimeout(() => setCopiedUrl(false), 1000);
-                }}
-                className="shrink-0 text-[10px] font-mono text-[#4a6a8a] hover:text-[#00b4ff] transition-none"
-                title="Copier le lien"
-              >
-                {copiedUrl ? "Copié !" : "🔗"}
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* URL input (idle or extracting) */}
-        {(step === "idle" || step === "extracting") && (
-          <div className="space-y-3">
-            <UrlInput
-              value={url}
-              onChange={setUrl}
-              onSubmit={handleExtract}
-              isLoading={step === "extracting"}
-              error={error}
-              manualText={manualText}
-              onManualChange={setManualText}
-              onManualSubmit={handleManualSubmit}
-            />
-            {/* Retry button — shown when rewrite failed but transcript is available */}
-            {step === "idle" && error && transcriptText && (
-              <button
-                onClick={() => { setError(""); void handleRewrite(transcriptText, videoTitle, activeCtaChoice); }}
-                className="text-[11px] font-mono px-3 py-1.5 border border-[#1a2942] text-[#00b4ff] hover:border-[#00b4ff] transition-none"
-                style={{ borderRadius: "2px" }}
-              >
-                ↺ Réessayer la réécriture
-              </button>
-            )}
-            {step === "extracting" && (
-              <p className="text-[12px] font-mono text-[#4a6a8a]">Extraction du transcript…</p>
-            )}
-          </div>
-        )}
-
-        {/* Empty state */}
-        {step === "idle" && !url && (
-          <div className="py-16 text-center space-y-3">
-            <p className="text-[13px] font-mono text-[#4a6a8a]">
-              Colle une URL pour commencer
-            </p>
-            <p className="text-[11px] font-mono text-[#2a4a75]">
-              YouTube · TikTok · Instagram  ·  ⌘K pour les actions rapides
-            </p>
-          </div>
-        )}
-
-        {/* Transcript card (collapsable) */}
-        {(step === "transcript" || step === "rewriting" || step === "done") && transcriptText && (
-          <details className="group bg-[#0d1420] border border-[#1a2942] overflow-hidden" style={{ borderRadius: "4px" }}>
-            <summary className="flex items-center justify-between px-4 py-2.5 cursor-pointer list-none select-none hover:bg-[#13233a] transition-none">
-              <span className="text-[10px] font-mono font-semibold text-[#7a9ac2] tracking-widest uppercase flex items-center gap-2">
-                <span className="group-open:rotate-90 inline-block transition-none">▸</span>
-                Transcript · {transcriptText.trim().split(/\s+/).filter(Boolean).length} mots
-              </span>
-              <button
-                onClick={async (e) => {
-                  e.preventDefault();
-                  await navigator.clipboard.writeText(transcriptText);
-                  setCopiedTranscript(true);
-                  toast.success("Transcript copié");
-                  setTimeout(() => setCopiedTranscript(false), 1500);
-                }}
-                className="text-[10px] font-mono text-[#4a6a8a] hover:text-[#00b4ff] transition-none"
-              >
-                {copiedTranscript ? "Copié !" : "Copier"}
-              </button>
-            </summary>
-            <p className="px-4 py-3 text-[12px] text-[#7a9ac2] font-mono whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto border-t border-[#1a2942]">
-              {transcriptText}
-            </p>
-          </details>
-        )}
-
-        {/* CTA choice — asked once per generation, before rewrite */}
-        {showCtaChoice && step === "transcript" && (
-          <div className="bg-[#0d1420] border border-[#1a2942] p-4 space-y-3" style={{ borderRadius: "4px" }}>
-            <p className="text-[10px] font-mono font-semibold text-[#7a9ac2] tracking-widest uppercase">
-              CTA ?
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => chooseCta("none")}
-                className="px-3 py-1.5 text-[11px] font-mono border border-[#1a2942] text-[#7a9ac2] hover:border-[#00b4ff] hover:text-[#00b4ff] transition-none"
-                style={{ borderRadius: "4px" }}
-              >
-                Sans CTA
-              </button>
-              <button
-                onClick={() => chooseCta("ronaldo")}
-                className="px-3 py-1.5 text-[11px] font-mono border border-[#1a2942] text-[#7a9ac2] hover:border-[#00b4ff] hover:text-[#00b4ff] transition-none"
-                style={{ borderRadius: "4px" }}
-              >
-                CTA Ronaldo
-              </button>
-              <button
-                onClick={() => chooseCta("tiktok")}
-                className="px-3 py-1.5 text-[11px] font-mono border border-[#1a2942] text-[#7a9ac2] hover:border-[#00b4ff] hover:text-[#00b4ff] transition-none"
-                style={{ borderRadius: "4px" }}
-              >
-                CTA TikTok Follow
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Rewriting — streaming preview + skeleton cards */}
-        {step === "rewriting" && (
-          <div className="space-y-6">
-            <div className="bg-[#0d1420] border border-[#1a2942] p-4 space-y-3" style={{ borderRadius: "4px" }}>
-              {(() => {
-                const sectionCount = (qrText.match(/SECTION \d+/g) || []).length;
-                const progress = Math.min(100, Math.round((sectionCount / 13) * 100));
-                return (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-[#F59E0B] animate-pulse" />
-                        <span className="text-[10px] font-mono text-[#4a6a8a] tracking-widest uppercase">Réécriture en cours…</span>
-                      </div>
-                      <span className="text-[10px] font-mono text-[#00b4ff] font-bold">{progress}%</span>
-                    </div>
-                    <div className="w-full bg-[#13233a] h-1.5 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-[#00b4ff] transition-all duration-300 ease-out"
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
-                  </>
-                );
-              })()}
-              {qrText && (
-                <p className="text-[12px] font-mono text-[#7a9ac2] whitespace-pre-wrap leading-relaxed line-clamp-6 pt-2 border-t border-[#1a2942] mt-3">
-                  {qrText}
+          <main className="flex-1 w-full max-w-[1240px] mx-auto px-4 sm:px-6 pb-16">
+            {isIdle ? (
+              <section className="max-w-[760px] mx-auto pt-12 sm:pt-20">
+                <h1 className="font-display text-[44px] sm:text-[62px] font-semibold leading-[0.94] tracking-[-0.01em]">
+                  De la vidéo au script
+                </h1>
+                <p className="mt-4 text-[16px] sm:text-[17px] text-muted max-w-[560px] leading-relaxed">
+                  Colle un lien TikTok, YouTube ou Instagram. Tu récupères les scripts FR, EN, DE et ES, leurs titres et la voix off.
                 </p>
-              )}
-            </div>
-            {/* Skeleton script cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-              {["FR", "EN", "DE", "ES"].map((lang) => (
-                <div key={lang} className="bg-[#0d1420] border border-[#1a2942] overflow-hidden flex flex-col" style={{ borderRadius: "4px" }}>
-                  <div className="h-[2px] w-full" style={{ background: "linear-gradient(90deg, #00b4ff, #ff3cac)" }} />
-                  <div className="px-3 py-2 border-b border-[#1a2942] flex items-center gap-2">
-                    <div className="h-2.5 w-16 bg-[#1a2942] animate-pulse" style={{ borderRadius: "2px" }} />
-                    <div className="h-2 w-12 bg-[#13233a] animate-pulse" style={{ borderRadius: "2px" }} />
-                  </div>
-                  <div className="px-3 py-3 space-y-2 flex-1">
-                    {[100, 90, 95, 80, 70].map((w, i) => (
-                      <div key={i} className="h-3 bg-[#13233a] animate-pulse" style={{ borderRadius: "2px", width: `${w}%` }} />
-                    ))}
-                  </div>
-                  <div className="px-3 py-2 border-t border-[#1a2942]">
-                    <div className="h-2 w-8 bg-[#13233a] animate-pulse" style={{ borderRadius: "2px" }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
-        {/* Done — Generation panel + Scripts */}
-        {step === "done" && (
-          <div className="space-y-6">
-
-            {/* Generation panel */}
-            <GenerationPanel
-              provider={provider}
-              onProviderChange={setProvider}
-              targetDuration={targetDuration}
-              onDurationChange={setTargetDuration}
-              customSeconds={customSeconds}
-              onCustomSecondsChange={setCustomSeconds}
-              audio={audio}
-              onGenerate={handleGenerateLang}
-              onGenerateAll={handleGenerateAll}
-              onCopyAllQR={copyAllQR}
-              disabled={isLoading}
-              audioEnabled={directorSessionUnlocked}
-            />
-
-            {/* Script cards — grid 4-col on md+ */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-              {SCRIPT_SECTIONS.map((section) => {
-                const content = getContent(section);
-                if (!content && !sections[section]) return null;
-                const lang = section.split(" ")[1];
-                const displayContent = content ?? "";
-                const stats = displayContent ? wordStats(displayContent) : null;
-                const audioKey = provider === "edge-tts" ? `EDGE_${lang}` : provider === "google-tts" ? `GTTS_${lang}` : provider === "google-ai-studio" ? `GEMINI_${lang}` : lang;
-                const audioState = audio[audioKey];
-                const isAdjusting = adjusting === section;
-                const hasOverride = section in overrides;
-
-                return (
-                  <ScriptCard
-                    key={section}
-                    section={section}
-                    content={displayContent}
-                    stats={stats}
-                    adjustDurations={ADJUST_DURATIONS}
-                    isAdjusting={isAdjusting}
-                    hasOverride={hasOverride}
-                    adjusting={!!adjusting}
-                    audioState={audioState}
-                    isCopied={copied === section}
-                    isAutoCorrection={!!correctingLangs[lang]}
-                    onCopy={() => copySection(section, displayContent)}
-                    onAdjust={(dur) => handleAdjust(section, dur)}
-                    onAdjustCustom={(sec) => handleAdjustCustom(section, sec)}
-                    onRestore={() => setOverrides((o) => { const n = { ...o }; delete n[section]; return n; })}
-                    healthScore={healthScores[lang]?.score}
-                    healthFeedback={healthScores[lang]?.feedback}
+                <div className="mt-8 sm:mt-10">
+                  <UrlInput
+                    value={url}
+                    onChange={setUrl}
+                    onSubmit={handleExtract}
+                    isLoading={step === "extracting"}
+                    error={error}
+                    manualText={manualText}
+                    onManualChange={setManualText}
+                    onManualSubmit={handleManualSubmit}
                   />
-                );
-              })}
-            </div>
+                </div>
 
-            {/* Other sections (keywords, hashtags) */}
-            <div className="space-y-3">
-              {(SECTIONS.filter((s) => !SCRIPT_SECTIONS.includes(s as Section)) as Section[]).map((section) => {
-                const content = getContent(section);
-                if (!content && !sections[section]) return null;
-                const raw = content ?? "";
-                const displayContent = section === "SEARCH KEYWORDS EN" ? filterKeywords(raw) : raw;
-                return (
-                  <div key={section} className="bg-[#0d1420] border border-[#1a2942] overflow-hidden" style={{ borderRadius: "4px" }}>
-                    <div className="h-[2px] w-full" style={{ background: "linear-gradient(90deg, #00b4ff, #ff3cac)" }} />
-                    <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#1a2942]">
-                      <span className="text-[10px] font-mono font-semibold text-[#7a9ac2] tracking-widest uppercase">
-                        {section}
+                {step === "idle" && error && transcriptText && (
+                  <button
+                    onClick={() => { setError(""); void handleRewrite(transcriptText, videoTitle, activeCtaChoice); }}
+                    className="mt-4 inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-accent/15 text-accent-hi text-[14px] font-semibold hover:bg-accent/25 transition-colors"
+                  >
+                    <RotateCcw size={15} />
+                    Relancer la réécriture
+                  </button>
+                )}
+              </section>
+            ) : (
+              <div className="pt-8 sm:pt-12 space-y-6">
+                {/* Titre de la vidéo */}
+                <div className="flex items-start justify-between gap-4">
+                  <h1
+                    className={`min-w-0 font-display text-[30px] sm:text-[40px] font-semibold leading-[1.02] tracking-[-0.005em] ${
+                      titlePending ? "text-dim" : "text-fg"
+                    }`}
+                  >
+                    {titlePending ? "Titre en cours…" : videoTitle}
+                  </h1>
+                  {url && (
+                    <button
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(url);
+                        setCopiedUrl(true);
+                        setTimeout(() => setCopiedUrl(false), 1200);
+                      }}
+                      className="shrink-0 mt-1 inline-flex items-center gap-2 h-10 px-3.5 rounded-xl text-[14px] font-medium text-muted bg-deck border border-line-soft hover:text-fg hover:bg-raised transition-colors"
+                      title="Copier le lien de la vidéo"
+                    >
+                      {copiedUrl ? <Check size={15} className="text-ok" /> : <Link2 size={15} />}
+                      <span className="hidden sm:inline">{copiedUrl ? "Lien copié" : "Copier le lien"}</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Transcript */}
+                {transcriptText && (
+                  <details className="group rounded-[20px] bg-deck border border-line-soft">
+                    <summary className="flex items-center justify-between gap-3 px-5 h-14 cursor-pointer list-none select-none rounded-[20px] hover:bg-raised/40 transition-colors">
+                      <span className="flex items-center gap-2.5 text-[15px] font-medium text-fg">
+                        <ChevronRight size={16} className="text-dim transition-transform group-open:rotate-90" />
+                        Transcript original
+                        <span className="h-6 px-2 rounded-full bg-raised text-[12px] font-medium text-muted grid place-items-center tabular-nums">
+                          {transcriptText.trim().split(/\s+/).filter(Boolean).length} mots
+                        </span>
                       </span>
                       <button
-                        onClick={() => copySection(section, displayContent)}
-                        className="text-[10px] font-mono text-[#4a6a8a] hover:text-[#00b4ff] transition-none"
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          await navigator.clipboard.writeText(transcriptText);
+                          setCopiedTranscript(true);
+                          toast.success("Transcript copié");
+                          setTimeout(() => setCopiedTranscript(false), 1500);
+                        }}
+                        className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl text-[13px] font-medium text-muted hover:text-fg hover:bg-raised transition-colors"
                       >
-                        {copied === section ? "Copié ✓" : "Copier"}
+                        {copiedTranscript ? <Check size={15} className="text-ok" /> : <Copy size={15} />}
+                        {copiedTranscript ? "Copié" : "Copier"}
                       </button>
-                    </div>
-                    <p className="px-4 py-3 text-[13px] font-mono text-[#e0eef8] whitespace-pre-wrap leading-relaxed">
-                      {displayContent}
+                    </summary>
+                    <p className="mx-5 mb-5 p-4 rounded-2xl bg-ink/50 text-[14px] text-muted whitespace-pre-wrap leading-relaxed max-h-56 overflow-y-auto">
+                      {transcriptText}
                     </p>
+                  </details>
+                )}
+
+                {/* Longueur + CTA : choisis avant la réécriture */}
+                {showCtaChoice && step === "transcript" && (
+                  <section className="rounded-[24px] bg-deck border border-line-soft p-5 sm:p-7 dav-rise">
+                    <h2 className="font-display text-[28px] font-semibold leading-none">Réécriture</h2>
+                    <p className="mt-2 text-[14px] text-dim">Choisis la longueur si besoin, puis le CTA : la réécriture démarre aussitôt.</p>
+
+                    <div className="mt-6">
+                      <p className="text-[14px] font-medium text-muted mb-2.5">Longueur des scripts</p>
+                      <div className="flex flex-wrap gap-2">
+                        {(["original", ...ADJUST_DURATIONS] as const).map((d) => {
+                          const active = targetDuration === d && customSeconds === null;
+                          return (
+                            <button
+                              key={d}
+                              onClick={() => { setTargetDuration(d); setCustomSeconds(null); }}
+                              className={`h-10 px-4 rounded-full text-[14px] font-medium transition-colors ${
+                                active
+                                  ? "bg-accent/15 text-accent-hi shadow-[inset_0_0_0_1px_rgba(76,141,255,0.45)]"
+                                  : "bg-raised text-muted hover:text-fg hover:bg-hover"
+                              }`}
+                            >
+                              {d === "original" ? "Original" : DURATION_LABELS[d]}
+                            </button>
+                          );
+                        })}
+                        <label
+                          className={`h-10 pl-4 pr-3 rounded-full flex items-center gap-1.5 transition-colors ${
+                            customSeconds !== null
+                              ? "bg-accent/15 shadow-[inset_0_0_0_1px_rgba(76,141,255,0.45)]"
+                              : "bg-raised"
+                          }`}
+                        >
+                          <input
+                            type="number"
+                            min={1}
+                            placeholder="Autre"
+                            value={customSeconds ?? ""}
+                            onChange={(e) => {
+                              const parsed = parseInt(e.target.value, 10);
+                              setCustomSeconds(Number.isFinite(parsed) && parsed > 0 ? parsed : null);
+                            }}
+                            className="w-14 bg-transparent text-[14px] text-fg placeholder:text-dim focus:outline-none tabular-nums"
+                            aria-label="Durée personnalisée en secondes"
+                          />
+                          <span className="text-[14px] text-dim">s</span>
+                        </label>
+                      </div>
+                      {targetDuration === "original" && customSeconds === null && (
+                        <p className="mt-2.5 text-[13px] text-dim">Original garde la longueur de la vidéo, avec au moins une minute de voix.</p>
+                      )}
+                    </div>
+
+                    <div className="mt-7">
+                      <p className="text-[14px] font-medium text-muted mb-2.5">CTA</p>
+                      <div className="grid sm:grid-cols-3 gap-2.5">
+                        {CTA_OPTIONS.map((o) => (
+                          <button
+                            key={o.id}
+                            onClick={() => chooseCta(o.id)}
+                            className="text-left px-4 py-3.5 rounded-2xl bg-raised border border-transparent hover:border-accent/50 hover:bg-hover transition-colors"
+                          >
+                            <span className="block text-[15px] font-semibold text-fg">{o.title}</span>
+                            <span className="block text-[13px] text-dim mt-1 leading-snug">{o.hint}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </section>
+                )}
+
+                {/* Réécriture en cours */}
+                {step === "rewriting" && (
+                  <div className="space-y-6">
+                    <section className="rounded-[24px] bg-deck border border-line-soft p-5 sm:p-6">
+                      {(() => {
+                        const sectionCount = (qrText.match(/SECTION \d+/g) || []).length;
+                        const progress = Math.min(100, Math.round((sectionCount / 13) * 100));
+                        return (
+                          <>
+                            <div className="flex items-center justify-between">
+                              <span className="flex items-center gap-2.5 text-[15px] font-medium text-fg">
+                                <Loader2 size={16} className="animate-spin text-accent" />
+                                Réécriture en cours
+                              </span>
+                              <span className="text-[15px] font-semibold text-accent-hi tabular-nums">{progress} %</span>
+                            </div>
+                            <div className="mt-4 h-1.5 rounded-full bg-line overflow-hidden">
+                              <div className="h-full rounded-full bg-accent transition-[width] duration-300 ease-out" style={{ width: `${progress}%` }} />
+                            </div>
+                          </>
+                        );
+                      })()}
+                      {qrText && (
+                        <p className="mt-4 text-[14px] text-muted whitespace-pre-wrap leading-relaxed line-clamp-5">{qrText}</p>
+                      )}
+                    </section>
+                    <div className="grid lg:grid-cols-2 gap-5">
+                      {["FR", "EN", "DE", "ES"].map((lang) => (
+                        <div key={lang} className="rounded-[22px] bg-deck border border-line-soft p-5">
+                          <div className="flex items-center gap-3">
+                            <span className="w-10 h-10 rounded-[13px] grid place-items-center bg-raised font-display text-[17px] font-semibold text-dim">{lang}</span>
+                            <div className="space-y-2">
+                              <div className="h-3 w-32 rounded-full dav-skeleton" />
+                              <div className="h-2.5 w-20 rounded-full dav-skeleton" />
+                            </div>
+                          </div>
+                          <div className="mt-5 space-y-2.5">
+                            {[100, 94, 98, 88, 72].map((w, i) => (
+                              <div key={i} className="h-3 rounded-full dav-skeleton" style={{ width: `${w}%` }} />
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                );
-              })}
-            </div>
+                )}
 
-          </div>
-        )}
-      </main>
+                {/* Résultat */}
+                {step === "done" && (
+                  <div className="space-y-8">
+                    <GenerationPanel
+                      provider={provider}
+                      onProviderChange={setProvider}
+                      audio={audio}
+                      onGenerate={handleGenerateLang}
+                      onGenerateAll={handleGenerateAll}
+                      onCopyAllQR={copyAllQR}
+                      disabled={isLoading}
+                      audioEnabled={directorSessionUnlocked}
+                    />
 
-      <footer className="text-center text-[#1a2942] text-[10px] font-mono py-6 mt-8 flex items-center justify-center gap-2">
-        <span>DAV Pipeline · 2026</span>
-        {/* Point d'accès caché vers Clone Script Pipeline — invisible, pas de lien nav */}
-        <a
-          href="/csp"
-          tabIndex={-1}
-          aria-hidden="true"
-          className="w-2 h-2 shrink-0 rounded-full"
-          style={{ background: "transparent" }}
-        />
-      </footer>
+                    <section>
+                      <h2 className="font-display text-[28px] font-semibold leading-none mb-4 px-1">Scripts</h2>
+                      <div className="grid lg:grid-cols-2 gap-5">
+                        {SCRIPT_SECTIONS.map((section) => {
+                          const content = getContent(section);
+                          if (!content && !sections[section]) return null;
+                          const lang = section.split(" ")[1];
+                          const displayContent = content ?? "";
+                          const stats = displayContent ? wordStats(displayContent) : null;
+                          const audioKey = provider === "edge-tts" ? `EDGE_${lang}` : provider === "google-tts" ? `GTTS_${lang}` : provider === "google-ai-studio" ? `GEMINI_${lang}` : lang;
+                          const audioState = audio[audioKey];
+                          const isAdjusting = adjusting === section;
+                          const hasOverride = section in overrides;
 
-      {/* Command palette */}
-      <CommandPalette
-        open={showPalette}
-        onClose={() => setShowPalette(false)}
-        onPasteUrl={() => { reset(); setTimeout(() => { const el = document.querySelector("input[type=text]") as HTMLInputElement; el?.focus(); }, 50); }}
-        onGenerateFR={() => { const c = getVoiceConfigForLang("FR"); handleTTS("FR", c.voice, c.speed); }}
-        onGenerateEN={() => { const c = getVoiceConfigForLang("EN"); handleTTS("EN", c.voice, c.speed); }}
-        onGenerateDE={() => { const c = getVoiceConfigForLang("DE"); handleTTS("DE", c.voice, c.speed); }}
-        onGenerateES={() => { const c = getVoiceConfigForLang("ES"); handleTTS("ES", c.voice, c.speed); }}
-        onGenerateAll={handleGenerateAll}
-        onCopyAllQR={() => { copyAllQR(); toast.success("QR copié !"); }}
-        onReset={reset}
-        hasContent={step === "done"}
-      />
+                          return (
+                            <ScriptCard
+                              key={section}
+                              section={section}
+                              content={displayContent}
+                              stats={stats}
+                              adjustDurations={ADJUST_DURATIONS}
+                              isAdjusting={isAdjusting}
+                              hasOverride={hasOverride}
+                              adjusting={!!adjusting}
+                              audioState={audioState}
+                              isCopied={copied === section}
+                              isAutoCorrection={!!correctingLangs[lang]}
+                              onCopy={() => copySection(section, displayContent)}
+                              onAdjust={(dur) => handleAdjust(section, dur)}
+                              onAdjustCustom={(sec) => handleAdjustCustom(section, sec)}
+                              onRestore={() => setOverrides((o) => { const n = { ...o }; delete n[section]; return n; })}
+                              healthScore={healthScores[lang]?.score}
+                              healthFeedback={healthScores[lang]?.feedback}
+                            />
+                          );
+                        })}
+                      </div>
+                    </section>
 
-      {/* Floating actions (mobile) */}
-      <FloatingActions onCopyAllQR={() => { copyAllQR(); }} show={step === "done"} />
+                    <section className="rounded-[24px] bg-deck border border-line-soft p-5 sm:p-7">
+                      <h2 className="font-display text-[28px] font-semibold leading-none">Titres et mots-clés</h2>
 
+                      <h3 className="mt-6 mb-3 text-[15px] font-semibold text-muted">Titres courts</h3>
+                      <div className="grid sm:grid-cols-2 gap-3">
+                        {TITLE_SHORT.map(([section, label]) => renderTitleItem(section, label))}
+                      </div>
 
+                      <h3 className="mt-7 mb-3 text-[15px] font-semibold text-muted">Titres longs</h3>
+                      <div className="grid sm:grid-cols-2 gap-3">
+                        {TITLE_LONG.map(([section, label]) => renderTitleItem(section, label))}
+                      </div>
 
+                      {keywordList.length > 0 && (
+                        <>
+                          <div className="mt-7 mb-3 flex items-center justify-between gap-3">
+                            <h3 className="text-[15px] font-semibold text-muted">Mots-clés de recherche (EN)</h3>
+                            <button
+                              onClick={() => copySection("SEARCH KEYWORDS EN", keywordsText)}
+                              className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-[13px] font-medium text-muted hover:text-fg hover:bg-raised transition-colors"
+                            >
+                              {copied === "SEARCH KEYWORDS EN" ? <Check size={14} className="text-ok" /> : <Copy size={14} />}
+                              {copied === "SEARCH KEYWORDS EN" ? "Copié" : "Copier"}
+                            </button>
+                          </div>
+                          <ul className="flex flex-wrap gap-2">
+                            {keywordList.map((kw, i) => (
+                              <li key={`${kw}-${i}`} className="h-9 px-3.5 rounded-full bg-raised/70 text-[14px] text-fg/90 flex items-center">
+                                {kw}
+                              </li>
+                            ))}
+                          </ul>
+                        </>
+                      )}
+                    </section>
+                  </div>
+                )}
+              </div>
+            )}
+          </main>
+
+          <footer className="py-8 text-center text-[13px] text-dim flex items-center justify-center gap-2">
+            <span className="tabular-nums">DAV Pipeline 2026, version {APP_VERSION}</span>
+            {/* Point d'accès caché vers Clone Script Pipeline — invisible, pas de lien nav */}
+            <a
+              href="/csp"
+              tabIndex={-1}
+              aria-hidden="true"
+              className="w-2 h-2 shrink-0 rounded-full"
+              style={{ background: "transparent" }}
+            />
+          </footer>
+
+          <CommandPalette
+            open={showPalette}
+            onClose={() => setShowPalette(false)}
+            onPasteUrl={() => { reset(); setTimeout(() => { const el = document.querySelector("input[type=text]") as HTMLInputElement; el?.focus(); }, 50); }}
+            onGenerateFR={() => { const c = getVoiceConfigForLang("FR"); handleTTS("FR", c.voice, c.speed); }}
+            onGenerateEN={() => { const c = getVoiceConfigForLang("EN"); handleTTS("EN", c.voice, c.speed); }}
+            onGenerateDE={() => { const c = getVoiceConfigForLang("DE"); handleTTS("DE", c.voice, c.speed); }}
+            onGenerateES={() => { const c = getVoiceConfigForLang("ES"); handleTTS("ES", c.voice, c.speed); }}
+            onGenerateAll={handleGenerateAll}
+            onCopyAllQR={() => { copyAllQR(); toast.success("Les 13 sections sont copiées"); }}
+            onReset={reset}
+            hasContent={step === "done"}
+          />
+
+          <FloatingActions onCopyAllQR={() => { copyAllQR(); }} show={step === "done"} />
         </>
       )}
     </div>
   );
 }
-

@@ -24,29 +24,28 @@ export function FloatingActions({ onCopyAllQR, show }: Props) {
 
   function handleCopy() {
     onCopyAllQR();
-    toast.success("QR copié !");
+    toast.success("Les 13 sections sont copiées");
   }
 
   return (
-    <div className="fixed bottom-6 right-4 z-40 flex flex-col gap-2 items-end sm:hidden">
-      <button
-        onClick={handleCopy}
-        className="flex items-center gap-1.5 px-3 py-2 text-[11px] font-mono bg-[#0d1420] border border-[#1a2942] text-[#7a9ac2] hover:border-[#00b4ff] hover:text-[#00b4ff] shadow-lg transition-none"
-        style={{ borderRadius: "2px" }}
-      >
-        <Copy size={11} />
-        Copy QR
-      </button>
+    <div className="fixed bottom-5 right-4 z-40 flex flex-col gap-2 items-end sm:hidden">
       {scrolled && (
         <button
           onClick={() => window.scrollTo({ top: 0 })}
-          className="flex items-center justify-center w-8 h-8 bg-[#0d1420] border border-[#1a2942] text-[#4a6a8a] hover:text-[#00b4ff] hover:border-[#00b4ff] shadow-lg transition-none"
-          style={{ borderRadius: "2px" }}
+          className="w-11 h-11 rounded-full grid place-items-center bg-raised border border-line text-muted shadow-[0_12px_30px_-8px_rgba(0,0,0,0.7)]"
           title="Remonter"
+          aria-label="Remonter"
         >
-          <ArrowUp size={12} />
+          <ArrowUp size={17} />
         </button>
       )}
+      <button
+        onClick={handleCopy}
+        className="inline-flex items-center gap-2 h-12 px-5 rounded-full bg-accent-deep text-white text-[15px] font-semibold shadow-[0_16px_36px_-10px_rgba(44,104,230,0.7)]"
+      >
+        <Copy size={16} />
+        Tout copier
+      </button>
     </div>
   );
 }
