@@ -3,7 +3,7 @@ import { DIRECTOR_COOKIE, directorToken } from "@/lib/director-auth";
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
-  if (body?.code !== "0506") {
+  if (body?.code !== "2003") {
     return Response.json({ ok: false }, { status: 403 });
   }
   const token = await directorToken();

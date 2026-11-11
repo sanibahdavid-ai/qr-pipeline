@@ -500,6 +500,7 @@ export default function Home() {
     setPinBusy(true);
     let newRole: UserRole = null;
     if (pinInput === "2811") newRole = "ADMIN";
+    else if (pinInput === "3010") newRole = "ARNOLD";
     else if (pinInput === "2026") newRole = "GUEST";
     else if (pinInput.length === 4) {
       // The director code is checked on the server, which also sets the cookie

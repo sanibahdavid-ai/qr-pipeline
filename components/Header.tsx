@@ -22,6 +22,7 @@ const PROVIDER_NAMES: Record<Provider, string> = {
 const ROLE_NAMES: Record<NonNullable<UserRole>, string> = {
   DAV: "Directeur",
   ADMIN: "Admin",
+  ARNOLD: "Arnold",
   GUEST: "Invité",
 };
 
@@ -278,7 +279,7 @@ export function Header({
                   pinRole === "DAV" ? "bg-accent text-ink" : pinRole === "ADMIN" ? "bg-warn text-ink" : "bg-dim text-ink"
                 }`}
               >
-                {pinRole === "DAV" ? "DAV" : pinRole === "ADMIN" ? "ADM" : "INV"}
+                {pinRole === "DAV" ? "DAV" : pinRole === "ADMIN" ? "ADM" : pinRole === "ARNOLD" ? "ARN" : "INV"}
               </span>
               <span className="hidden sm:inline text-[14px] font-medium text-muted">{roleName}</span>
             </button>

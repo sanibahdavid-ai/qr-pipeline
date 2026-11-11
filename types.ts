@@ -42,7 +42,7 @@ export type HistoryEntry = {
   summaryTitle?: string;
 };
 
-export type UserRole = "DAV" | "ADMIN" | "GUEST" | null;
+export type UserRole = "DAV" | "ADMIN" | "ARNOLD" | "GUEST" | null;
 
 export type AuthUser = {
   id: string;
